@@ -200,7 +200,10 @@ const dowCoef = new Map(weekday.map((w) => [w.k, (w.ret - wkMean) / 100]));
 const forecasts = new Map<string, Forecast>();
 for (const it of items) {
   const d = dailyBy.get(it.item_id) ?? [];
-  const f = forecast(d.map((x) => ({ d: x.d, vwap: x.vwap })) as Point[], dowCoef);
+  const tradesPerDay = it.span_days > 0.5 ? it.trades / it.span_days : it.trades * 2;
+  const f = tradesPerDay >= 5
+    ? forecast(d.map((x) => ({ d: x.d, vwap: x.vwap })) as Point[], dowCoef)
+    : null;
   if (f) forecasts.set(it.item_id, f);
   writeFileSync(`${OUT}/data/series/${it.item_id}.json`, JSON.stringify({
     daily: d, hourly: hourlyBy.get(it.item_id) ?? [],

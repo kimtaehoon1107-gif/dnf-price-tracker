@@ -97,7 +97,7 @@ FROM collection_health WHERE checked_at > now() - interval '24 hours';
 
 ---
 
-## P3 · 원칙이 코드와 어긋난다
+## P3 · 완료 (2026-09-08)
 
 ### 5. D등급 아이템에 예측을 띄우고 있다
 

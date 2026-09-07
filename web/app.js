@@ -815,7 +815,9 @@ async function renderDetail(it) {
           : '표본이 얇아 백테스트는 생략했습니다.') +
         `<br><span style="color:var(--ink-4)">모델 — ${esc(f.method)}</span>`;
     } else {
-      desc.textContent = '캔들은 일별 시가·고가·저가·종가이며 오늘 봉은 수집 중입니다. 검은 실선은 일별 VWAP입니다. 예측에는 일봉이 최소 10일 필요합니다.';
+      desc.textContent = it.g === 'D'
+        ? '캔들은 일별 시가·고가·저가·종가이며 오늘 봉은 수집 중입니다. 검은 실선은 일별 VWAP입니다. D등급은 일평균 체결이 5건 미만이라 예측을 표시하지 않습니다.'
+        : '캔들은 일별 시가·고가·저가·종가이며 오늘 봉은 수집 중입니다. 검은 실선은 일별 VWAP입니다. 예측에는 일봉이 최소 10일 필요합니다.';
     }
     c1.timeScale().fitContent();
     renderEventRail(c1, timeline);
