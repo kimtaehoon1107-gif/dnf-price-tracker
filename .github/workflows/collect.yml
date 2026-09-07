@@ -1,16 +1,24 @@
 name: 경매장 수집
 
-# GitHub의 스케줄 워크플로는 보장이 아니라 best-effort다. 실측(2026-09-07)에서
-# */10 크론이 6시간 동안 단 1회만 떴다. 정각에 몰리는 고빈도 크론일수록
-# 통째로 드롭된다.
+# 트리거는 GitHub 예약이 아니라 Supabase pg_cron이다.
 #
-# 그래서 전략을 바꿨다: 자주 뜨기를 기대하는 대신 "한 번 뜨면 오래 돌게" 한다.
-#   · 15분마다 시도하되 어긋난 분(:07, :22, :37, :52)을 써서 정각 혼잡을 피한다
-#   · 각 실행은 55분간 내부 루프를 돈다 → 시간당 한 번만 떠도 55분을 커버
-#   · concurrency로 겹침을 막고, 대기 중인 실행이 앞 실행을 이어받는다
+# GitHub의 schedule은 best-effort라 부하가 높으면 실행을 아예 만들지 않는다.
+# 실측(2026-09-07): */10 크론이 하루 종일 단 1회 떴고, 시각을 어긋내도 같았다.
+# 취소·건너뜀 기록조차 없이 신호 자체가 안 온다.
+#
+# 반면 workflow_dispatch는 명시적 API 요청이라 큐에 바로 들어간다(실측 6/6).
+# 그래서 실행 경로는 그대로 두고 시계만 밖으로 뺐다:
+#
+#   Supabase pg_cron (15분마다)
+#     → pg_net으로 GitHub API workflow_dispatch 호출
+#       → 이 워크플로 실행 (55분 내부 루프)
+#
+# cron job 이름: dnf-collect-dispatch  (등록 SQL은 sql/scheduler.sql)
+# PAT는 Supabase Vault의 gh_dispatch_token에 있다.
+#
+# 15분마다 쏘지만 아래 concurrency 그룹이 겹침을 막는다. 이미 실행 중이면
+# 새 요청은 대기했다가 앞 실행이 끝나는 즉시 이어받아 공백이 생기지 않는다.
 on:
-  schedule:
-    - cron: '7,22,37,52 * * * *'
   workflow_dispatch:
 
 concurrency:

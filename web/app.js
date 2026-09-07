@@ -101,6 +101,76 @@ function shockData(days) {
   return { points, latest: points.at(-1) };
 }
 
+function weekdayProfile(days, events) {
+  const today = new Date(DATA.builtAt).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+  const complete = days.filter((x) => x.d < today && x.vwap > 0 && x.qty > 0);
+  if (!complete.length) return { state: 'history', span: 0, remaining: 31 };
+
+  const dayNumber = (date) => Date.parse(`${date}T12:00:00Z`) / 86400000;
+  const span = dayNumber(complete.at(-1).d) - dayNumber(complete[0].d) + 1;
+  if (span < 31) return { state: 'history', span, remaining: 31 - span };
+
+  const eventDays = events.flatMap((event) => eventStages(event)
+    .map((stage) => event[stage.key])
+    .filter(Boolean)
+    .map(dayNumber));
+  const excluded = complete.filter((x) => eventDays.some((eventDay) => Math.abs(dayNumber(x.d) - eventDay) <= 3));
+  const used = complete.filter((x) => !eventDays.some((eventDay) => Math.abs(dayNumber(x.d) - eventDay) <= 3));
+  const groups = Array.from({ length: 7 }, (_, index) => used.filter((x) => isoDow(x.d) === index + 1));
+  const counts = groups.map((group) => group.length);
+  if (counts.some((count) => count < 3)) {
+    return { state: 'samples', span, counts, used: used.length, excluded: excluded.length };
+  }
+
+  const mean = (rows, key) => rows.reduce((sum, row) => sum + row[key], 0) / rows.length;
+  const meanPrice = mean(used, 'vwap');
+  const meanQty = mean(used, 'qty');
+  const labels = ['월', '화', '수', '목', '금', '토', '일'];
+  return {
+    state: 'ready', span, used: used.length, excluded: excluded.length,
+    points: groups.map((group, index) => ({
+      k: index + 1,
+      label: labels[index],
+      price: mean(group, 'vwap') / meanPrice * 100,
+      qty: mean(group, 'qty') / meanQty * 100,
+      n: group.length,
+    })),
+  };
+}
+
+function weekdaySVG(points, key, title) {
+  const W = 420, H = 220, L = 28, R = 14, T = 34, B = 34;
+  const plotW = W - L - R, plotH = H - T - B;
+  const maxDeviation = Math.max(5, ...points.map((point) => Math.abs(point[key] - 100))) * 1.2;
+  const low = 100 - maxDeviation, high = 100 + maxDeviation;
+  const yAt = (value) => T + (high - value) / (high - low) * plotH;
+  const baseline = yAt(100);
+  const slot = plotW / points.length;
+  const barWidth = Math.min(30, slot * 0.54);
+  const aria = points.map((point) => `${point.label}요일 ${point[key].toFixed(1)}, 표본 ${point.n}일`).join(', ');
+
+  return `<div class="weekday-chart">
+    <h4>${title}</h4>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(`${title}. 아이템 평균 100. ${aria}`)}">
+      <title>${esc(`${title} · 아이템 평균 100`)}</title>
+      <rect class="weekday-thursday" x="${L + slot * 3}" y="${T - 8}" width="${slot}" height="${plotH + 25}" rx="8"/>
+      <line class="weekday-baseline" x1="${L}" y1="${baseline}" x2="${W - R}" y2="${baseline}"/>
+      <text class="weekday-axis" x="${L - 5}" y="${baseline + 4}" text-anchor="end">100</text>
+      ${points.map((point, index) => {
+        const x = L + slot * index + (slot - barWidth) / 2;
+        const y = yAt(point[key]);
+        const top = Math.min(y, baseline);
+        const height = Math.max(2, Math.abs(y - baseline));
+        return `<rect class="weekday-bar ${point[key] >= 100 ? 'above' : 'below'}" x="${x}" y="${top}" width="${barWidth}" height="${height}" rx="4">
+          <title>${point.label}요일 · ${point[key].toFixed(1)} · 표본 ${point.n}일</title>
+        </rect>
+        <text class="weekday-value" x="${x + barWidth / 2}" y="${point[key] >= 100 ? top - 6 : top + height + 14}" text-anchor="middle">${point[key].toFixed(1)}</text>
+        <text class="weekday-label${point.k === 4 ? ' thursday' : ''}" x="${x + barWidth / 2}" y="${H - 8}" text-anchor="middle">${point.label}</text>`;
+      }).join('')}
+    </svg>
+  </div>`;
+}
+
 function shockName(point) {
   if (point.qty >= 0 && point.price >= 0) return '수요 증가';
   if (point.qty >= 0) return '공급 증가';
@@ -559,6 +629,11 @@ async function renderDetail(it) {
       </details>
     </div>
     <div class="panel">
+      <h3>아이템별 요일 프로파일</h3>
+      <p class="desc" id="weekday-desc">완료된 일봉을 분석하는 중…</p>
+      <div id="weekday-profile"></div>
+    </div>
+    <div class="panel">
       <h3>호가–체결 갭</h3>
       <p class="desc">최저 호가가 각 관측 시점의 직전 24시간 체결 VWAP보다 얼마나 높거나 낮은지 보여줍니다. 양수면 매물 부족 또는 상승 기대, 음수면 급매 신호일 수 있습니다.</p>
       <div class="chart" id="c4"></div>
@@ -623,6 +698,30 @@ async function renderDetail(it) {
   });
   document.getElementById('event-count').textContent = `${events.length}건`;
   document.getElementById('event-list').innerHTML = eventStudyHTML(events, d);
+
+  const weekday = weekdayProfile(d, events);
+  const weekdayDesc = document.getElementById('weekday-desc');
+  const weekdayEl = document.getElementById('weekday-profile');
+  if (weekday.state === 'ready') {
+    const thursday = weekday.points[3];
+    weekdayDesc.innerHTML =
+      `완료 일봉 <b>${weekday.used}일</b>을 사용해 아이템 평균을 100으로 환산했습니다. ` +
+      `패치·출시·종료 전후 3일 <b>${weekday.excluded}일</b>은 제외했습니다. ` +
+      `목요일은 가격 <b>${thursday.price.toFixed(1)}</b> · API 관측 수량 <b>${thursday.qty.toFixed(1)}</b>입니다.`;
+    weekdayEl.innerHTML = `<div class="weekday-grid">
+      ${weekdaySVG(weekday.points, 'price', '가격 지수')}
+      ${weekdaySVG(weekday.points, 'qty', 'API 관측 수량 지수')}
+    </div>`;
+  } else if (weekday.state === 'history') {
+    weekdayDesc.textContent = `최소 31일의 이력이 필요합니다. 완료 일봉 범위는 현재 ${weekday.span}일이며 ${weekday.remaining}일 더 필요합니다.`;
+    weekdayEl.innerHTML = '<p class="weekday-empty">충분한 이력이 쌓이면 월요일부터 일요일까지의 패턴을 표시합니다.</p>';
+  } else {
+    const labels = ['월', '화', '수', '목', '금', '토', '일'];
+    weekdayDesc.textContent =
+      `31일 이력은 충족했지만 이벤트 구간을 제외한 요일별 표본이 부족합니다. ` +
+      `${labels.map((label, index) => `${label} ${weekday.counts[index]}일`).join(' · ')} (요일당 최소 3일)`;
+    weekdayEl.innerHTML = `<p class="weekday-empty">사용 가능 ${weekday.used}일 · 이벤트 전후 제외 ${weekday.excluded}일</p>`;
+  }
 
   if (depletion.length) {
     const cutoff = Date.parse(DATA.builtAt) - 24 * 3600000;

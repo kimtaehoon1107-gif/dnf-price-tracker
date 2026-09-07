@@ -189,6 +189,20 @@ header.top .built { font-size: 12px; color: var(--ink-4); font-variant-numeric: 
 .shock-tick { fill: var(--ink-4); font: 11px var(--mono); }
 .shock-title { fill: var(--ink-3); font: 12px var(--sans); }
 
+.weekday-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.weekday-chart { min-width: 0; padding: 12px 12px 4px; background: var(--page); border-radius: 12px; overflow-x: auto; }
+.weekday-chart h4 { margin: 0 0 2px; font-size: 13px; color: var(--ink-2); }
+.weekday-chart svg { display: block; width: 100%; min-width: 340px; }
+.weekday-thursday { fill: var(--gold); opacity: .09; }
+.weekday-baseline { stroke: var(--line-2); stroke-width: 1; stroke-dasharray: 3 3; }
+.weekday-bar.above { fill: var(--up); }
+.weekday-bar.below { fill: var(--down); }
+.weekday-axis { fill: var(--ink-4); font: 10px var(--mono); }
+.weekday-value { fill: var(--ink-2); font: 600 10px var(--mono); }
+.weekday-label { fill: var(--ink-3); font: 12px var(--sans); }
+.weekday-label.thursday { fill: var(--gold); font-weight: 700; }
+.weekday-empty { margin: 0; color: var(--ink-3); font-size: 13px; }
+
 .event-rail { position: relative; height: 30px; margin-top: 2px; }
 .event-pin-group {
   position: absolute; top: 7px; transform: translateX(-50%);
@@ -268,6 +282,7 @@ footer b { color: var(--ink-2); }
   .lh .h5, .lh .h6, .lh .h7, .row .c5, .row .c6, .row .c7 { display: none; }
   .bigpx { font-size: 28px; }
   .event-stages { grid-template-columns: 1fr; }
+  .weekday-grid { grid-template-columns: 1fr; }
 }
 
 /* ── 분석 페이지 보조 요소 ────────────────────── */
