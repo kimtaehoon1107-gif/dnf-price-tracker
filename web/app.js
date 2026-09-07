@@ -144,9 +144,9 @@ function shockSVG(points) {
 }
 
 const EVENT_STAGES = [
-  { key: 'announced', label: '공지', position: 'belowBar', shape: 'arrowUp', color: '--blue' },
-  { key: 'starts', label: '적용', position: 'aboveBar', shape: 'square', color: '--gold' },
-  { key: 'ends', label: '종료', position: 'aboveBar', shape: 'arrowDown', color: '--ink-3' },
+  { key: 'announced', label: '공지' },
+  { key: 'starts', label: '적용' },
+  { key: 'ends', label: '종료' },
 ];
 
 const eventDate = (d) => d
@@ -186,26 +186,33 @@ function eventStageStudy(stage, days) {
 
 function eventTimeline(events, days, forecast) {
   if (!days.length) return [];
-  const first = days[0].d;
+  // 가격선이 과거 이벤트 때문에 눌리지 않도록 이력 시작 직전의 패치만 축에 보탠다.
+  const firstDate = new Date(`${days[0].d}T12:00:00Z`);
+  firstDate.setUTCDate(firstDate.getUTCDate() - 3);
+  const first = firstDate.toISOString().slice(0, 10);
+  const relatedFirstDate = new Date(`${days[0].d}T12:00:00Z`);
+  relatedFirstDate.setUTCDate(relatedFirstDate.getUTCDate() - 45);
+  const relatedFirst = relatedFirstDate.toISOString().slice(0, 10);
   const last = forecast?.points?.at(-1)?.d ?? days.at(-1).d;
   const byDate = new Map();
   for (const event of events) {
-    for (const [key, stage] of [['starts', '적용'], ['ends', '종료']]) {
-      const date = event[key];
-      if (!date || date < first || date > last) continue;
-      if (!byDate.has(date)) byDate.set(date, { date, entries: [] });
-      byDate.get(date).entries.push({ event, stage });
-    }
+    const date = event.starts;
+    const minDate = event.related_item_ids?.length ? relatedFirst : first;
+    if (!date || date < minDate || date > last) continue;
+    if (!byDate.has(date)) byDate.set(date, { date, events: [] });
+    byDate.get(date).events.push(event);
   }
   return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function eventBadge(group) {
-  if (group.entries.length > 1) return String(group.entries.length);
-  if (group.entries[0].stage === '종료') return '종';
-  return ({ 대규모: '대', 주요: '주', 레이드: '레', 패키지: '패', 아바타: '아', 아이템: '템' })
-    [group.entries[0].event.type] ?? '공';
-}
+const EVENT_TYPES = {
+  퍼스트서버: { badge: '퍼', label: '퍼스트서버' },
+  대규모: { badge: '대', label: '대규모' },
+  주요: { badge: '주', label: '주요' },
+  패키지: { badge: '패', label: '패키지 출시' },
+};
+
+const eventTypeLabel = (type) => EVENT_TYPES[type]?.label ?? type;
 
 function renderEventRail(chart, groups) {
   const rail = document.getElementById('event-rail');
@@ -215,20 +222,30 @@ function renderEventRail(chart, groups) {
   }
   rail.hidden = false;
   rail.innerHTML = groups.map((group, index) => {
-    const major = group.entries.some(({ event }) => ['대규모', '주요', '레이드'].includes(event.type));
-    const ending = group.entries.every(({ stage }) => stage === '종료');
-    const tone = ending ? 'end' : major ? 'major' : 'market';
-    const title = group.entries.map(({ event, stage }) => `${stage} · [${event.type}] ${event.name}`).join('\n');
-    return `<button class="event-pin ${tone}" type="button" data-event-pin="${index}" title="${esc(title)}" aria-label="${esc(`${group.date} ${title}`)}">${eventBadge(group)}</button>`;
+    const byType = new Map();
+    for (const event of group.events) {
+      if (!byType.has(event.type)) byType.set(event.type, []);
+      byType.get(event.type).push(event);
+    }
+    const pins = [...byType].map(([type, events]) => {
+      const meta = EVENT_TYPES[type];
+      const action = type === '패키지' ? '출시' : '패치';
+      const title = events.map((event) => `[${meta.label}] ${event.name}`).join('\n');
+      return `<button class="event-pin ${type}" type="button" title="${esc(title)}" aria-label="${esc(`${group.date} ${action} · ${title}`)}">${meta.badge}</button>`;
+    }).join('');
+    return `<div class="event-pin-group" data-event-pin="${index}">${pins}</div>`;
   }).join('');
+  rail.onclick = (event) => {
+    if (event.target.closest('.event-pin')) document.getElementById('event-details').open = true;
+  };
 
   requestAnimationFrame(() => {
     for (const [index, group] of groups.entries()) {
       const pin = rail.querySelector(`[data-event-pin="${index}"]`);
       const x = chart.timeScale().timeToCoordinate(group.date);
       if (x === null) { pin.hidden = true; continue; }
-      pin.style.left = `${Math.max(14, Math.min(rail.clientWidth - 14, x))}px`;
-      pin.onclick = () => { document.getElementById('event-details').open = true; };
+      const half = pin.offsetWidth / 2;
+      pin.style.left = `${Math.max(half + 2, Math.min(rail.clientWidth - half - 2, x))}px`;
     }
   });
 }
@@ -244,13 +261,16 @@ function eventStudyHTML(events, days) {
       ? `<a href="${esc(event.source_url)}" target="_blank" rel="noopener">근거 보기 ↗</a>`
       : '<span class="event-source">출처 미등록</span>';
     return `<div class="event-row" id="event-${event.id}">
-      <div class="event-name"><span class="tag">${esc(event.type)}</span>${event.related_item_ids?.length ? '' : '<span class="tag g">전체</span>'}<b>${esc(event.name)}</b>${href}</div>
+      <div class="event-name"><span class="tag">${esc(eventTypeLabel(event.type))}</span>${event.related_item_ids?.length ? '' : '<span class="tag g">전체</span>'}<b>${esc(event.name)}</b>${href}</div>
       <div class="event-stages">${EVENT_STAGES.map((stage) => {
         const result = eventStageStudy({ date: event[stage.key] }, days);
+        const label = stage.key === 'starts'
+          ? event.type === '패키지' ? '출시' : event.type === '퍼스트서버' ? '패치' : stage.label
+          : stage.label;
         const effect = result.state === 'ready'
           ? `요일 보정 VWAP <b class="${cls(result.price)}">${pct(result.price)}</b> · API 관측 수량 <b class="${cls(result.qty)}">${pct(result.qty)}</b>`
           : stateText[result.state];
-        return `<div><span>${stage.label}</span><b>${eventDate(event[stage.key])}</b><small>${effect}</small></div>`;
+        return `<div><span>${label}</span><b>${eventDate(event[stage.key])}</b><small>${effect}</small></div>`;
       }).join('')}</div>
     </div>`;
   }).join('')}</div>`;
@@ -533,7 +553,7 @@ async function renderDetail(it) {
       <details class="event-study" id="event-details">
         <summary><span>가격 영향 이벤트 · 이벤트 스터디</span><small id="event-count"></small><i aria-hidden="true">⌄</i></summary>
         <div class="event-body">
-          <p class="desc">공지·적용·종료 시점을 가격과 겹쳐 봅니다. 전후 수치는 요일효과를 보정한 3일 평균 비교이며, 동시 발생이 인과관계를 뜻하지는 않습니다.</p>
+          <p class="desc">공지·패치 또는 출시·종료 시점을 가격과 함께 봅니다. 전후 수치는 요일효과를 보정한 3일 평균 비교이며, 동시 발생이 인과관계를 뜻하지는 않습니다.</p>
           <div id="event-list"></div>
         </div>
       </details>
@@ -594,7 +614,7 @@ async function renderDetail(it) {
   const desc = document.getElementById('fc-desc');
   const shock = shockData(d);
   const depletion = s.depletion ?? [];
-  const events = s.events ?? [];
+  const events = (s.events ?? []).filter((event) => EVENT_TYPES[event.type]);
   document.getElementById('event-count').textContent = `${events.length}건`;
   document.getElementById('event-list').innerHTML = eventStudyHTML(events, d);
 

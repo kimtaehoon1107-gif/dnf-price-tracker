@@ -151,7 +151,9 @@ const events = (await query<{
            to_char(ends_at AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') END AS ends,
          related_item_ids, source_url
   FROM events
-  ORDER BY COALESCE(announced_at, starts_at, ends_at) DESC, id DESC`)).rows;
+  WHERE type = ANY($1)
+  ORDER BY COALESCE(announced_at, starts_at, ends_at) DESC, id DESC`,
+[['퍼스트서버', '대규모', '주요', '패키지']])).rows;
 
 const byItem = <T extends { item_id: string }>(rows: T[]) => {
   const m = new Map<string, Omit<T, 'item_id'>[]>();

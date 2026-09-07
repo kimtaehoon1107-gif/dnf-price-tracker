@@ -190,8 +190,12 @@ header.top .built { font-size: 12px; color: var(--ink-4); font-variant-numeric: 
 .shock-title { fill: var(--ink-3); font: 12px var(--sans); }
 
 .event-rail { position: relative; height: 30px; margin-top: 2px; }
+.event-pin-group {
+  position: absolute; top: 7px; transform: translateX(-50%);
+  display: flex; gap: 3px;
+}
 .event-pin {
-  position: absolute; top: 7px; transform: translateX(-50%); width: 22px; height: 19px;
+  position: relative; width: 22px; height: 19px;
   padding: 0; border: 0; border-radius: 5px; background: var(--blue-bg); color: var(--blue);
   font: 700 10px var(--sans); cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.08);
 }
@@ -199,10 +203,10 @@ header.top .built { font-size: 12px; color: var(--ink-4); font-variant-numeric: 
   content: ''; position: absolute; left: 7px; top: -4px;
   border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 5px solid var(--blue-bg);
 }
-.event-pin.major { background: var(--up-bg); color: var(--up); }
-.event-pin.major::before { border-bottom-color: var(--up-bg); }
-.event-pin.end { background: var(--line); color: var(--ink-3); }
-.event-pin.end::before { border-bottom-color: var(--line); }
+.event-pin.대규모, .event-pin.주요 { background: var(--up-bg); color: var(--up); }
+.event-pin.대규모::before, .event-pin.주요::before { border-bottom-color: var(--up-bg); }
+.event-pin.패키지 { background: rgba(245,166,35,.14); color: var(--gold); }
+.event-pin.패키지::before { border-bottom-color: rgba(245,166,35,.14); }
 .event-pin:hover { filter: brightness(.97); }
 
 .event-study { border-top: 1px solid var(--line); margin-top: 2px; }

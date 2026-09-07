@@ -1,4 +1,4 @@
-// 공식 던파 업데이트와 세리아 상점에서 시세에 영향을 줄 만한 일정만 events에 넣는다.
+// 공식 던파의 퍼스트서버·대규모·주요 업데이트와 패키지 출시 일정만 events에 넣는다.
 // 매주 한 번만 실행하며 source_url 또는 이름+적용일로 중복을 막는다.
 
 import { query, pool } from '../src/db.ts';
@@ -56,29 +56,17 @@ function nextDay(date: string) {
   return d.toISOString().slice(0, 10);
 }
 
+function titledDay(title: string, referenceDay: string) {
+  const match = title.match(/(\d{1,2})\/(\d{1,2})\([월화수목금토일]\)/);
+  if (match) return `${referenceDay.slice(0, 4)}-${match[1].padStart(2, '0')}-${match[2].padStart(2, '0')}`;
+  return null;
+}
+
 function appliedDay(title: string, announcedDay: string) {
-  const match = title.match(/(\d{1,2})\/(\d{1,2})\(목\)/);
-  if (match) return `${announcedDay.slice(0, 4)}-${match[1].padStart(2, '0')}-${match[2].padStart(2, '0')}`;
+  const inTitle = titledDay(title, announcedDay);
+  if (inTitle) return inTitle;
   // 대규모 업데이트는 통상 수요일 공지, 목요일 적용이다.
   return nextDay(announcedDay);
-}
-
-function updateType(title: string, content: string) {
-  if (/레이드/.test(title) || /레이드[^.!?]{0,50}(?:추가|업데이트)됩니다/.test(content)) return '레이드';
-  if (/패키지|아바타/.test(title)) return '패키지';
-  if (/보상|드롭|드랍|상점|거래|교환|아이템/.test(content)) return '아이템';
-  return '패치';
-}
-
-function hasMarketImpact(content: string) {
-  // 버그 수정의 단순 키워드 일치는 제외하고, 공급·수요 구조가 바뀌는 문장만 통과시킨다.
-  const main = content.split('버그 수정')[0];
-  return [
-    /(?:신규\s*)?(?:레이드|던전|콘텐츠)[^.!?]{0,40}(?:추가|업데이트)됩니다/,
-    /(?:보상|드롭|드랍|상점|거래|교환)[^.!?]{0,50}(?:추가|개편|변경)됩니다/,
-    /(?:강화|증폭|성장|제작)[^.!?]{0,50}(?:추가|개편|변경)됩니다/,
-    /신규[^.!?]{0,30}(?:아이템|재료|카드|소울)/,
-  ].some((pattern) => pattern.test(main));
 }
 
 async function updateCandidates() {
@@ -93,23 +81,21 @@ async function updateCandidates() {
 
   for (const row of rows) {
     const category = clean(row[1]);
-    if (['퍼스트서버', '던파ON'].includes(category)) continue;
+    if (!['퍼스트서버', '대규모', '주요'].includes(category)) continue;
     const no = row[2];
     const title = clean(row[3]);
     const announcedDay = day(row[4]);
     if (announcedDay < cutoffDay) continue;
     const sourceUrl = `${BASE}/community/news/update/${no}`;
     const detail = await html(sourceUrl);
-    const start = detail.indexOf('<div class="bd_viewcont">');
-    const end = detail.indexOf('<article class="bdview_btnarea', start);
-    const content = clean(start >= 0 ? detail.slice(start, end > start ? end : undefined) : detail);
-    if (!['대규모', '주요'].includes(category) && !hasMarketImpact(content)) continue;
-
     candidates.push({
       name: title,
-      type: ['대규모', '주요'].includes(category) ? category : updateType(title, content),
+      type: category,
       announcedAt: publishedAt(detail, announcedDay),
-      startsAt: kst(appliedDay(title, announcedDay)),
+      // 퍼스트서버 공지는 게시 당일 서버에 적용된다. 본 서버 대규모·주요 패치는 다음 날 적용된다.
+      startsAt: kst(category === '퍼스트서버'
+        ? titledDay(title, announcedDay) ?? announcedDay
+        : appliedDay(title, announcedDay)),
       endsAt: null,
       relatedItemIds: null,
       sourceUrl,
@@ -148,7 +134,7 @@ async function shopCandidates() {
     const range = body.match(/(\d{4}\.\d{2}\.\d{2})\s*~\s*(\d{4}\.\d{2}\.\d{2})/);
     if (!titleMatch || !range) continue;
     const title = clean(titleMatch[1]);
-    if (!/패키지|아바타|패스/.test(title)) continue;
+    if (!/패키지/.test(title)) continue;
     const itemIds = relatedItems(title, items);
     if (!itemIds.length) continue;
 
@@ -158,7 +144,7 @@ async function shopCandidates() {
     const endsAt = day(range[2]);
     candidates.push({
       name: title,
-      type: /패키지/.test(title) ? '패키지' : '아바타',
+      type: '패키지',
       announcedAt: publishedAt(detail, startsAt),
       startsAt: kst(startsAt),
       endsAt: shopEndAt(detail, endsAt),
