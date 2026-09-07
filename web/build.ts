@@ -242,6 +242,22 @@ const meta = (await query<{
          (SELECT COALESCE(SUM(qty_sold),0)::int FROM listing_deltas
           WHERE reason <> 'expired') depletion_qty`)).rows[0];
 
+const health = (await query<{
+  checks24: number; uptime24: number | null;
+  before_checks: number; uptime_before: number | null;
+  after_checks: number; uptime_after: number | null;
+}>(`
+  SELECT COUNT(*) FILTER (WHERE checked_at > now() - interval '24 hours')::int AS checks24,
+         (100.0 * COUNT(*) FILTER (WHERE checked_at > now() - interval '24 hours' AND action = 'ok')
+           / NULLIF(COUNT(*) FILTER (WHERE checked_at > now() - interval '24 hours'), 0))::float8 AS uptime24,
+         COUNT(*) FILTER (WHERE checked_at < timestamptz '2026-09-07 15:15:00+00')::int AS before_checks,
+         (100.0 * COUNT(*) FILTER (WHERE checked_at < timestamptz '2026-09-07 15:15:00+00' AND action = 'ok')
+           / NULLIF(COUNT(*) FILTER (WHERE checked_at < timestamptz '2026-09-07 15:15:00+00'), 0))::float8 AS uptime_before,
+         COUNT(*) FILTER (WHERE checked_at >= timestamptz '2026-09-07 15:15:00+00')::int AS after_checks,
+         (100.0 * COUNT(*) FILTER (WHERE checked_at >= timestamptz '2026-09-07 15:15:00+00' AND action = 'ok')
+           / NULLIF(COUNT(*) FILTER (WHERE checked_at >= timestamptz '2026-09-07 15:15:00+00'), 0))::float8 AS uptime_after
+  FROM collection_health`)).rows[0];
+
 const withMeta = items.map((it) => {
   const f = forecasts.get(it.item_id);
   return {
@@ -255,7 +271,7 @@ const withMeta = items.map((it) => {
 
 writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
   builtAt: new Date().toISOString(),
-  meta, weekday, items: withMeta, legendary,
+  meta, health, weekday, items: withMeta, legendary,
   margin: { pkg: pkg?.vwap ?? null, pkgN: pkg?.n ?? 0, parts, partsSum: parts.reduce((s, r) => s + r.vwap, 0), fee: 0.03 },
 }));
 

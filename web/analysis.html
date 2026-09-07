@@ -58,8 +58,8 @@
 <div class="rule"></div>
 
 <p>
-  던파는 <b>매주 목요일 06시에 주간 던전이 초기화</b>됩니다. 그 직후 재료 공급이 쏟아진다면 가격이
-  내려가야 합니다. 검증해봤습니다.
+  던파는 <b>매주 목요일 06시에 주간 던전이 초기화</b>되고, 토요일에는 레이드 준비 수요가 몰릴 수 있습니다.
+  목요일의 공급 충격과 토요일의 2차 수요 파동이 실제 가격에 나타나는지 검증했습니다.
 </p>
 
 <p>
@@ -72,16 +72,16 @@
 <div class="note" id="weekday-verdict"></div>
 
 <p>
-  <b>가격은 내려가는데 거래량은 오히려 조금 늘었습니다.</b> 이 조합이 중요합니다 —
-  수요가 줄어서 가격이 내렸다면 거래량도 함께 줄었어야 합니다. 가격↓ + 거래량↑는
-  <b>공급 충격</b>의 서명이고, 목요일 06시 초기화 가설과 정확히 맞습니다.
+  가격만 보면 원인을 구분할 수 없습니다. 가격↓ + 거래량↑는 <b>공급 충격</b>,
+  가격↑ + 거래량↑는 <b>수요 충격</b>의 신호입니다. 위 판정은 최신 가격과 API 관측 수량을 함께 읽어
+  주간 사이클의 양 끝을 비교하며, 거래량이 평균과 비슷하면 원인을 단정하지 않습니다.
 </p>
 
 <div class="note quiet">
   <b>한 번 틀렸다가 고친 부분입니다.</b> 처음엔 거래가 거의 없는 잡템 70종을 함께 넣었더니
   "주말에 비싸고 주중에 싸다"는 전혀 다른 그림이 나왔습니다. 8골드짜리 헝겊 조각과 300만 골드짜리
   마법석을 같은 무게로 평균 낸 탓이었습니다. 시장에서 실제로 거래되는 아이템만 남기니
-  목요일 효과만 유의하게 남았습니다.
+  해석 가능한 주간 사이클이 드러났습니다. 어떤 요일이 유의한지는 위 최신 데이터에서 매번 다시 계산합니다.
 </div>
 
 <!-- 03 -->
@@ -173,6 +173,7 @@
 
 <ul>
   <li><b>API 관측 거래량은 하한값입니다.</b> 매물 소진량은 판매·취소가 섞이고 API 체결과 중복될 수 있는 별도 신호라 합산하지 않습니다.</li>
+  <li id="uptime-limit"><b>수집 공백이 일봉을 왜곡할 수 있습니다.</b> 가동률을 불러오는 중입니다.</li>
   <li><b>팔린 것만 봅니다.</b> 비싸서 안 팔린 매물은 데이터에 없어 실제 균형가보다 낮게 추정될 수 있습니다(생존 편향).</li>
   <li><b>수집 시작일 이전은 존재하지 않습니다.</b> 백필로 최대 1개월을 확보하지만 아이템마다 다릅니다 —
       거래가 빠른 아이템일수록 100건이 몇 시간치라 과거를 거의 못 봅니다.</li>
@@ -217,9 +218,10 @@ fetch('data/summary.json').then(r => r.json()).then(D => {
      3,300만 골드짜리 거래에서 오차가 이 정도면 <b>우연일 수 없습니다.</b>`;
 
   // ── 02 요일 효과 ──
+  const dayNames = ['월', '화', '수', '목', '금', '토', '일'];
   const w = D.weekday;
   const mean = w.reduce((a, x) => a + x.ret, 0) / w.length;
-  const rows = w.map(x => ({ ...x, rel: x.ret - mean, t: x.ret / x.se }));
+  const rows = w.map(x => ({ ...x, dow: dayNames[x.k - 1], rel: x.ret - mean, t: x.ret / x.se }));
   const maxAbs = Math.max(...rows.map(r => Math.abs(r.rel)));
   document.getElementById('weekday-bars').innerHTML = `
     <div class="bar-row" style="color:var(--ink-3);font-size:11px">
@@ -242,10 +244,28 @@ fetch('data/summary.json').then(r => r.json()).then(D => {
     <p style="font-size:11.5px;color:var(--ink-3);margin-top:10px">* p &lt; 0.05 · 관측 ${rows.reduce((a, r) => a + r.n, 0)}일</p>`;
 
   const thu = rows.find(r => r.k === 4);
+  const sat = rows.find(r => r.k === 6);
+  const volumeText = r => {
+    const change = (r.vol - 1) * 100;
+    return Math.abs(change) < 5
+      ? `평균과 비슷한 <b>${r.vol.toFixed(2)}배</b>`
+      : `평균보다 <b>${Math.abs(change).toFixed(1)}% ${change > 0 ? '많은' : '적은'}</b> ${r.vol.toFixed(2)}배`;
+  };
+  const shockText = r => {
+    const volumeChange = (r.vol - 1) * 100;
+    if (Math.abs(volumeChange) < 5) return '거래량이 평균과 비슷해 충격 원인은 아직 단정하기 어렵습니다';
+    if (r.rel > 0 && volumeChange > 0) return '<b>수요 충격</b> 신호입니다';
+    if (r.rel < 0 && volumeChange > 0) return '<b>공급 충격</b> 신호입니다';
+    if (r.rel > 0) return '<b>공급 감소</b> 신호입니다';
+    return '<b>수요 감소</b> 신호입니다';
+  };
+  const sig = rows.filter(r => Math.abs(r.t) > 1.96).map(r => r.dow).join('요일·');
   document.getElementById('weekday-verdict').innerHTML =
-    `<b>목요일만 유의하게 낮습니다</b> — 주간 평균 대비 <b style="font-size:16px">${thu.rel.toFixed(2)}%</b>,
-     t = ${thu.t.toFixed(2)} (p &lt; 0.05). 나머지 6일은 전부 ±1.5% 안이고 통계적으로 유의하지 않습니다.
-     목요일 상대 거래량은 <b>${thu.vol.toFixed(2)}</b>로 평균보다 높습니다.`;
+    `<b>현재 유의한 요일은 ${sig ? `${sig}요일` : '없습니다'}</b>.<br>
+     목요일은 주간 평균 대비 <b class="${thu.rel >= 0 ? 'up' : 'down'}">${thu.rel >= 0 ? '+' : ''}${thu.rel.toFixed(2)}%</b>
+     (t=${thu.t.toFixed(2)}), API 관측 수량은 ${volumeText(thu)}로 ${shockText(thu)}.<br>
+     토요일은 주간 평균 대비 <b class="${sat.rel >= 0 ? 'up' : 'down'}">${sat.rel >= 0 ? '+' : ''}${sat.rel.toFixed(2)}%</b>
+     (t=${sat.t.toFixed(2)}), API 관측 수량은 ${volumeText(sat)}로 ${shockText(sat)}.`;
 
   // ── 04 예측 요약 ──
   const withFc = D.items.filter(x => x.fc && x.fc.vsNaive !== null);
@@ -266,6 +286,16 @@ fetch('data/summary.json').then(r => r.json()).then(D => {
   document.getElementById('delta-line').innerHTML =
     `지금까지 관측한 매물 소진량은 <b>${fmt(D.meta.depletion_qty)}개</b>입니다.
      이 값은 API 관측 거래량과 별개이며, 판매·취소 및 중복 가능성 때문에 서로 더하지 않습니다.`;
+
+  const rate = (pct, count) => count
+    ? `<b>${pct.toFixed(1)}%</b> (${fmt(count)}회 점검)`
+    : '<b>관측 기록 없음</b>';
+  document.getElementById('uptime-limit').innerHTML =
+    `<b>수집 공백이 일봉과 백테스트를 왜곡할 수 있습니다.</b> 2026-09-07 실측 6시간에는 37개 구간 중
+     21개(57%)가 공백이어서, 그날의 VWAP은 하루 전체가 아니라 수집된 시간대의 평균일 수 있습니다.
+     감시견이 기록한 최근 24시간 가동률은 ${rate(D.health.uptime24, D.health.checks24)}입니다.
+     pg_cron 전환 시점(2026-09-08 00:15 KST) 전은 ${rate(D.health.uptime_before, D.health.before_checks)},
+     이후는 ${rate(D.health.uptime_after, D.health.after_checks)}입니다.`;
 });
 </script>
 </body>
