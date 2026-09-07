@@ -116,9 +116,11 @@ export async function collectItem(itemId: string, soldLimit = 100): Promise<Coll
           deltas++;
           qtyObserved += qty;
         }
+        // regCount는 스태커블 아이템에만 온다. 아바타·장비 단품에는 없으므로
+        // 그때는 등록 수량을 잔여 수량과 같게 본다(부분 판매가 불가능한 매물).
         upsertListing.run(
           r.auctionNo, itemId, kstToIso(r.regDate), kstToIso(r.expireDate),
-          r.unitPrice, r.regCount, r.count, r.reinforce, observedAt, observedAt);
+          r.unitPrice, r.regCount ?? r.count, r.count, r.reinforce, observedAt, observedAt);
       }
 
       // 사라진 매물: 완판이거나 만료. 단 응답이 400건으로 잘렸다면

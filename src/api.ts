@@ -28,14 +28,21 @@ export interface AuctionRow {
   itemId: string;
   itemName: string;
   itemRarity: string;
+  itemType: string;            // "스태커블" | "아바타" | …
   refine: number;
   reinforce: number;
   amplificationName: string | null;
   count: number;               // 잔여 수량
-  regCount: number;            // 최초 등록 수량
+  // 스태커블 아이템에만 온다. 아바타·장비 같은 단품 매물에는 아예 없다.
+  // 그래서 읽을 때는 반드시 `regCount ?? count`로 받아야 한다.
+  regCount?: number;
   unitPrice: number;
   currentPrice: number;
   averagePrice: number;
+  // 아바타 전용. 같은 itemId라도 엠블렘 슬롯과 능력치가 달라 가격이 흩어진다.
+  avatar?: { emblems?: Array<{ slotNo: number; slotColor: string }>; ability?: string };
+  jobs?: Array<{ jobId: string; jobName: string }>;
+  setItemName?: string;
 }
 
 export interface ItemRow {
