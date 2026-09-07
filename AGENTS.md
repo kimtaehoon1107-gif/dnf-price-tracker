@@ -122,6 +122,31 @@ node --env-file=.env --no-warnings web/build.ts   # 사이트 빌드
 - **Postgres `numeric`은 pg가 문자열로 준다.** `EXTRACT(EPOCH ...)` 같은 건 `::float8`로 캐스팅해야 JS에서 숫자로 받는다.
 - **Git Bash에서 curl에 한글 인자를 넘기면 깨진다** (MSYS가 native exe 인자를 재인코딩). 한글이 들어가는 API 호출은 반드시 Node 스크립트로.
 
+### 수집 스케줄러 · 감시견
+
+트리거와 감시가 모두 Supabase pg_cron 위에 있다. 등록 SQL은 `sql/scheduler.sql`, `sql/watchdog.sql`.
+
+| cron job | 주기 | 하는 일 |
+|---|---|---|
+| `dnf-collect-dispatch` | `*/15` | GitHub `workflow_dispatch` 호출 → 수집 워크플로 기동 |
+| `dnf-collect-watchdog` | `*/5` | 수집 공백 감시 · 자가복구 · 이슈 알림 |
+| `dnf-health-prune` | 매일 04:17 | `collection_health` 90일 초과분 정리 |
+
+감시견 동작:
+- **기록** — 매 점검마다 `collection_health`에 공백을 남긴다. 가동률 계산의 근거다
+- **자가복구** — 공백 20분 초과 시 즉시 dispatch. 쿨다운 10분(없으면 워크플로가 계속 죽을 때 무한 재시도한다)
+- **알림** — 40분 안에 복구 2회가 실패하면 GitHub Issue 생성. 쿨다운 6시간
+
+**임계치 20분의 근거:** dispatch가 15분 주기이고 워크플로는 55분을 돈다. 실행 중이면 새 dispatch가 대기했다 이어받으므로 공백은 보통 몇 분 이내다. 20분을 넘겼다면 한 사이클이 통째로 유실된 것이다.
+
+**알고 쓸 한계:** 감시견이 pg_cron 위에 있으므로 **pg_cron이나 Supabase가 죽으면 감시견도 같이 죽는다.** 감시 대상과 운명을 공유한다. 그 경우까지 잡으려면 인프라 밖에 별도 관찰자가 필요하다.
+
+가동률 확인:
+```sql
+SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE action='ok') / COUNT(*), 2) AS uptime_pct
+FROM collection_health WHERE checked_at > now() - interval '24 hours';
+```
+
 ### 데이터
 
 - **백필에는 시한이 있다.** 거래가 드문 아이템은 1개월치가 통째로 들어오지만 **한 달이 지나면 그 구간은 영원히 사라진다.** 이벤트 관련 아이템은 이벤트 시작 후 한 달 안에 받아야 한다.
