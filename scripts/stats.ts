@@ -48,7 +48,12 @@ for (const r of rows) {
 const t = await query<{ n: number; lo: Date | null; hi: Date | null }>(
   'SELECT COUNT(*)::int AS n, MIN(sold_date) AS lo, MAX(sold_date) AS hi FROM trades');
 const c = await query<{ n: number; e: number; last: Date | null }>(`
-  SELECT COUNT(*)::int AS n, COUNT(error)::int AS e, MAX(started_at) AS last FROM collection_runs`);
+  SELECT COUNT(*)::int AS n, COUNT(error)::int AS e,
+         MAX(finished_at) FILTER (WHERE error IS NULL) AS last
+  FROM collection_runs`);
+const sources = (await query<{ source: string; n: number }>(`
+  SELECT COALESCE(source, '미기록') AS source, COUNT(*)::int AS n
+  FROM collection_runs GROUP BY 1 ORDER BY n DESC`)).rows;
 
 console.log('─'.repeat(78));
 console.log(`체결 ${t.rows[0].n.toLocaleString()}건 · 수집 실행 ${c.rows[0].n}회 (실패 ${c.rows[0].e})`);
@@ -58,10 +63,11 @@ if (t.rows[0].lo) {
 if (c.rows[0].last) {
   const ago = (Date.now() - c.rows[0].last.getTime()) / 60_000;
   console.log(`마지막 수집  ${ago < 60 ? `${ago.toFixed(0)}분 전` : `${(ago / 60).toFixed(1)}시간 전`}` +
-    (ago > 30 ? '  ⚠ 수집기가 멈춰 있을 수 있습니다' : ''));
+    (ago > 10 ? '  ⚠ 10분 이상 수집되지 않았습니다' : ''));
 }
+console.log(`수집 출처    ${sources.map((x) => `${x.source} ${x.n}회`).join(' · ')}`);
 
-console.log('\n"최대공백"이 그 아이템의 주기보다 훨씬 크면 실제로 거래가 없던 구간이고,');
-console.log('"포화"에 표시가 뜨면 100건 상한에 걸려 거래를 놓쳤다는 뜻이므로 주기를 줄여야 합니다.');
+console.log('\n"최대공백"은 실제 무거래뿐 아니라 수집 공백 때문에 커질 수도 있습니다.');
+console.log('"포화"는 100건 응답이 이전 수집과 겹치지 않아 초과 거래를 놓쳤을 가능성이 있다는 뜻입니다.');
 
 await pool.end();

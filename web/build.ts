@@ -19,7 +19,7 @@ const items = (await query<{
   role: string; category: string; slot: string | null; job_role: string | null;
   is_final: boolean; final_since: string | null; key_stat: string | null;
   trades: number; span_days: number; last_price: number;
-  vwap24: number | null; vwap_prev: number | null; qty24: number;
+  vwap24: number | null; vwap_prev: number | null; api_qty24: number;
   listings: number; min_ask: number | null; median_ask: number | null;
 }>(`
   WITH agg AS (
@@ -30,7 +30,7 @@ const items = (await query<{
              / NULLIF(SUM(count) FILTER (WHERE sold_date > now()-interval '24 hours'),0))::float8 AS vwap24,
            (SUM(unit_price::numeric*count) FILTER (WHERE sold_date BETWEEN now()-interval '48 hours' AND now()-interval '24 hours')
              / NULLIF(SUM(count) FILTER (WHERE sold_date BETWEEN now()-interval '48 hours' AND now()-interval '24 hours'),0))::float8 AS vwap_prev,
-           COALESCE(SUM(count) FILTER (WHERE sold_date > now()-interval '24 hours'),0)::int AS qty24
+           COALESCE(SUM(count) FILTER (WHERE sold_date > now()-interval '24 hours'),0)::int AS api_qty24
     FROM trades GROUP BY item_id
   ),
   last_snap AS (
@@ -45,7 +45,7 @@ const items = (await query<{
          i.is_final, to_char(i.final_since,'YYYY-MM-DD') AS final_since, i.key_stat,
          COALESCE(a.trades,0) AS trades, COALESCE(a.span_days,0) AS span_days,
          COALESCE(lt.unit_price,0)::float8 AS last_price,
-         a.vwap24, a.vwap_prev, COALESCE(a.qty24,0) AS qty24,
+         a.vwap24, a.vwap_prev, COALESCE(a.api_qty24,0) AS api_qty24,
          COALESCE(ls.listing_count,0) AS listings,
          ls.min_unit_price::float8 AS min_ask, ls.median::float8 AS median_ask
   FROM items i
@@ -94,6 +94,41 @@ const askGap = (await query<{
     AND s.min_unit_price > 0 AND v.vwap > 0
   ORDER BY s.item_id, date_trunc('second', s.captured_at), s.captured_at DESC`)).rows;
 
+// 매물 소진량은 실제 판매 시각이 아니라 다음 수집에서 발견한 시각에 찍힌다.
+// 긴 수집 공백 뒤의 소진을 한 시간의 폭증으로 오해하지 않도록, 각 관측량을
+// 직전 스냅샷부터 흐른 시간으로 나눠 시간당 속도로 환산한다.
+const depletion = (await query<{
+  item_id: string; t: string; qty: number; partial: number; vanished: number;
+  observed_min: number; rate: number;
+}>(`
+  WITH observations AS (
+    SELECT item_id, captured_at,
+           LAG(captured_at) OVER (PARTITION BY item_id ORDER BY captured_at) AS prev_at
+    FROM listing_snapshots
+    WHERE captured_at > now() - interval '8 days'
+  ), deltas AS (
+    SELECT item_id, observed_at,
+           COALESCE(SUM(qty_sold) FILTER (WHERE reason = 'partial'), 0)::float8 AS partial,
+           COALESCE(SUM(qty_sold) FILTER (WHERE reason = 'vanished_before_expiry'), 0)::float8 AS vanished
+    FROM listing_deltas
+    WHERE observed_at > now() - interval '7 days'
+    GROUP BY item_id, observed_at
+  )
+  SELECT o.item_id,
+         to_char(date_trunc('hour', o.captured_at AT TIME ZONE 'UTC'),
+                 'YYYY-MM-DD"T"HH24:00:00"Z"') AS t,
+         SUM(COALESCE(d.partial, 0) + COALESCE(d.vanished, 0))::float8 AS qty,
+         SUM(COALESCE(d.partial, 0))::float8 AS partial,
+         SUM(COALESCE(d.vanished, 0))::float8 AS vanished,
+         (SUM(EXTRACT(EPOCH FROM o.captured_at - o.prev_at)) / 60)::float8 AS observed_min,
+         (SUM(COALESCE(d.partial, 0) + COALESCE(d.vanished, 0))
+           / NULLIF(SUM(EXTRACT(EPOCH FROM o.captured_at - o.prev_at)) / 3600, 0))::float8 AS rate
+  FROM observations o
+  LEFT JOIN deltas d ON d.item_id = o.item_id AND d.observed_at = o.captured_at
+  WHERE o.captured_at > now() - interval '7 days' AND o.prev_at IS NOT NULL
+  GROUP BY o.item_id, date_trunc('hour', o.captured_at AT TIME ZONE 'UTC')
+  ORDER BY o.item_id, 2`)).rows;
+
 const depth = (await query<{ item_id: string; price: number; qty: number }>(`
   SELECT l.item_id, l.unit_price::float8 AS price, SUM(l.cur_count)::float8 AS qty
   FROM listings l JOIN items i USING (item_id)
@@ -113,6 +148,7 @@ const byItem = <T extends { item_id: string }>(rows: T[]) => {
 const dailyBy = byItem(daily);
 const hourlyBy = byItem(hourly);
 const askGapBy = byItem(askGap);
+const depletionBy = byItem(depletion);
 const depthBy = byItem(depth);
 
 // ── 요일 효과 ──────────────────────────────────────────────────
@@ -142,7 +178,8 @@ for (const it of items) {
   if (f) forecasts.set(it.item_id, f);
   writeFileSync(`${OUT}/data/series/${it.item_id}.json`, JSON.stringify({
     daily: d, hourly: hourlyBy.get(it.item_id) ?? [],
-    askGap: askGapBy.get(it.item_id) ?? [], depth: depthBy.get(it.item_id) ?? [], forecast: f,
+    askGap: askGapBy.get(it.item_id) ?? [], depletion: depletionBy.get(it.item_id) ?? [],
+    depth: depthBy.get(it.item_id) ?? [], forecast: f,
   }));
 }
 
@@ -166,14 +203,18 @@ const legendary = (await query<{
     FROM legendary_card_floor ORDER BY captured_at DESC LIMIT 200`)).rows;
 
 // ── 수집 현황 ──────────────────────────────────────────────────
-const meta = (await query<{ trades: number; items: number; lo: string; hi: string; runs: number; errors: number; qty: number }>(`
+const meta = (await query<{
+  trades: number; items: number; lo: string; hi: string; runs: number; errors: number;
+  depletion_qty: number;
+}>(`
   SELECT (SELECT COUNT(*)::int FROM trades) trades,
          (SELECT COUNT(*)::int FROM items WHERE tracked) items,
          (SELECT to_char(MIN(sold_date),'YYYY-MM-DD') FROM trades) lo,
          (SELECT to_char(MAX(sold_date),'YYYY-MM-DD') FROM trades) hi,
          (SELECT COUNT(*)::int FROM collection_runs) runs,
          (SELECT COUNT(error)::int FROM collection_runs) errors,
-         (SELECT COALESCE(SUM(qty_sold),0)::int FROM listing_deltas WHERE reason <> 'expired') qty`)).rows[0];
+         (SELECT COALESCE(SUM(qty_sold),0)::int FROM listing_deltas
+          WHERE reason <> 'expired') depletion_qty`)).rows[0];
 
 const withMeta = items.map((it) => {
   const f = forecasts.get(it.item_id);

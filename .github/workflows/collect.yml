@@ -19,8 +19,13 @@ concurrency:
 
 jobs:
   collect:
+    name: 수집 (${{ matrix.group }})
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 65
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [hot, rest]
     steps:
       - uses: actions/checkout@v4
 
@@ -35,4 +40,5 @@ jobs:
         env:
           NEOPLE_API_KEY: ${{ secrets.NEOPLE_API_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: node --no-warnings src/run.ts --minutes 55
+          COLLECT_SOURCE: ${{ github.event_name == 'schedule' && 'actions' || 'manual' }}
+        run: node --no-warnings src/run.ts --minutes 55 --group ${{ matrix.group }}

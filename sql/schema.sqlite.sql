@@ -66,10 +66,10 @@ CREATE TABLE IF NOT EXISTS listings (
 );
 CREATE INDEX IF NOT EXISTS idx_listings_item ON listings (item_id, closed_at);
 
--- 매물 소진 관측 — auction-sold의 100건 한계를 보완하는 보조 거래량 신호
+-- 매물 소진 관측 — auction-sold와 별개인 보조 활동량 신호
 --
 -- 같은 auction_no의 cur_count가 줄어든 순간을 기록한다.
--- auction-sold가 놓친 거래도 여기서는 잡힌다.
+-- 만료 전 사라진 매물은 판매와 취소를 구분할 수 있어 체결량과 합산하지 않는다.
 CREATE TABLE IF NOT EXISTS listing_deltas (
   id          INTEGER PRIMARY KEY,
   auction_no  INTEGER NOT NULL,
@@ -101,6 +101,7 @@ CREATE TABLE IF NOT EXISTS listing_snapshots (
 CREATE TABLE IF NOT EXISTS collection_runs (
   id            INTEGER PRIMARY KEY,
   item_id       TEXT,
+  source        TEXT,
   started_at    TEXT    NOT NULL,
   finished_at   TEXT,
   sold_rows     INTEGER NOT NULL DEFAULT 0,

@@ -20,14 +20,21 @@ export interface CollectResult {
   qtyObserved: number;
 }
 
-export async function collectItem(itemId: string, soldLimit = 100): Promise<CollectResult> {
+export type CollectionSource = 'local' | 'manual' | 'actions';
+
+export async function collectItem(
+  itemId: string,
+  soldLimit = 100,
+  source: CollectionSource = 'local',
+): Promise<CollectResult> {
   const startedAt = nowIso();
   const prev = await query<{ t: Date | null }>(
-    'SELECT MAX(started_at) AS t FROM collection_runs WHERE item_id = $1 AND error IS NULL', [itemId]);
+    'SELECT MAX(started_at) AS t FROM collection_runs WHERE item_id = $1 AND error IS NULL AND finished_at IS NOT NULL', [itemId]);
   const prevRun = prev.rows[0]?.t ? prev.rows[0].t.toISOString() : null;
 
   const run = await query<{ id: string }>(
-    'INSERT INTO collection_runs (item_id, started_at) VALUES ($1, $2) RETURNING id', [itemId, startedAt]);
+    'INSERT INTO collection_runs (item_id, source, started_at) VALUES ($1, $2, $3) RETURNING id',
+    [itemId, source, startedAt]);
   const runId = run.rows[0].id;
 
   try {
@@ -38,8 +45,9 @@ export async function collectItem(itemId: string, soldLimit = 100): Promise<Coll
       ? (Date.parse(soldTimes.at(-1)!) - Date.parse(soldTimes[0])) / 60_000
       : null;
 
-    // 포화 판정: 100건이 꽉 찼는데 가장 오래된 거래가 직전 폴링보다 최신이라면,
-    // 그 사이에 100건을 넘는 거래가 있었다는 뜻 — 놓친 거래가 존재한다.
+    // 포화 판정: 100건이 꽉 찼는데 가장 오래된 거래도 직전 폴링보다 최신이면
+    // 응답이 이전 구간과 겹치지 않는다. 정확히 100건일 수도 있어 누락 확정은 아니지만,
+    // 그보다 많았다면 초과분은 알 수 없으므로 다음 폴링부터 주기를 줄인다.
     const saturated = sold.length >= soldLimit && prevRun !== null && soldTimes[0] > prevRun;
 
     // 응답 안의 동일키에 순번을 매긴다. 같은 초·같은 가격·같은 수량의 별개 체결이

@@ -63,7 +63,8 @@ CREATE TABLE IF NOT EXISTS listings (
 );
 CREATE INDEX IF NOT EXISTS idx_listings_open ON listings (item_id) WHERE closed_at IS NULL;
 
--- 매물 소진 관측 — auction-sold의 100건 상한이 놓친 거래량을 복원한다
+-- 매물 소진 관측 — auction-sold와 별개인 보조 활동량 신호다.
+-- 만료 전 사라진 매물은 판매와 취소를 구분할 수 있어 체결량과 합산하지 않는다.
 CREATE TABLE IF NOT EXISTS listing_deltas (
   id          BIGSERIAL PRIMARY KEY,
   auction_no  BIGINT      NOT NULL,
@@ -94,6 +95,7 @@ CREATE TABLE IF NOT EXISTS listing_snapshots (
 CREATE TABLE IF NOT EXISTS collection_runs (
   id            BIGSERIAL PRIMARY KEY,
   item_id       TEXT,
+  source        TEXT CHECK (source IN ('local', 'manual', 'actions')),
   started_at    TIMESTAMPTZ NOT NULL,
   finished_at   TIMESTAMPTZ,
   sold_rows     INTEGER     NOT NULL DEFAULT 0,
@@ -104,7 +106,10 @@ CREATE TABLE IF NOT EXISTS collection_runs (
   deltas_found  INTEGER     NOT NULL DEFAULT 0,
   error         TEXT
 );
+-- 기존 DB에도 출처 컬럼을 안전하게 추가한다. 과거 행은 추측하지 않고 NULL로 둔다.
+ALTER TABLE collection_runs ADD COLUMN IF NOT EXISTS source TEXT;
 CREATE INDEX IF NOT EXISTS idx_runs_item_time ON collection_runs (item_id, started_at);
+CREATE INDEX IF NOT EXISTS idx_runs_finished ON collection_runs (finished_at DESC) WHERE error IS NULL;
 
 -- API가 주지 않는, 손으로 채우는 유일한 테이블.
 -- announced_at과 starts_at을 반드시 분리한다 — 그 차이가 정보 반영 속도다.

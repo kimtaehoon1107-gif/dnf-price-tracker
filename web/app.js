@@ -119,7 +119,7 @@ function shockSVG(points) {
 
   return `<div class="shock-chart">
     <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="일별 가격과 거래량의 평균 대비 4분면">
-      <title>가로축은 거래량, 세로축은 VWAP의 최근 평균 대비 편차입니다.</title>
+      <title>가로축은 API 관측 거래량, 세로축은 VWAP의 최근 평균 대비 편차입니다.</title>
       <rect class="shock-zone demand-up" x="${cx}" y="${T}" width="${W - R - cx}" height="${cy - T}"/>
       <rect class="shock-zone supply-down" x="${L}" y="${T}" width="${cx - L}" height="${cy - T}"/>
       <rect class="shock-zone demand-down" x="${L}" y="${cy}" width="${cx - L}" height="${T + plotH - cy}"/>
@@ -131,16 +131,32 @@ function shockSVG(points) {
       <text class="shock-label" x="${L + 12}" y="${T + plotH - 10}">수요 감소</text>
       <text class="shock-label" x="${W - R - 12}" y="${T + plotH - 10}" text-anchor="end">공급 증가</text>
       ${points.map((p, i) => `<circle class="shock-point${i === points.length - 1 ? ' latest' : ''}" cx="${xAt(p.qty)}" cy="${yAt(p.price)}" r="${i === points.length - 1 ? 6 : 4}">
-        <title>${p.d} · ${shockName(p)} · 거래량 ${pct(p.qty)} · 가격 ${pct(p.price)}</title>
+        <title>${p.d} · ${shockName(p)} · API 관측 거래량 ${pct(p.qty)} · 가격 ${pct(p.price)}</title>
       </circle>`).join('')}
       <text class="shock-tick" x="${L}" y="${cy + 18}" text-anchor="start">${pct(-xMax)}</text>
       <text class="shock-tick" x="${W - R}" y="${cy + 18}" text-anchor="end">${pct(xMax)}</text>
       <text class="shock-tick" x="${cx - 8}" y="${T + 4}" text-anchor="end">${pct(yMax)}</text>
       <text class="shock-tick" x="${cx - 8}" y="${T + plotH}" text-anchor="end">${pct(-yMax)}</text>
-      <text class="shock-title" x="${L + plotW / 2}" y="${H - 8}" text-anchor="middle">거래량 평균 대비</text>
+      <text class="shock-title" x="${L + plotW / 2}" y="${H - 8}" text-anchor="middle">API 관측 거래량 평균 대비</text>
       <text class="shock-title" transform="translate(15 ${T + plotH / 2}) rotate(-90)" text-anchor="middle">VWAP 평균 대비</text>
     </svg>
   </div>`;
+}
+
+// 수집이 없던 시간은 0이 아니라 공백이다. 7일 시간축을 직접 채우되,
+// 관측된 0만 value: 0으로 두고 미관측 시간은 whitespace point로 남긴다.
+function depletionSeries(rows) {
+  const byHour = new Map(rows.map((x) => [Math.floor(Date.parse(x.t) / 3600000), x.rate]));
+  const end = Math.floor(Date.parse(DATA.builtAt) / 3600000);
+  const start = end - 7 * 24 + 1;
+  const points = [];
+  for (let hour = start; hour <= end; hour++) {
+    const value = byHour.get(hour);
+    points.push(value === undefined
+      ? { time: hour * 3600 }
+      : { time: hour * 3600, value });
+  }
+  return points;
 }
 
 let DATA = null;
@@ -163,7 +179,7 @@ async function boot() {
 const enrich = (it) => ({
   ...it,
   chg: it.vwap24 && it.vwap_prev ? (it.vwap24 / it.vwap_prev - 1) * 100 : null,
-  turnover: (it.vwap24 ?? it.last_price) * it.qty24,
+  turnover: (it.vwap24 ?? it.last_price) * it.api_qty24,
   g: grade(it),
 });
 
@@ -250,13 +266,13 @@ function renderList() {
         <span data-k="item_name">아이템</span>
         <span class="r" data-k="last_price">현재가</span>
         <span class="r" data-k="chg">24h</span>
-        <span class="r h5" data-k="turnover">거래대금</span>
+        <span class="r h5" data-k="turnover">관측 거래대금</span>
         <span class="r h6">14일 추이</span>
         <span class="r h7" data-k="listings">매물</span>
       </div>
       ${rows.map((r, i) => {
         const color = css(r.chg > 0 ? '--up' : r.chg < 0 ? '--down' : '--ink-4');
-        const thin = r.qty24 < 5 && r.chg !== null;
+        const thin = r.api_qty24 < 5 && r.chg !== null;
         return `<div class="row" data-id="${r.item_id}">
           <div class="rank r">${i + 1}</div>
           <div class="nm">
@@ -350,7 +366,7 @@ function renderInventory(all, cats) {
                     <b>${esc(c.item_name.replace(/ 카드$/, ''))}</b>
                     ${c.key_stat ? `<div class="ks">${esc(c.key_stat)}</div>` : ''}
                     <div class="p">${fmt(c.min_ask || c.last_price)}
-                      <i class="${c.qty24 < 5 ? 'flat' : cls(c.chg)}">${pct(c.chg)}</i></div>
+                      <i class="${c.api_qty24 < 5 ? 'flat' : cls(c.chg)}">${pct(c.chg)}</i></div>
                   </div>
                 </div>
               </div>`).join('');
@@ -389,7 +405,7 @@ async function renderDetail(it) {
 
     <div class="panel"><div class="kv">
       <div><div class="k">24h VWAP</div><div class="v">${fmt(it.vwap24)}</div></div>
-      <div><div class="k">24h 수량</div><div class="v">${fmt(it.qty24)}</div></div>
+      <div><div class="k">24h API 관측 수량</div><div class="v">${fmt(it.api_qty24)}</div></div>
       <div><div class="k">최저 호가</div><div class="v">${fmt(it.min_ask)}</div></div>
       <div><div class="k">등록 매물</div><div class="v">${fmt(it.listings)}</div></div>
       <div><div class="k">표본</div><div class="v">${fmt(it.trades)} <span style="font-size:12px;color:var(--ink-3);font-weight:500">${it.g}등급</span></div></div>
@@ -407,8 +423,8 @@ async function renderDetail(it) {
       <div class="chart" id="c4"></div>
     </div>
     <div class="panel">
-      <h3>가격 × 거래량 4분면</h3>
-      <p class="desc" id="shock-desc">완료된 일봉을 분석하는 중…</p>
+      <h3>가격 × API 관측 거래량 4분면</h3>
+      <p class="desc" id="shock-desc">완료된 일봉을 분석하는 중… API 100건 상한에 걸린 급증 구간은 실제보다 작게 보일 수 있습니다.</p>
       <div id="c5"></div>
     </div>
     ${hasDepth ? `<div class="panel">
@@ -416,8 +432,14 @@ async function renderDetail(it) {
       <p class="desc">현재 매물을 낮은 호가부터 누적합니다. 최저가 한 건이 아니라 원하는 수량을 실제로 살 때의 평균 단가를 보여줍니다.</p>
       <div id="depth">불러오는 중…</div>
     </div>` : ''}
+    <div class="panel">
+      <h3>매물 소진 속도</h3>
+      <p class="desc">최근 7일의 관측 소진량을 실제 수집 간격으로 나눠 시간당 환산합니다. 수량 감소는 직접 확인한 값이지만, 만료 전에 사라진 매물은 판매와 취소를 구분할 수 없는 추정치입니다. 빈 구간은 수집되지 않은 시간입니다.</p>
+      <div class="kv depth-kv" id="depletion-kv"></div>
+      <div class="chart" id="c6"></div>
+    </div>
     <div class="panel"><h3>최근 7일 · 시간별 VWAP</h3><div class="chart" id="c3"></div></div>
-    <div class="panel"><h3>일별 체결 수량</h3><div class="chart sm" id="c2"></div></div>`;
+    <div class="panel"><h3>일별 API 관측 체결 수량</h3><div class="chart sm" id="c2"></div></div>`;
 
   const s = await (await fetch(`data/series/${it.item_id}.json`)).json();
   if (hasDepth) {
@@ -450,15 +472,44 @@ async function renderDetail(it) {
   const d = s.daily ?? [];
   const desc = document.getElementById('fc-desc');
   const shock = shockData(d);
+  const depletion = s.depletion ?? [];
+
+  if (depletion.length) {
+    const cutoff = Date.parse(DATA.builtAt) - 24 * 3600000;
+    const recent = depletion.filter((x) => Date.parse(x.t) >= cutoff);
+    const sum = (key) => recent.reduce((total, x) => total + x[key], 0);
+    const observedHours = sum('observed_min') / 60;
+    const qty = sum('qty');
+    document.getElementById('depletion-kv').innerHTML = `
+      <div><div class="k">24h 관측 소진</div><div class="v">${fmt(qty)}<small> 개</small></div></div>
+      <div><div class="k">시간당 평균</div><div class="v">${observedHours ? fmt(qty / observedHours) : '-'}<small> 개/시간</small></div></div>
+      <div><div class="k">수량 감소 확인</div><div class="v">${fmt(sum('partial'))}<small> 개</small></div></div>
+      <div><div class="k">조기 소멸 추정</div><div class="v">${fmt(sum('vanished'))}<small> 개</small></div></div>`;
+
+    const c6 = LightweightCharts.createChart(document.getElementById('c6'), {
+      ...opts, height: 300, rightPriceScale: { borderVisible: false, mode: 0 },
+      localization: { locale: 'ko-KR', priceFormatter: (v) => `${fmt(v)}개/h` },
+    });
+    c6.addAreaSeries({
+      lineColor: css('--gold'), topColor: css('--gold') + '33', bottomColor: css('--gold') + '08',
+      lineWidth: 2, priceFormat: { type: 'custom', formatter: (v) => `${fmt(v)}개/h` },
+    }).setData(depletionSeries(depletion));
+    c6.timeScale().fitContent();
+  } else {
+    document.getElementById('depletion-kv').innerHTML = '';
+    document.getElementById('c6').innerHTML = '<p style="color:var(--ink-3);margin:0">소진 속도를 계산할 연속 매물 관측이 아직 없습니다.</p>';
+  }
 
   if (shock) {
     const latest = shock.latest;
     document.getElementById('shock-desc').innerHTML =
       `최근 ${shock.points.length}개 완료 일봉의 평균을 기준으로 봅니다. 마지막 완료일 <b>${latest.d}</b>은 ` +
-      `<b>${shockName(latest)}</b> 구역입니다 · 거래량 ${pct(latest.qty)}, 가격 ${pct(latest.price)}.`;
+      `<b>${shockName(latest)}</b> 구역입니다 · API 관측 거래량 ${pct(latest.qty)}, 가격 ${pct(latest.price)}. ` +
+      '100건 상한에 걸린 날의 실제 거래량은 더 클 수 있습니다.';
     document.getElementById('c5').innerHTML = shockSVG(shock.points);
   } else {
-    document.getElementById('shock-desc').textContent = '당일을 제외한 완료 일봉이 3일 이상 쌓이면 수요·공급 충격을 분류합니다.';
+    document.getElementById('shock-desc').textContent =
+      '당일을 제외한 완료 일봉이 3일 이상 쌓이면 분류합니다. API 100건 상한에 걸린 급증 구간은 실제보다 작게 보일 수 있습니다.';
     document.getElementById('c5').innerHTML = '<p style="color:var(--ink-3);margin:0">아직 비교할 완료 일봉이 부족합니다.</p>';
   }
 
