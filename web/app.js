@@ -678,7 +678,7 @@ async function renderDetail(it) {
       : '<p style="color:var(--ink-3);margin:0">현재 열린 매물이 없습니다.</p>';
   }
   const opts = {
-    layout: { background: { color: 'transparent' }, textColor: css('--ink-3'), fontFamily: 'Pretendard, system-ui, sans-serif' },
+    layout: { background: { color: 'transparent' }, textColor: css('--ink-3'), fontFamily: 'Pretendard, system-ui, sans-serif', attributionLogo: false },
     grid: { vertLines: { visible: false }, horzLines: { color: css('--line') } },
     // 가격대가 수십 배 차이 나는 아이템이 섞여 있고 예측 구간도 넓다.
     // 로그 스케일이라야 실측 구간이 눌리지 않는다.
