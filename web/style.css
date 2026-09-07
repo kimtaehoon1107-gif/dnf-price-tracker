@@ -92,6 +92,7 @@ header.top .built { font-size: 12px; color: var(--ink-4); font-variant-numeric: 
 /* ── 탭 ───────────────────────────────────────── */
 .tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
+.tabs-end { display: flex; gap: 8px; margin-left: auto; padding-left: 16px; }
 .tab {
   flex: none; padding: 8px 15px; border-radius: 999px; font-size: 14px; font-weight: 600;
   background: var(--card); color: var(--ink-3); border: 1px solid var(--line); cursor: pointer;
@@ -162,6 +163,31 @@ header.top .built { font-size: 12px; color: var(--ink-4); font-variant-numeric: 
 .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 18px 12px; }
 .kv .k { font-size: 12.5px; color: var(--ink-3); }
 .kv .v { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.kv .v small { font-size: 12px; color: var(--ink-3); font-weight: 500; }
+
+.depth-kv { margin-bottom: 16px; }
+.depth-sub { font-size: 12px; color: var(--ink-3); }
+.depth-chart { overflow-x: auto; }
+.depth-chart svg { display: block; width: 100%; min-width: 640px; }
+.depth-grid { stroke: var(--line); stroke-width: 1; }
+.depth-guide { stroke: var(--line-2); stroke-width: 1; stroke-dasharray: 4 4; }
+.depth-fill { fill: var(--up-bg); opacity: .7; }
+.depth-line { fill: none; stroke: var(--up); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.depth-axis { fill: var(--ink-3); font: 12px var(--mono); }
+
+.shock-chart { overflow-x: auto; }
+.shock-chart svg { display: block; width: 100%; min-width: 640px; }
+.shock-zone { opacity: .55; }
+.shock-zone.demand-up { fill: var(--up-bg); }
+.shock-zone.supply-up { fill: var(--blue-bg); }
+.shock-zone.supply-down { fill: var(--gold); opacity: .08; }
+.shock-zone.demand-down { fill: var(--line); }
+.shock-axis { stroke: var(--line-2); stroke-width: 1; }
+.shock-point { fill: var(--ink-2); opacity: .58; stroke: var(--card); stroke-width: 1.5; }
+.shock-point.latest { fill: var(--up); opacity: 1; stroke-width: 2; }
+.shock-label { fill: var(--ink-3); font: 600 12px var(--sans); }
+.shock-tick { fill: var(--ink-4); font: 11px var(--mono); }
+.shock-title { fill: var(--ink-3); font: 12px var(--sans); }
 
 /* ── 분석 페이지 ──────────────────────────────── */
 h2.sec { font-size: 22px; font-weight: 700; letter-spacing: -0.03em; margin: 44px 0 6px; }

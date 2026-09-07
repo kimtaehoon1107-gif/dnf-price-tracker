@@ -1,14 +1,18 @@
 name: 경매장 수집
 
+# GitHub의 스케줄 워크플로는 보장이 아니라 best-effort다. 실측(2026-09-07)에서
+# */10 크론이 6시간 동안 단 1회만 떴다. 정각에 몰리는 고빈도 크론일수록
+# 통째로 드롭된다.
+#
+# 그래서 전략을 바꿨다: 자주 뜨기를 기대하는 대신 "한 번 뜨면 오래 돌게" 한다.
+#   · 15분마다 시도하되 어긋난 분(:07, :22, :37, :52)을 써서 정각 혼잡을 피한다
+#   · 각 실행은 55분간 내부 루프를 돈다 → 시간당 한 번만 떠도 55분을 커버
+#   · concurrency로 겹침을 막고, 대기 중인 실행이 앞 실행을 이어받는다
 on:
   schedule:
-    # 10분마다. 각 실행이 9분간 내부 루프를 돌아 사실상 연속 수집이 된다.
-    # Actions 크론은 부하 시 수 분 지연되므로 "정확히 10분"이 아니라 "대략 10분"이다.
-    - cron: '*/10 * * * *'
+    - cron: '7,22,37,52 * * * *'
   workflow_dispatch:
 
-# 이전 실행이 아직 도는 중이면 이번 실행은 건너뛴다. 겹쳐 돌아도 중복은
-# DB가 걸러내지만, 겹치는 동안 API 호출만 두 배가 되므로 의미가 없다.
 concurrency:
   group: collect
   cancel-in-progress: false
@@ -16,7 +20,7 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -27,8 +31,8 @@ jobs:
 
       - run: npm ci --omit=dev
 
-      - name: 수집 (9분)
+      - name: 수집 (55분)
         env:
           NEOPLE_API_KEY: ${{ secrets.NEOPLE_API_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: node --no-warnings src/run.ts --minutes 9
+        run: node --no-warnings src/run.ts --minutes 55

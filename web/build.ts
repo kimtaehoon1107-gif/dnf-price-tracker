@@ -74,6 +74,34 @@ const hourly = (await query<{ item_id: string; t: string; vwap: number; qty: num
   FROM trades WHERE sold_date > now() - interval '7 days'
   GROUP BY 1,2 ORDER BY 1,2`)).rows;
 
+const askGap = (await query<{
+  item_id: string; t: string; min_ask: number; vwap: number; gap: number;
+}>(`
+  SELECT DISTINCT ON (s.item_id, date_trunc('second', s.captured_at)) s.item_id,
+         to_char(s.captured_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') AS t,
+         s.min_unit_price::float8 AS min_ask,
+         v.vwap::float8 AS vwap,
+         ((s.min_unit_price::numeric / v.vwap - 1) * 100)::float8 AS gap
+  FROM listing_snapshots s
+  CROSS JOIN LATERAL (
+    SELECT SUM(t.unit_price::numeric*t.count) / NULLIF(SUM(t.count),0) AS vwap
+    FROM trades t
+    WHERE t.item_id = s.item_id
+      AND t.sold_date <= s.captured_at
+      AND t.sold_date > s.captured_at - interval '24 hours'
+  ) v
+  WHERE s.captured_at > now() - interval '7 days'
+    AND s.min_unit_price > 0 AND v.vwap > 0
+  ORDER BY s.item_id, date_trunc('second', s.captured_at), s.captured_at DESC`)).rows;
+
+const depth = (await query<{ item_id: string; price: number; qty: number }>(`
+  SELECT l.item_id, l.unit_price::float8 AS price, SUM(l.cur_count)::float8 AS qty
+  FROM listings l JOIN items i USING (item_id)
+  WHERE l.closed_at IS NULL AND l.cur_count > 0 AND l.unit_price > 0
+    AND i.category = ANY($1)
+  GROUP BY l.item_id, l.unit_price
+  ORDER BY l.item_id, l.unit_price`, [['재료·소모품', '소울 결정']])).rows;
+
 const byItem = <T extends { item_id: string }>(rows: T[]) => {
   const m = new Map<string, Omit<T, 'item_id'>[]>();
   for (const { item_id, ...rest } of rows) {
@@ -84,6 +112,8 @@ const byItem = <T extends { item_id: string }>(rows: T[]) => {
 };
 const dailyBy = byItem(daily);
 const hourlyBy = byItem(hourly);
+const askGapBy = byItem(askGap);
+const depthBy = byItem(depth);
 
 // ── 요일 효과 ──────────────────────────────────────────────────
 const weekday = (await query<{ dow: string; k: number; n: number; ret: number; se: number; vol: number }>(`
@@ -111,7 +141,8 @@ for (const it of items) {
   const f = forecast(d.map((x) => ({ d: x.d, vwap: x.vwap })) as Point[], dowCoef);
   if (f) forecasts.set(it.item_id, f);
   writeFileSync(`${OUT}/data/series/${it.item_id}.json`, JSON.stringify({
-    daily: d, hourly: hourlyBy.get(it.item_id) ?? [], forecast: f,
+    daily: d, hourly: hourlyBy.get(it.item_id) ?? [],
+    askGap: askGapBy.get(it.item_id) ?? [], depth: depthBy.get(it.item_id) ?? [], forecast: f,
   }));
 }
 

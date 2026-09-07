@@ -31,6 +31,118 @@ function sparkSVG(vals, color) {
       vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 }
 
+function depthQuote(levels, target) {
+  let filled = 0, cost = 0;
+  for (const level of levels) {
+    const take = Math.min(level.qty, target - filled);
+    cost += level.price * take;
+    filled += take;
+    if (filled === target) break;
+  }
+  return { filled, avg: filled === target ? cost / target : null };
+}
+
+function depthSVG(levels) {
+  const shown = [];
+  let total = 0;
+  for (const level of levels) {
+    if (total >= 100) break;
+    const qty = Math.min(level.qty, 100 - total);
+    if (qty > 0) { shown.push({ price: level.price, qty }); total += qty; }
+  }
+  if (!shown.length) return '';
+
+  const W = 900, H = 280, L = 88, R = 18, T = 16, B = 34;
+  const plotW = W - L - R, plotH = H - T - B;
+  const prices = shown.map((x) => x.price);
+  const minPrice = Math.min(...prices), maxPrice = Math.max(...prices);
+  const pad = minPrice === maxPrice ? Math.max(minPrice * 0.01, 1) : (maxPrice - minPrice) * 0.08;
+  const lo = Math.max(0, minPrice - pad), hi = maxPrice + pad;
+  const xAt = (qty) => L + qty / total * plotW;
+  const yAt = (price) => T + (hi - price) / (hi - lo) * plotH;
+
+  let cumulative = 0;
+  let line = `M ${xAt(0)} ${yAt(shown[0].price)}`;
+  for (let i = 0; i < shown.length; i++) {
+    cumulative += shown[i].qty;
+    line += ` H ${xAt(cumulative)}`;
+    if (shown[i + 1]) line += ` V ${yAt(shown[i + 1].price)}`;
+  }
+  const area = `${line} L ${xAt(total)} ${T + plotH} L ${xAt(0)} ${T + plotH} Z`;
+  const priceTicks = minPrice === maxPrice ? [minPrice] : [minPrice, (minPrice + maxPrice) / 2, maxPrice];
+  const qtyTicks = [...new Set([0, 10, total])].filter((x) => x <= total);
+
+  return `<div class="depth-chart">
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="가격별 누적 매물, 최대 ${fmt(total)}개">
+      <title>낮은 호가부터 최대 ${fmt(total)}개까지의 매물 사다리</title>
+      ${priceTicks.map((p) => `<line class="depth-grid" x1="${L}" y1="${yAt(p)}" x2="${W - R}" y2="${yAt(p)}"/>
+        <text class="depth-axis" x="${L - 10}" y="${yAt(p) + 4}" text-anchor="end">${fmt(p)}</text>`).join('')}
+      ${[10, 100].filter((q) => q <= total).map((q) => `<line class="depth-guide" x1="${xAt(q)}" y1="${T}" x2="${xAt(q)}" y2="${T + plotH}"/>`).join('')}
+      <path class="depth-fill" d="${area}"/>
+      <path class="depth-line" d="${line}"/>
+      ${qtyTicks.map((q) => `<text class="depth-axis" x="${xAt(q)}" y="${H - 8}" text-anchor="middle">${fmt(q)}개</text>`).join('')}
+    </svg>
+  </div>`;
+}
+
+function shockData(days) {
+  const today = new Date(DATA.builtAt).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+  // 당일 거래량은 아직 쌓이는 중이라 완성된 일봉과 비교하면 항상 수요 감소처럼 보인다.
+  const complete = days.filter((x) => x.d < today && x.vwap > 0 && x.qty > 0).slice(-30);
+  if (complete.length < 3) return null;
+
+  const meanPrice = complete.reduce((sum, x) => sum + x.vwap, 0) / complete.length;
+  const meanQty = complete.reduce((sum, x) => sum + x.qty, 0) / complete.length;
+  const points = complete.map((x) => ({
+    d: x.d,
+    price: (x.vwap / meanPrice - 1) * 100,
+    qty: (x.qty / meanQty - 1) * 100,
+  }));
+  return { points, latest: points.at(-1) };
+}
+
+function shockName(point) {
+  if (point.qty >= 0 && point.price >= 0) return '수요 증가';
+  if (point.qty >= 0) return '공급 증가';
+  if (point.price >= 0) return '공급 감소';
+  return '수요 감소';
+}
+
+function shockSVG(points) {
+  const W = 900, H = 360, L = 76, R = 34, T = 28, B = 52;
+  const plotW = W - L - R, plotH = H - T - B;
+  const xMax = Math.max(10, ...points.map((x) => Math.abs(x.qty))) * 1.12;
+  const yMax = Math.max(1, ...points.map((x) => Math.abs(x.price))) * 1.12;
+  const xAt = (x) => L + (x + xMax) / (2 * xMax) * plotW;
+  const yAt = (y) => T + (yMax - y) / (2 * yMax) * plotH;
+  const cx = xAt(0), cy = yAt(0);
+
+  return `<div class="shock-chart">
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="일별 가격과 거래량의 평균 대비 4분면">
+      <title>가로축은 거래량, 세로축은 VWAP의 최근 평균 대비 편차입니다.</title>
+      <rect class="shock-zone demand-up" x="${cx}" y="${T}" width="${W - R - cx}" height="${cy - T}"/>
+      <rect class="shock-zone supply-down" x="${L}" y="${T}" width="${cx - L}" height="${cy - T}"/>
+      <rect class="shock-zone demand-down" x="${L}" y="${cy}" width="${cx - L}" height="${T + plotH - cy}"/>
+      <rect class="shock-zone supply-up" x="${cx}" y="${cy}" width="${W - R - cx}" height="${T + plotH - cy}"/>
+      <line class="shock-axis" x1="${L}" y1="${cy}" x2="${W - R}" y2="${cy}"/>
+      <line class="shock-axis" x1="${cx}" y1="${T}" x2="${cx}" y2="${T + plotH}"/>
+      <text class="shock-label" x="${L + 12}" y="${T + 20}">공급 감소</text>
+      <text class="shock-label" x="${W - R - 12}" y="${T + 20}" text-anchor="end">수요 증가</text>
+      <text class="shock-label" x="${L + 12}" y="${T + plotH - 10}">수요 감소</text>
+      <text class="shock-label" x="${W - R - 12}" y="${T + plotH - 10}" text-anchor="end">공급 증가</text>
+      ${points.map((p, i) => `<circle class="shock-point${i === points.length - 1 ? ' latest' : ''}" cx="${xAt(p.qty)}" cy="${yAt(p.price)}" r="${i === points.length - 1 ? 6 : 4}">
+        <title>${p.d} · ${shockName(p)} · 거래량 ${pct(p.qty)} · 가격 ${pct(p.price)}</title>
+      </circle>`).join('')}
+      <text class="shock-tick" x="${L}" y="${cy + 18}" text-anchor="start">${pct(-xMax)}</text>
+      <text class="shock-tick" x="${W - R}" y="${cy + 18}" text-anchor="end">${pct(xMax)}</text>
+      <text class="shock-tick" x="${cx - 8}" y="${T + 4}" text-anchor="end">${pct(yMax)}</text>
+      <text class="shock-tick" x="${cx - 8}" y="${T + plotH}" text-anchor="end">${pct(-yMax)}</text>
+      <text class="shock-title" x="${L + plotW / 2}" y="${H - 8}" text-anchor="middle">거래량 평균 대비</text>
+      <text class="shock-title" transform="translate(15 ${T + plotH / 2}) rotate(-90)" text-anchor="middle">VWAP 평균 대비</text>
+    </svg>
+  </div>`;
+}
+
 let DATA = null;
 let tab = '전체';
 // 기본 정렬은 24h 거래대금. 변동률로 정렬하면 하루 한두 건 거래된 아이템의
@@ -100,6 +212,16 @@ function summaryCards() {
   </div>`;
 }
 
+function categoryTabs(cats) {
+  const right = ['크리쳐', '오라', '칭호'].filter((c) => cats.includes(c));
+  const left = cats.filter((c) => !right.includes(c));
+  const button = (c) => `<button class="tab ${c === tab ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`;
+  return `<div class="tabs">
+    ${['전체', ...left].map(button).join('')}
+    <div class="tabs-end">${right.map(button).join('')}</div>
+  </div>`;
+}
+
 // ── 목록 ───────────────────────────────────────────────────────
 function renderList() {
   const all = DATA.items.map(enrich);
@@ -120,9 +242,7 @@ function renderList() {
   document.getElementById('view').innerHTML = `
     ${summaryCards()}
 
-    <div class="tabs">
-      ${['전체', ...cats].map((c) => `<button class="tab ${c === tab ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`).join('')}
-    </div>
+    ${categoryTabs(cats)}
 
     <div class="list">
       <div class="lh">
@@ -202,9 +322,7 @@ function renderInventory(all, cats) {
 
   document.getElementById('view').innerHTML = `
     ${summaryCards()}
-    <div class="tabs">
-      ${['전체', ...cats].map((c) => `<button class="tab ${c === tab ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`).join('')}
-    </div>
+    ${categoryTabs(cats)}
 
     <div class="job-sw">
       ${['딜러', '버퍼'].map((j) => `<button class="${j === job ? 'on' : ''}" data-j="${j}">${j}</button>`).join('')}
@@ -255,6 +373,7 @@ function renderInventory(all, cats) {
 
 // ── 상세 ───────────────────────────────────────────────────────
 async function renderDetail(it) {
+  const hasDepth = ['재료·소모품', '소울 결정'].includes(it.category);
   document.getElementById('view').innerHTML = `
     <a class="back" href="#">← 전체 목록</a>
     <div class="dh">
@@ -282,10 +401,41 @@ async function renderDetail(it) {
       <p class="desc" id="fc-desc">불러오는 중…</p>
       <div class="chart" id="c1"></div>
     </div>
-    <div class="panel"><h3>일별 체결 수량</h3><div class="chart sm" id="c2"></div></div>
-    <div class="panel"><h3>최근 7일 · 시간별 VWAP</h3><div class="chart" id="c3"></div></div>`;
+    <div class="panel">
+      <h3>호가–체결 갭</h3>
+      <p class="desc">최저 호가가 각 관측 시점의 직전 24시간 체결 VWAP보다 얼마나 높거나 낮은지 보여줍니다. 양수면 매물 부족 또는 상승 기대, 음수면 급매 신호일 수 있습니다.</p>
+      <div class="chart" id="c4"></div>
+    </div>
+    <div class="panel">
+      <h3>가격 × 거래량 4분면</h3>
+      <p class="desc" id="shock-desc">완료된 일봉을 분석하는 중…</p>
+      <div id="c5"></div>
+    </div>
+    ${hasDepth ? `<div class="panel">
+      <h3>매물 사다리</h3>
+      <p class="desc">현재 매물을 낮은 호가부터 누적합니다. 최저가 한 건이 아니라 원하는 수량을 실제로 살 때의 평균 단가를 보여줍니다.</p>
+      <div id="depth">불러오는 중…</div>
+    </div>` : ''}
+    <div class="panel"><h3>최근 7일 · 시간별 VWAP</h3><div class="chart" id="c3"></div></div>
+    <div class="panel"><h3>일별 체결 수량</h3><div class="chart sm" id="c2"></div></div>`;
 
   const s = await (await fetch(`data/series/${it.item_id}.json`)).json();
+  if (hasDepth) {
+    const depth = s.depth ?? [];
+    const q10 = depthQuote(depth, 10), q100 = depthQuote(depth, 100);
+    const totalQty = depth.reduce((sum, level) => sum + level.qty, 0);
+    const quote = (q, target) => q.avg !== null
+      ? `<div class="v">${fmt(q.avg)}<small> 골드</small></div>`
+      : `<div class="v flat">매물 부족</div><div class="depth-sub">${fmt(q.filled)}/${target}개</div>`;
+    document.getElementById('depth').innerHTML = depth.length ? `
+      <div class="kv depth-kv">
+        <div><div class="k">10개 구매 평균</div>${quote(q10, 10)}</div>
+        <div><div class="k">100개 구매 평균</div>${quote(q100, 100)}</div>
+        <div><div class="k">현재 열린 수량</div><div class="v">${fmt(totalQty)}<small> 개</small></div></div>
+      </div>
+      ${depthSVG(depth)}`
+      : '<p style="color:var(--ink-3);margin:0">현재 열린 매물이 없습니다.</p>';
+  }
   const opts = {
     layout: { background: { color: 'transparent' }, textColor: css('--ink-3'), fontFamily: 'Pretendard, system-ui, sans-serif' },
     grid: { vertLines: { visible: false }, horzLines: { color: css('--line') } },
@@ -294,10 +444,23 @@ async function renderDetail(it) {
     rightPriceScale: { borderVisible: false, mode: 1 },
     timeScale: { borderVisible: false },
     crosshair: { mode: 0 },
+    localization: { locale: 'ko-KR', priceFormatter: (v) => fmt(v) },
   };
 
   const d = s.daily ?? [];
   const desc = document.getElementById('fc-desc');
+  const shock = shockData(d);
+
+  if (shock) {
+    const latest = shock.latest;
+    document.getElementById('shock-desc').innerHTML =
+      `최근 ${shock.points.length}개 완료 일봉의 평균을 기준으로 봅니다. 마지막 완료일 <b>${latest.d}</b>은 ` +
+      `<b>${shockName(latest)}</b> 구역입니다 · 거래량 ${pct(latest.qty)}, 가격 ${pct(latest.price)}.`;
+    document.getElementById('c5').innerHTML = shockSVG(shock.points);
+  } else {
+    document.getElementById('shock-desc').textContent = '당일을 제외한 완료 일봉이 3일 이상 쌓이면 수요·공급 충격을 분류합니다.';
+    document.getElementById('c5').innerHTML = '<p style="color:var(--ink-3);margin:0">아직 비교할 완료 일봉이 부족합니다.</p>';
+  }
 
   if (d.length >= 2) {
     const c1 = LightweightCharts.createChart(document.getElementById('c1'), { ...opts, height: 300 });
@@ -340,6 +503,23 @@ async function renderDetail(it) {
       lineColor: css('--blue'), topColor: css('--blue') + '33', bottomColor: css('--blue') + '08', lineWidth: 2,
     }).setData(s.hourly.map((h) => ({ time: Math.floor(Date.parse(h.t) / 1000), value: h.vwap })));
     c3.timeScale().fitContent();
+  }
+
+  if (s.askGap?.length) {
+    const c4 = LightweightCharts.createChart(document.getElementById('c4'), {
+      ...opts, height: 300, rightPriceScale: { borderVisible: false },
+      localization: { locale: 'ko-KR', priceFormatter: (v) => pct(v) },
+    });
+    c4.addBaselineSeries({
+      baseValue: { type: 'price', price: 0 },
+      topLineColor: css('--up'), topFillColor1: css('--up') + '33', topFillColor2: css('--up') + '08',
+      bottomLineColor: css('--down'), bottomFillColor1: css('--down') + '08', bottomFillColor2: css('--down') + '33',
+      lineWidth: 2,
+      priceFormat: { type: 'custom', formatter: (v) => pct(v) },
+    }).setData(s.askGap.map((x) => ({ time: Math.floor(Date.parse(x.t) / 1000), value: x.gap })));
+    c4.timeScale().fitContent();
+  } else {
+    document.getElementById('c4').innerHTML = '<p style="color:var(--ink-3);margin:0">비교할 호가와 직전 24시간 체결 데이터가 아직 없습니다.</p>';
   }
 }
 

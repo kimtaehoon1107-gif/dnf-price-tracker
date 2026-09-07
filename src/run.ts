@@ -69,21 +69,25 @@ process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
 while (Date.now() < deadline && !stopping) {
+  // 한 번에 하나씩 처리하고 매번 "지금 가장 급한 게 뭔지"를 다시 판단한다.
+  // due를 통째로 훑으면 68종을 도는 2~3분 동안 2분 주기 아이템이 계속 밀린다.
   const now = Date.now();
-  const due = items.filter((it) => (nextAt.get(it.item_id) ?? 0) <= now);
+  const due = items
+    .filter((it) => (nextAt.get(it.item_id) ?? 0) <= now)
+    .sort((a, b) => a.poll_interval_sec - b.poll_interval_sec);
 
   // 만료 임박 시에는 새 폴링을 시작하지 않는다. 중간에 잘리면 그 실행은
   // collection_runs에 finished_at 없이 남아 갭 분석을 흐린다.
   if (due.length && Date.now() + 15_000 < deadline) {
-    for (const it of due) {
-      await tick(it);
-      nextAt.set(it.item_id, Date.now() + it.poll_interval_sec * 1000);
-    }
+    const it = due[0];
+    await tick(it);
+    nextAt.set(it.item_id, Date.now() + it.poll_interval_sec * 1000);
+    continue;
   }
 
   const sleepMs = Math.min(
     5_000,
-    Math.max(500, Math.min(...items.map((it) => (nextAt.get(it.item_id) ?? 0) - Date.now()))),
+    Math.max(200, Math.min(...items.map((it) => (nextAt.get(it.item_id) ?? 0) - Date.now()))),
   );
   await new Promise((r) => setTimeout(r, sleepMs));
 }
