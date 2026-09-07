@@ -144,7 +144,6 @@ function shockSVG(points) {
 }
 
 const eventStages = (event) => [
-  { key: 'announced', label: '공지' },
   {
     key: 'starts',
     label: event.type === '패키지' ? '출시' : event.type === '퍼스트서버' ? '패치' : '적용',
@@ -554,7 +553,7 @@ async function renderDetail(it) {
       <details class="event-study" id="event-details">
         <summary><span>가격 영향 이벤트 · 이벤트 스터디</span><small id="event-count"></small><i aria-hidden="true">⌄</i></summary>
         <div class="event-body">
-          <p class="desc">공지·패치 또는 출시·종료 시점을 가격과 함께 봅니다. 전후 수치는 요일효과를 보정한 3일 평균 비교이며, 동시 발생이 인과관계를 뜻하지는 않습니다.</p>
+          <p class="desc">실제 시장 충격일인 패치·적용·출시일을 기준으로 봅니다. 패키지는 종료일도 별도로 계산합니다. 전후 수치는 요일효과를 보정한 3일 평균 비교이며, 동시 발생이 인과관계를 뜻하지는 않습니다.</p>
           <div id="event-list"></div>
         </div>
       </details>
