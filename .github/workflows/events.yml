@@ -1,9 +1,8 @@
 name: 공식 이벤트 동기화
 
 on:
-  # 수요일 공지가 나온 뒤, 목요일 점검 종료 무렵에 한 번 반영한다.
-  schedule:
-    - cron: '30 1 * * 4'
+  # GitHub schedule은 이 저장소에서 신호 자체가 자주 누락돼 쓰지 않는다.
+  # 목요일 01:30 UTC에 Supabase pg_cron이 workflow_dispatch를 호출한다.
   workflow_dispatch:
 
 concurrency:

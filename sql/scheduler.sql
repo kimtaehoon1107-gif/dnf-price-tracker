@@ -32,6 +32,24 @@ SELECT cron.schedule('dnf-collect-dispatch', '*/15 * * * *', $$
   );
 $$);
 
+SELECT cron.unschedule('dnf-events-dispatch')
+WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'dnf-events-dispatch');
+
+-- 수요일 공지가 나온 뒤 목요일 점검 종료 무렵에 공식 이벤트를 한 번 반영한다.
+-- 주 1회라 누락을 오래 알아채기 어려우므로 수집과 같은 명시적 dispatch를 쓴다.
+SELECT cron.schedule('dnf-events-dispatch', '30 1 * * 4', $$
+  SELECT net.http_post(
+    url := 'https://api.github.com/repos/kimtaehoon1107-gif/dnf-price-tracker/actions/workflows/events.yml/dispatches',
+    body := '{"ref":"main"}'::jsonb,
+    headers := jsonb_build_object(
+      'Authorization', 'Bearer ' || (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'gh_dispatch_token'),
+      'Accept', 'application/vnd.github+json',
+      'Content-Type', 'application/json',
+      'User-Agent', 'dnf-price-tracker-cron'
+    )
+  );
+$$);
+
 -- 점검용
 --   SELECT jobid, jobname, schedule, active FROM cron.job;
 --   SELECT status, return_message, start_time FROM cron.job_run_details
