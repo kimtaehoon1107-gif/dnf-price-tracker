@@ -33,6 +33,15 @@ jobs:
           cache: npm
       - run: npm ci --omit=dev
 
+      # 레전더리 카드 165종을 훑어 최저가를 갱신한다. 시간당 165회 호출이라
+      # 초당 1,000건 제한 대비 무시할 수준이다.
+      - name: 레전더리 카드 최저가 스캔
+        env:
+          NEOPLE_API_KEY: ${{ secrets.NEOPLE_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node --no-warnings scripts/legendary-floor.ts
+        continue-on-error: true
+
       - name: 사이트 빌드
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

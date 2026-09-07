@@ -11,22 +11,23 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="wrap">
-
 <header class="top">
-  <h1><a href="index.html">던파 경매장 시세 추적기</a></h1>
-  <nav>
-    <a href="index.html">시세</a>
-    <a href="analysis.html" class="on">분석</a>
-    <a href="https://github.com/kimtaehoon1107-gif/dnf-price-tracker" target="_blank" rel="noopener">GitHub</a>
-  </nav>
-  <span class="spacer"></span>
-  <span class="built" id="built"></span>
+  <div class="inner">
+    <a class="brand" href="index.html">던파 경매장</a>
+    <nav>
+      <a href="index.html">시세</a>
+      <a href="analysis.html" class="on">분석</a>
+      <a href="https://github.com/kimtaehoon1107-gif/dnf-price-tracker" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+    <span class="spacer"></span>
+    <span class="built" id="built"></span>
+  </div>
 </header>
+<div class="wrap">
 
 <main>
 
-<p style="max-width:70ch;font-size:15px;color:var(--ink)">
+<p class="lead">
   Neople 오픈 API는 과거 시세를 주지 않습니다. 최근 체결 100건 또는 최대 1개월이 전부입니다.
   그래서 이 프로젝트의 본체는 차트가 아니라 <b>수집 파이프라인</b>이고, 아래 세 가지는 그렇게 모은
   데이터로 실제로 답한 질문들입니다.
@@ -76,7 +77,7 @@
   <b>공급 충격</b>의 서명이고, 목요일 06시 초기화 가설과 정확히 맞습니다.
 </p>
 
-<div class="note" style="border-left-color:var(--ink-3)">
+<div class="note quiet">
   <b>한 번 틀렸다가 고친 부분입니다.</b> 처음엔 거래가 거의 없는 잡템 70종을 함께 넣었더니
   "주말에 비싸고 주중에 싸다"는 전혀 다른 그림이 나왔습니다. 8골드짜리 헝겊 조각과 300만 골드짜리
   마법석을 같은 무게로 평균 낸 탓이었습니다. 시장에서 실제로 거래되는 아이템만 남기니
@@ -100,7 +101,7 @@
 
 <p>수집을 만들면서 발견하고 고친 것 두 가지입니다.</p>
 
-<h3 style="font-size:15px;margin:26px 0 8px;color:var(--ink)">① 같은 초에 일어난 별개의 체결이 하나로 합쳐지고 있었다</h3>
+<h3 class="sub">① 같은 초에 일어난 별개의 체결이 하나로 합쳐지고 있었다</h3>
 <p>
   체결 API는 <code>auctionNo</code>를 주지 않아서 자연키(시각·가격·수량·강화)로 중복을 제거해야 합니다.
   그런데 대량 매수가 여러 매물을 한 번에 쓸어가면 <b>같은 초·같은 개당가·같은 수량인 별개의 체결</b>이
@@ -112,7 +113,7 @@
   재폴링해도 같은 순번이 매겨지므로 중복 제거는 그대로 동작하고, 그 사이 그룹이 커졌다면 늘어난 만큼만 들어옵니다.
 </p>
 
-<h3 style="font-size:15px;margin:26px 0 8px;color:var(--ink)">② 놓친 거래량을 매물 쪽에서 복원할 수 있다</h3>
+<h3 class="sub">② 놓친 거래량을 매물 쪽에서 복원할 수 있다</h3>
 <p>
   매물 API는 <b>등록 수량(<code>regCount</code>)과 잔여 수량(<code>count</code>)을 따로</b> 줍니다.
   같은 매물을 반복 관측하면서 잔여 수량이 줄어드는 것을 추적하면,
@@ -125,8 +126,48 @@
   <b>데이터를 만드는 과정에서 생기는 편향을 발견하고 고친 것</b>이기 때문입니다.
 </div>
 
+<!-- 04 -->
+<h2 class="sec"><span class="n">04</span>가격을 예측할 수 있는가?</h2>
+
+<p class="lead">
+  결론부터: <b>평상시엔 거의 못 합니다.</b> 그래서 점 예측 대신 구간을 내고, 그 구간이
+  실제로 맞았는지를 함께 보여줍니다.
+</p>
+
+<p>
+  게임 재화 가격은 금융 자산처럼 랜덤워크에 가깝습니다. <b>"내일 = 오늘"이라는 naive 예측이
+  놀랄 만큼 강한 베이스라인</b>이고, 단순 모델이 이걸 유의미하게 이기는 경우는 드뭅니다.
+  "예측 정확도 95%" 같은 문구는 대개 어제 값을 그대로 따라 그린 것입니다.
+</p>
+
+<h3 class="sub">그래서 이렇게 만들었습니다</h3>
+
+<p>
+  <code>log(가격) = 추세 + 요일효과 + 잔차</code> 형태입니다. 추세는 최근 구간의 최소제곱 직선,
+  요일효과는 §02에서 구한 공통 계수를 씁니다 — 아이템 하나하나는 표본이 얇아 자기 요일 효과를
+  추정할 수 없어서 전체에서 빌려 옵니다. 구간은 <b>잔차의 10/90 분위수</b>로 만듭니다.
+  정규분포를 가정하지 않기 위해서입니다.
+</p>
+
+<p>
+  예측이 멀어질수록 구간을 <code>√h</code>배로 넓힙니다. 랜덤워크의 분산이 시간에 비례하기 때문입니다.
+</p>
+
+<div class="note blue" id="fc-summary">불러오는 중…</div>
+
+<p>
+  각 아이템 상세 화면의 <b>가격·예측</b> 패널에 점선으로 표시됩니다. 일봉이 10일 미만이면
+  예측을 아예 내지 않습니다 — 추세도 잔차 분포도 말할 수 없는 표본이기 때문입니다.
+</p>
+
+<div class="note quiet">
+  <b>중요한 건 맞히는 것이 아니라 정직하게 평가하는 것입니다.</b> 그래서 모든 예측에
+  naive 대비 MAPE와 <b>구간 커버리지</b>(80% 구간이 실제로 80%를 담았는가)를 함께 냅니다.
+  naive를 못 이긴 아이템도 그대로 표시합니다 — 그 자체가 "이 시장은 예측하기 어렵다"는 결과입니다.
+</div>
+
 <!-- 한계 -->
-<h2 class="sec"><span class="n">04</span>한계</h2>
+<h2 class="sec"><span class="n">05</span>한계</h2>
 <div class="rule"></div>
 
 <ul>
@@ -203,6 +244,22 @@ fetch('data/summary.json').then(r => r.json()).then(D => {
     `<b>목요일만 유의하게 낮습니다</b> — 주간 평균 대비 <b style="font-size:16px">${thu.rel.toFixed(2)}%</b>,
      t = ${thu.t.toFixed(2)} (p &lt; 0.05). 나머지 6일은 전부 ±1.5% 안이고 통계적으로 유의하지 않습니다.
      목요일 상대 거래량은 <b>${thu.vol.toFixed(2)}</b>로 평균보다 높습니다.`;
+
+  // ── 04 예측 요약 ──
+  const withFc = D.items.filter(x => x.fc && x.fc.vsNaive !== null);
+  const el = document.getElementById('fc-summary');
+  if (withFc.length === 0) {
+    el.textContent = '아직 예측을 낼 만큼(일봉 10일) 데이터가 쌓인 아이템이 없습니다.';
+  } else {
+    const win = withFc.filter(x => x.fc.vsNaive > 0);
+    const avg = withFc.reduce((a, x) => a + x.fc.vsNaive, 0) / withFc.length;
+    const cov = withFc.filter(x => x.fc.coverage !== null);
+    const avgCov = cov.length ? cov.reduce((a, x) => a + x.fc.coverage, 0) / cov.length : null;
+    el.innerHTML = `예측을 낸 아이템 <b>${withFc.length}종</b> 중 naive를 이긴 것은 <b>${win.length}종</b>입니다. ` +
+      `MAPE 개선율 평균 <b class="${avg > 0 ? 'up' : 'down'}">${avg.toFixed(1)}%</b>` +
+      (avgCov !== null ? `, 80% 구간의 실제 커버리지는 평균 <b>${avgCov.toFixed(0)}%</b>입니다.` : '.') +
+      `<br><span style="color:var(--ink-3)">커버리지가 80%에 가까울수록 구간이 정직하다는 뜻입니다. 크게 높으면 구간이 너무 넓은 것이고, 낮으면 위험을 과소평가한 것입니다.</span>`;
+  }
 
   document.getElementById('delta-line').innerHTML =
     `지금까지 이 방식으로 관측한 매물 소진량은 <b>${fmt(D.meta.qty)}개</b>입니다.

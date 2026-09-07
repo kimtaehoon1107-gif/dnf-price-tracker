@@ -15,6 +15,13 @@ CREATE TABLE IF NOT EXISTS items (
   tracked           BOOLEAN     NOT NULL DEFAULT TRUE,
   role              TEXT,
   note              TEXT,
+  -- 화면 분류와 "종결"(현재 기준 최상위) 메타데이터.
+  -- 종결은 패치로 교체되므로 final_since에 언제 바뀌었는지를 남긴다.
+  category          TEXT,
+  slot              TEXT,          -- 무기 / 상의 / 하의 … (인챈트 카드)
+  job_role          TEXT,          -- 딜러 / 버퍼
+  is_final          BOOLEAN     NOT NULL DEFAULT FALSE,
+  final_since       DATE,
   backfilled_at     TIMESTAMPTZ,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -112,3 +119,20 @@ CREATE TABLE IF NOT EXISTS events (
   note             TEXT,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- 레전더리 카드 최저가 지수.
+-- 레전더리 카드는 합성·강화 재료로 들어가므로 "가장 싼 게 얼마냐"가 곧 재료비 하한선이다.
+-- 어느 카드가 최저가인지는 수시로 바뀌므로 전종을 훑어 바닥을 찾는다 (scripts/legendary-floor.ts).
+CREATE TABLE IF NOT EXISTS legendary_card_floor (
+  id             BIGSERIAL PRIMARY KEY,
+  captured_at    TIMESTAMPTZ NOT NULL,
+  min_unit_price BIGINT      NOT NULL,
+  min_item_id    TEXT        NOT NULL,
+  min_item_name  TEXT        NOT NULL,
+  p10            BIGINT,
+  median         BIGINT,
+  scanned        INTEGER     NOT NULL,
+  with_listings  INTEGER     NOT NULL,
+  total_listings INTEGER     NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_lcf_time ON legendary_card_floor (captured_at);
