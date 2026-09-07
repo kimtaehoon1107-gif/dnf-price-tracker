@@ -31,8 +31,8 @@
 
 Actions는 최소 5분 간격에 수 분 지연까지 붙어서 순례의 증표를 놓친다. 그래서:
 
-- **지금(SQLite):** 로컬 상주 프로세스 `npm run collect`. 아이템별 `setInterval`
-- **Supabase 이후:** Actions를 10분마다 띄우되 각 실행이 ~9분간 내부 루프를 돈다
+Actions를 10분마다 띄우되 **각 실행이 9분간 내부 루프를 돌게** 한다(`src/run.ts --minutes 9`).
+로컬에서 켜둘 때는 같은 파일을 인자 없이 돌리면 상주 모드가 된다.
 
 ### 3. `trades`의 중복 제거 키에 `dup_seq`가 필요하다
 
@@ -56,19 +56,6 @@ RSI·MACD 같은 주식 지표는 쓰지 않는다. 던파 재료는 자산이 �
 
 `events`만 API가 주지 않는 테이블이다. **`announced_at`과 `starts_at`을 반드시 분리**한다 — 그 차이가 정보 반영 속도이고, 이벤트 스터디의 핵심 질문이다.
 
-## 기술 스택
-
-**npm 의존성 0개.** Node 24가 TypeScript를 직접 실행하고 `node:sqlite`가 내장이라 빌드 도구도 네이티브 컴파일도 필요 없다.
-
-```
-npm run init          스키마 + 화이트리스트 시드 (여러 번 실행해도 안전)
-npm run collect       상주 수집 루프 ← 평소 켜두는 것
-npm run collect:once  전체 1회 수집 (백필 겸용)
-npm run stats         수집 현황 · 데이터 구멍 점검
-npm run probe -- --search 결정        아이템 이름 찾기
-npm run probe -- "태초 소울 결정"      거래 빈도 재서 폴링 주기 정하기
-```
-
 ### 7. 백필에는 시한이 있다
 
 `auction-sold`는 **최근 100건 또는 최대 1개월** 중 먼저 걸리는 쪽까지만 준다. 그래서 아이템마다 "과거를 얼마나 되돌아볼 수 있는가"가 다르고, **그 창은 매일 앞으로 밀린다.**
@@ -79,19 +66,44 @@ npm run probe -- "태초 소울 결정"      거래 빈도 재서 폴링 주기 
 
 그래서 어떤 이벤트의 시작 구간을 보려면 **그 이벤트에서 거래가 드문 아이템을 이벤트 시작 후 한 달 안에** 받아둬야 한다. 유랑악단의 경우 아바타 부품 117종이 그 창이었고(전량 08-27 시작), 2026-09-27경까지는 다시 받을 수 있다.
 
+## 기술 스택
+
+Node 24가 TypeScript를 직접 실행하므로 빌드 도구가 없다. 의존성은 `pg` 하나뿐이다 — REST로는 트랜잭션을 쓸 수 없어서, 수집 도중 죽었을 때 반쪽 데이터가 남는 것을 막으려면 드라이버가 필요했다.
+
+DB는 **Supabase Postgres 단일 백엔드**다. 로컬에서 돌리든 Actions가 돌리든 같은 곳에 쌓는다. 백엔드를 둘로 두면 데이터가 갈라진다.
+
+수집은 **GitHub Actions가 10분마다** 띄우고, 각 실행이 9분간 내부 루프를 돈다. Actions 크론은 최소 5분 간격에 지연까지 붙어서 100건이 13분치인 순례의 증표를 놓치기 때문이다. 공개 레포는 Actions 시간이 무제한이라 비용은 0이다.
+
+```
+npm run db:check      연결 확인 (연결 문자열이 틀렸을 때 이유를 알려준다)
+npm run init          스키마 + 화이트리스트 시드 (여러 번 실행해도 안전)
+npm run collect       상주 수집 (로컬에서 켜둘 때)
+npm run collect:once  전체 1회 수집 (백필 겸용)
+npm run stats         수집 현황 · 데이터 구멍 점검
+npm run discover      아이템 카탈로그 눈덩이 크롤 → data/catalog.json
+npm run scan          거래가 활발한 아이템 순위
+npm run probe -- --search 결정        아이템 이름 찾기
+npm run probe -- "태초 소울 결정"      거래 빈도 재서 폴링 주기 정하기
+npm run track -- <정규식> <주기> <역할>  카탈로그에서 일괄 등록
+```
+
 ## 함정
 
-- **`regCount`는 `itemType: "스태커블"`인 매물에만 온다.** 아바타·장비 단품에는 아예 없어서 그대로 쓰면 SQLite 바인딩이 터진다. 반드시 `regCount ?? count`로 받는다
+- **`regCount`는 `itemType: "스태커블"`인 매물에만 온다.** 아바타·장비 단품에는 아예 없어서 그대로 쓰면 DB 바인딩이 터진다. 반드시 `regCount ?? count`로 받는다
 - **아바타는 같은 itemId라도 같은 상품이 아니다.** 매물마다 `avatar.emblems`(엠블렘 슬롯 색)와 `avatar.ability`(능력치)가 달라 가격이 흩어진다. 장비의 강화 수치와 같은 문제이므로, 아바타 가격 지표는 개별 아이템보다 **집계 지수**로 다루는 편이 안전하다
 - **API 키는 `.env`에만.** 클라이언트 번들에 절대 넣지 않는다(`NEXT_PUBLIC_` 금지)
 - **Git Bash에서 curl에 한글 인자를 넘기면 깨진다.** MSYS가 native exe 인자를 재인코딩한다. 한글이 들어가는 호출은 반드시 Node 스크립트로
-- **`data/dnf.db`는 gitignore되지만 유일본이다.** Supabase로 옮기기 전까지 이게 프로젝트의 전 재산이므로 주기적으로 복사해둔다
+- **Supabase는 Session pooler로 붙는다.** Direct connection은 IPv6 전용인데 GitHub Actions 러너는 IPv4라 연결되지 않는다. 비밀번호의 특수문자는 percent-encode 해야 한다(`@` -> `%40`, `!` -> `%21`)
+- `data/`는 gitignore된다. discover 결과인 `catalog.json`과, 이제는 쓰지 않는 `dnf.db`가 들어 있다
 - OneDrive 폴더이므로 `data/`와 `node_modules`는 동기화에서 제외하는 편이 안전하다
-- Postgres 이식을 위해 SQLite 전용 문법을 쓰지 않는다. 시각은 ISO 문자열, 금액은 INTEGER
 
 ## 다음 단계
 
-- **Phase 0.5** — Supabase 이전 + Actions 배포 (24시간 수집 확보)
-- Phase 1 — 화이트리스트 확장, 세라템(골드 환율 기준재) 탐색, `events` 초기 입력
+- Phase 1 — 화이트리스트 확장, 세라템(골드 환율 기준재) 탐색, `events` 채우기
 - Phase 2 — Next.js 웹 UI
 - Phase 3 — 이벤트 스터디, 요일 계절성, 백테스트
+
+## 달력에 박아둘 날짜
+
+- **2026-09-27경** — 유랑악단 출시일(08-27) 데이터의 조회 시한. 아바타 부품 117종을 받으려면 그 전에
+- **2026-11-05** — 유랑악단 패키지 판매 종료. 해체 마진이 깨지는지 보는 본 이벤트

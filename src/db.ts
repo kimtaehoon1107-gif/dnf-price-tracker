@@ -1,20 +1,45 @@
-// SQLite 연결. Supabase/Postgres로 옮길 때 갈아끼우는 유일한 파일.
+// Postgres(Supabase) 연결.
 //
-// node:sqlite는 Node에 내장되어 있어 네이티브 컴파일이 필요 없다.
-// 덕분에 이 프로젝트는 npm 의존성이 0개다.
+// 로컬에서 돌리든 GitHub Actions가 돌리든 같은 DB에 쌓는다. 백엔드를 둘로 두면
+// 관리 지점이 늘고 무엇보다 데이터가 갈라지기 때문이다.
 
-import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import pg from 'pg';
 
-const path = process.env.DB_PATH ?? 'data/dnf.db';
-mkdirSync(dirname(path), { recursive: true });
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error('DATABASE_URL이 없습니다. .env를 확인하세요 (Supabase > Project Settings > Database > Connection string).');
+}
 
-export const db = new DatabaseSync(path);
+// 골드 금액은 BIGINT로 저장한다. pg는 bigint를 기본적으로 문자열로 주는데,
+// 던파 골드는 2^53을 넘지 않으므로 숫자로 받아도 안전하다.
+pg.types.setTypeParser(pg.types.builtins.INT8, (v) => Number(v));
 
-// WAL: 상주 수집 루프가 쓰는 동안 stats 스크립트가 읽을 수 있게 한다.
-db.exec('PRAGMA journal_mode = WAL');
-db.exec('PRAGMA foreign_keys = ON');
+export const pool = new pg.Pool({
+  connectionString,
+  // Supabase는 TLS를 요구하지만 인증서 체인이 Node 기본 신뢰 저장소와 맞지 않는다.
+  ssl: { rejectUnauthorized: false },
+  max: 4,
+});
+
+export const query = <T extends pg.QueryResultRow = pg.QueryResultRow>(
+  text: string, params?: unknown[],
+) => pool.query<T>(text, params);
+
+/** 트랜잭션. 실패하면 통째로 롤백한다 — 수집 도중 죽어도 반쪽 데이터가 남지 않는다. */
+export async function tx<T>(fn: (c: pg.PoolClient) => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const out = await fn(client);
+    await client.query('COMMIT');
+    return out;
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw e;
+  } finally {
+    client.release();
+  }
+}
 
 export const nowIso = () => new Date().toISOString();
 

@@ -8,10 +8,18 @@
     "node": ">=24"
   },
   "scripts": {
-    "init": "node --env-file=.env --experimental-sqlite --no-warnings scripts/init-db.ts",
-    "collect": "node --env-file=.env --experimental-sqlite --no-warnings src/collect-loop.ts",
-    "collect:once": "node --env-file=.env --experimental-sqlite --no-warnings src/collect.ts",
-    "stats": "node --env-file=.env --experimental-sqlite --no-warnings scripts/stats.ts",
-    "probe": "node --env-file=.env --no-warnings scripts/probe.ts"
+    "db:check": "node --env-file=.env --no-warnings scripts/db-check.ts",
+    "init": "node --env-file=.env --no-warnings scripts/init-db.ts",
+    "migrate": "node --env-file=.env --experimental-sqlite --no-warnings scripts/migrate-sqlite.ts",
+    "collect": "node --env-file=.env --no-warnings src/run.ts",
+    "collect:once": "node --env-file=.env --no-warnings src/run.ts --once",
+    "stats": "node --env-file=.env --no-warnings scripts/stats.ts",
+    "probe": "node --env-file=.env --no-warnings scripts/probe.ts",
+    "scan": "node --env-file=.env --no-warnings scripts/scan.ts",
+    "discover": "node --env-file=.env --no-warnings scripts/discover.ts",
+    "track": "node --env-file=.env --no-warnings scripts/track.ts"
+  },
+  "dependencies": {
+    "pg": "^8.23.0"
   }
 }

@@ -1,57 +1,66 @@
 // 수집 현황 점검. "데이터에 구멍이 없는가"를 확인하는 용도.
 
-import { db } from '../src/db.ts';
+import { query, pool } from '../src/db.ts';
 
-const items = db.prepare(
-  'SELECT item_id, item_name, poll_interval_sec FROM items WHERE tracked = 1 ORDER BY poll_interval_sec'
-).all() as Array<{ item_id: string; item_name: string; poll_interval_sec: number }>;
+const { rows } = await query<{
+  item_name: string; poll_interval_sec: number; n: number;
+  span_min: number | null; max_gap_min: number | null; qty: number; sat: number;
+}>(`
+  WITH gaps AS (
+    SELECT item_id,
+           COUNT(*)::int AS n,
+           EXTRACT(EPOCH FROM MAX(sold_date) - MIN(sold_date)) / 60 AS span_min,
+           MAX(EXTRACT(EPOCH FROM sold_date - prev)) / 60 AS max_gap_min
+    FROM (SELECT item_id, sold_date, LAG(sold_date) OVER (PARTITION BY item_id ORDER BY sold_date) AS prev
+          FROM trades) t
+    GROUP BY item_id
+  )
+  SELECT i.item_name, i.poll_interval_sec,
+         COALESCE(g.n, 0) AS n, g.span_min, g.max_gap_min,
+         COALESCE((SELECT SUM(qty_sold) FROM listing_deltas d
+                   WHERE d.item_id = i.item_id AND d.reason <> 'expired'), 0)::int AS qty,
+         COALESCE((SELECT COUNT(*) FROM collection_runs r
+                   WHERE r.item_id = i.item_id AND r.saturated), 0)::int AS sat
+  FROM items i LEFT JOIN gaps g ON g.item_id = i.item_id
+  WHERE i.tracked
+  ORDER BY i.poll_interval_sec, i.item_name`);
 
-const fmtDur = (min: number) =>
-  min >= 1440 ? `${(min / 1440).toFixed(1)}일` : min >= 60 ? `${(min / 60).toFixed(1)}시간` : `${min.toFixed(0)}분`;
+const dur = (m: number | null) => m === null ? '-'
+  : m >= 1440 ? `${(m / 1440).toFixed(1)}일` : m >= 60 ? `${(m / 60).toFixed(1)}시간` : `${m.toFixed(0)}분`;
+const pad = (s: string, n: number) => s.length > n ? s.slice(0, n) : s.padEnd(n);
 
-console.log('아이템'.padEnd(22) + '체결'.padStart(7) + '수집기간'.padStart(11) +
-  '최대공백'.padStart(11) + '소진관측'.padStart(10) + '포화'.padStart(6));
-console.log('─'.repeat(70));
+console.log(pad('아이템', 24) + '주기'.padStart(7) + '체결'.padStart(8) + '수집기간'.padStart(11) +
+  '최대공백'.padStart(11) + '소진관측'.padStart(11) + '포화'.padStart(6));
+console.log('─'.repeat(78));
 
-let totalTrades = 0;
-for (const it of items) {
-  const times = (db.prepare(
-    'SELECT sold_date FROM trades WHERE item_id = ? ORDER BY sold_date'
-  ).all(it.item_id) as Array<{ sold_date: string }>).map((r) => Date.parse(r.sold_date));
-
-  const qty = (db.prepare(
-    "SELECT COALESCE(SUM(qty_sold), 0) AS q FROM listing_deltas WHERE item_id = ? AND reason != 'expired'"
-  ).get(it.item_id) as { q: number }).q;
-
-  const sat = (db.prepare(
-    'SELECT COUNT(*) AS n FROM collection_runs WHERE item_id = ? AND saturated = 1'
-  ).get(it.item_id) as { n: number }).n;
-
-  totalTrades += times.length;
-
-  let spanMin = 0;
-  let maxGapMin = 0;
-  if (times.length > 1) {
-    spanMin = (times.at(-1)! - times[0]) / 60_000;
-    for (let i = 1; i < times.length; i++) {
-      maxGapMin = Math.max(maxGapMin, (times[i] - times[i - 1]) / 60_000);
-    }
-  }
-
+for (const r of rows) {
   console.log(
-    it.item_name.padEnd(20) +
-    String(times.length).padStart(7) +
-    (times.length > 1 ? fmtDur(spanMin) : '-').padStart(12) +
-    (times.length > 1 ? fmtDur(maxGapMin) : '-').padStart(12) +
-    `${qty}개`.padStart(11) +
-    (sat > 0 ? `⚠${sat}` : '·').padStart(6));
+    pad(r.item_name, 24) +
+    `${r.poll_interval_sec}s`.padStart(7) +
+    String(r.n).padStart(8) +
+    dur(r.span_min).padStart(12) +
+    dur(r.max_gap_min).padStart(12) +
+    `${r.qty.toLocaleString()}개`.padStart(12) +
+    (r.sat > 0 ? `⚠${r.sat}` : '·').padStart(6));
 }
 
-const runs = db.prepare(
-  'SELECT COUNT(*) AS n, SUM(CASE WHEN error IS NOT NULL THEN 1 ELSE 0 END) AS e FROM collection_runs'
-).get() as { n: number; e: number };
+const t = await query<{ n: number; lo: Date | null; hi: Date | null }>(
+  'SELECT COUNT(*)::int AS n, MIN(sold_date) AS lo, MAX(sold_date) AS hi FROM trades');
+const c = await query<{ n: number; e: number; last: Date | null }>(`
+  SELECT COUNT(*)::int AS n, COUNT(error)::int AS e, MAX(started_at) AS last FROM collection_runs`);
 
-console.log('─'.repeat(70));
-console.log(`체결 ${totalTrades.toLocaleString()}건 · 수집 실행 ${runs.n}회 (실패 ${runs.e ?? 0})`);
-console.log('\n"최대공백"이 그 아이템의 폴링 주기보다 훨씬 크면 실제로 거래가 없던 구간이고,');
+console.log('─'.repeat(78));
+console.log(`체결 ${t.rows[0].n.toLocaleString()}건 · 수집 실행 ${c.rows[0].n}회 (실패 ${c.rows[0].e})`);
+if (t.rows[0].lo) {
+  console.log(`데이터 구간  ${t.rows[0].lo.toISOString().slice(0, 19)} ~ ${t.rows[0].hi!.toISOString().slice(0, 19)} UTC`);
+}
+if (c.rows[0].last) {
+  const ago = (Date.now() - c.rows[0].last.getTime()) / 60_000;
+  console.log(`마지막 수집  ${ago < 60 ? `${ago.toFixed(0)}분 전` : `${(ago / 60).toFixed(1)}시간 전`}` +
+    (ago > 30 ? '  ⚠ 수집기가 멈춰 있을 수 있습니다' : ''));
+}
+
+console.log('\n"최대공백"이 그 아이템의 주기보다 훨씬 크면 실제로 거래가 없던 구간이고,');
 console.log('"포화"에 표시가 뜨면 100건 상한에 걸려 거래를 놓쳤다는 뜻이므로 주기를 줄여야 합니다.');
+
+await pool.end();
