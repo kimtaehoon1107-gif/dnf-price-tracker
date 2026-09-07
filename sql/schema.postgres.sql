@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS items (
   slot              TEXT,          -- 무기 / 상의 / 하의 … (인챈트 카드)
   job_role          TEXT,          -- 딜러 / 버퍼
   is_final          BOOLEAN     NOT NULL DEFAULT FALSE,
+  key_stat          TEXT,          -- 종결 안에서 성능이 갈릴 때의 핵심 옵션 (예: 최종뎀 9.6%)
   final_since       DATE,
   backfilled_at     TIMESTAMPTZ,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now()

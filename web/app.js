@@ -10,6 +10,10 @@ const cls = (n) => n === null || !isFinite(n) || Math.abs(n) < 0.005 ? 'flat' : 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const css = (n) => getComputedStyle(document.body).getPropertyValue(n).trim();
 
+// 종결이 언제 교체됐는지. 종결은 패치로 바뀌므로 "얼마나 오래 종결이었나"가
+// 곧 다음 교체가 임박했는지의 신호가 된다.
+const sinceDays = (d) => d ? Math.floor((Date.now() - Date.parse(d + 'T00:00:00+09:00')) / 86400000) : null;
+
 // 유동성 등급 — "이 아이템의 지표를 믿어도 되는가"를 한 글자로.
 // 표본이 얇으면 어떤 가격 지표도 신뢰할 수 없으므로 등급을 먼저 보여준다.
 function grade(it) {
@@ -139,7 +143,7 @@ function renderList() {
             <img src="${r.img}" alt="" loading="lazy" width="32" height="32">
             <div class="t">
               <b>${esc(r.item_name)}${r.is_final ? '<span class="tag fin">종결</span>' : ''}${r.slot ? `<span class="tag">${esc(r.slot)}</span>` : ''}</b>
-              <span>${esc(r.item_rarity)}${r.job_role ? ' · ' + esc(r.job_role) : ''} · 표본 ${fmt(r.trades)} · ${r.g}등급</span>
+              <span>${esc(r.item_rarity)}${r.job_role ? ' · ' + esc(r.job_role) : ''}${r.key_stat ? ' · ' + esc(r.key_stat) : ''} · 표본 ${fmt(r.trades)} · ${r.g}등급${r.final_since ? ` · 종결 D+${sinceDays(r.final_since)}` : ''}</span>
             </div>
           </div>
           <div class="px">${fmt(r.last_price)}</div>
@@ -226,6 +230,7 @@ function renderInventory(all, cats) {
                   <img src="${c.img}" alt="" loading="lazy" width="30" height="30">
                   <div class="cn">
                     <b>${esc(c.item_name.replace(/ 카드$/, ''))}</b>
+                    ${c.key_stat ? `<div class="ks">${esc(c.key_stat)}</div>` : ''}
                     <div class="p">${fmt(c.min_ask || c.last_price)}
                       <i class="${c.qty24 < 5 ? 'flat' : cls(c.chg)}">${pct(c.chg)}</i></div>
                   </div>
@@ -240,7 +245,6 @@ function renderInventory(all, cats) {
       가격순 목록보다 이쪽이 실제 사용 맥락에 맞습니다.<br>
       표시 가격은 <b>최저 호가</b>이고, 없으면 최근 체결가입니다.
       한 부위에 카드가 여러 개인 것은 <b>종결이 여럿</b>이라는 뜻입니다 — 옵션이 갈리거나 성능이 비슷한 경우입니다.
-      종결 목록은 <a href="https://dnf-power.com/enchant-search" target="_blank" rel="noopener" style="color:var(--blue)">던파파워</a>를 참고했습니다.
     </p>`;
 
   document.querySelectorAll('.slot[data-id]').forEach((el) => {
@@ -262,7 +266,8 @@ async function renderDetail(it) {
       <img src="${it.img}" alt="" width="48" height="48">
       <div>
         <h2>${esc(it.item_name)}${it.is_final ? '<span class="tag fin">종결</span>' : ''}</h2>
-        <div class="meta">${esc(it.item_rarity)} · ${esc(it.item_type_detail)}${it.slot ? ' · ' + esc(it.slot) : ''}${it.job_role ? ' · ' + esc(it.job_role) : ''}</div>
+        <div class="meta">${esc(it.item_rarity)} · ${esc(it.item_type_detail)}${it.slot ? ' · ' + esc(it.slot) : ''}${it.job_role ? ' · ' + esc(it.job_role) : ''}${it.key_stat ? ' · ' + esc(it.key_stat) : ''}</div>
+        ${it.final_since ? `<div class="meta">종결 지정 ${it.final_since} · <b style="color:var(--ink-2)">D+${sinceDays(it.final_since)}일차</b></div>` : ''}
       </div>
     </div>
     <div class="bigpx">${fmt(it.last_price)}<small>골드</small></div>
