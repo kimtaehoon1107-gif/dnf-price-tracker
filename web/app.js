@@ -765,8 +765,11 @@ async function renderDetail(it) {
   if (d.length >= 2) {
     const c1 = LightweightCharts.createChart(document.getElementById('c1'), { ...opts, height: 300 });
     const timeline = eventTimeline(events, d, s.forecast);
-    const priceSeries = c1.addLineSeries({ color: css('--ink'), lineWidth: 2 });
-    priceSeries.setData(d.map((x) => ({ time: x.d, value: x.vwap })));
+    const priceSeries = c1.addCandlestickSeries({
+      upColor: css('--up'), downColor: css('--down'), borderVisible: false,
+      wickUpColor: css('--up'), wickDownColor: css('--down'),
+    });
+    priceSeries.setData(d.map((x) => ({ time: x.d, open: x.o, high: x.h, low: x.l, close: x.c })));
     if (timeline.length) {
       c1.addLineSeries({
         lineVisible: false, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
@@ -775,23 +778,24 @@ async function renderDetail(it) {
 
     if (s.forecast) {
       const f = s.forecast;
-      // 예측선은 마지막 실측값에서 이어붙인다 — 그래야 "여기서부터 예측"이 눈에 보인다
-      const last = { time: d.at(-1).d, value: d.at(-1).vwap };
+      // 캔들은 종가, 예측은 VWAP 기준이다. 서로 다른 값을 억지로 이으면
+      // 가짜 급등락처럼 보이므로 점선은 첫 예측일부터 시작한다.
       const band = (key, w) => c1.addLineSeries({
         color: css('--blue'), lineWidth: w, lineStyle: 2,
         crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
-      }).setData([last, ...f.points.map((p) => ({ time: p.d, value: p[key] }))]);
+      }).setData(f.points.map((p) => ({ time: p.d, value: p[key] })));
       band('hi', 1); band('lo', 1); band('mid', 2);
 
       const p0 = f.points[0];
       desc.innerHTML =
-        `점선은 <b>${f.horizonDays}일 예측</b>입니다. 내일 예상 <b>${fmt(p0.mid)}</b>, 80% 구간 ${fmt(p0.lo)}~${fmt(p0.hi)}. ` +
+        `캔들은 일별 시가·고가·저가·종가이며 오늘 봉은 수집 중입니다. 점선은 다음 날부터의 VWAP 기준 <b>${f.horizonDays}일 예측</b>입니다. ` +
+        `내일 예상 <b>${fmt(p0.mid)}</b>, 80% 구간 ${fmt(p0.lo)}~${fmt(p0.hi)}. ` +
         (f.vsNaive !== null
           ? `백테스트에서 naive(마지막 값 유지) 대비 MAPE가 <b class="${f.vsNaive > 0 ? 'up' : 'down'}">${f.vsNaive.toFixed(1)}%</b> ${f.vsNaive > 0 ? '개선' : '악화'}됐고 구간 커버리지는 ${f.coverage?.toFixed(0)}%입니다.`
           : '표본이 얇아 백테스트는 생략했습니다.') +
         `<br><span style="color:var(--ink-4)">모델 — ${esc(f.method)}</span>`;
     } else {
-      desc.textContent = '예측에는 일봉이 최소 10일 필요합니다. 아직 그만큼 쌓이지 않았습니다.';
+      desc.textContent = '캔들은 일별 시가·고가·저가·종가이며 오늘 봉은 수집 중입니다. 예측에는 일봉이 최소 10일 필요합니다.';
     }
     c1.timeScale().fitContent();
     renderEventRail(c1, timeline);
