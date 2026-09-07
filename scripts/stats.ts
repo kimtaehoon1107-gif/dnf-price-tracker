@@ -9,8 +9,9 @@ const { rows } = await query<{
   WITH gaps AS (
     SELECT item_id,
            COUNT(*)::int AS n,
-           EXTRACT(EPOCH FROM MAX(sold_date) - MIN(sold_date)) / 60 AS span_min,
-           MAX(EXTRACT(EPOCH FROM sold_date - prev)) / 60 AS max_gap_min
+           -- numeric으로 두면 pg가 문자열로 넘겨준다. float8로 캐스팅해야 숫자로 받는다.
+           (EXTRACT(EPOCH FROM MAX(sold_date) - MIN(sold_date)) / 60)::float8 AS span_min,
+           (MAX(EXTRACT(EPOCH FROM sold_date - prev)) / 60)::float8 AS max_gap_min
     FROM (SELECT item_id, sold_date, LAG(sold_date) OVER (PARTITION BY item_id ORDER BY sold_date) AS prev
           FROM trades) t
     GROUP BY item_id
