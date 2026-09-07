@@ -143,6 +143,85 @@ function shockSVG(points) {
   </div>`;
 }
 
+const EVENT_STAGES = [
+  { key: 'announced', label: '공지', position: 'belowBar', shape: 'arrowUp', color: '--blue' },
+  { key: 'starts', label: '적용', position: 'aboveBar', shape: 'square', color: '--gold' },
+  { key: 'ends', label: '종료', position: 'aboveBar', shape: 'arrowDown', color: '--ink-3' },
+];
+
+const eventDate = (d) => d
+  ? new Date(`${d}T00:00:00+09:00`).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' })
+  : '미확인';
+
+function isoDow(d) {
+  const day = new Date(`${d}T12:00:00Z`).getUTCDay();
+  return day || 7;
+}
+
+function eventStageStudy(stage, days) {
+  if (!stage.date) return { state: 'missing' };
+  const today = new Date(DATA.builtAt).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+  const complete = days.filter((x) => x.d < today && x.vwap > 0 && x.qty > 0);
+  if (!complete.length || stage.date < complete[0].d) return { state: 'before' };
+  if (stage.date > today) return { state: 'scheduled' };
+
+  const before = complete.filter((x) => x.d < stage.date).slice(-3);
+  const after = complete.filter((x) => x.d >= stage.date).slice(0, 3);
+  if (before.length < 3 || after.length < 3) return { state: 'waiting' };
+
+  const weekdays = DATA.weekday ?? [];
+  if (weekdays.length < 7) return { state: 'weekday' };
+  const meanRet = weekdays.reduce((sum, x) => sum + x.ret, 0) / weekdays.length;
+  const weekdayBy = new Map(weekdays.map((x) => [x.k, x]));
+  const mean = (xs, value) => xs.reduce((sum, x) => sum + value(x), 0) / xs.length;
+  const adjustedPrice = (x) => x.vwap / Math.exp(((weekdayBy.get(isoDow(x.d))?.ret ?? meanRet) - meanRet) / 100);
+  const adjustedQty = (x) => x.qty / (weekdayBy.get(isoDow(x.d))?.vol || 1);
+
+  return {
+    state: 'ready',
+    price: (mean(after, adjustedPrice) / mean(before, adjustedPrice) - 1) * 100,
+    qty: (mean(after, adjustedQty) / mean(before, adjustedQty) - 1) * 100,
+  };
+}
+
+function eventMarkers(events, days) {
+  if (!days.length) return [];
+  const first = days[0].d, last = days.at(-1).d;
+  return events.flatMap((event) => EVENT_STAGES.flatMap((stage) => {
+    const date = event[stage.key];
+    return !date || date < first || date > last ? [] : [{
+      time: date,
+      position: stage.position,
+      shape: stage.shape,
+      color: css(stage.color),
+      text: `${stage.label} · ${event.name}`,
+    }];
+  })).sort((a, b) => a.time.localeCompare(b.time));
+}
+
+function eventStudyHTML(events, days) {
+  if (!events.length) return '<p class="event-empty">연결된 이벤트가 아직 없습니다.</p>';
+  const stateText = {
+    missing: '날짜 미확인', before: '수집 시작 전', scheduled: '예정', waiting: '전후 3일 대기 중',
+    weekday: '요일 표본 대기 중',
+  };
+  return `<div class="event-list">${events.map((event) => {
+    const href = /^https?:\/\//.test(event.source_url ?? '')
+      ? `<a href="${esc(event.source_url)}" target="_blank" rel="noopener">근거 보기 ↗</a>`
+      : '<span class="event-source">출처 미등록</span>';
+    return `<div class="event-row">
+      <div class="event-name"><span class="tag">${esc(event.type)}</span><b>${esc(event.name)}</b>${href}</div>
+      <div class="event-stages">${EVENT_STAGES.map((stage) => {
+        const result = eventStageStudy({ date: event[stage.key] }, days);
+        const effect = result.state === 'ready'
+          ? `요일 보정 VWAP <b class="${cls(result.price)}">${pct(result.price)}</b> · API 관측 수량 <b class="${cls(result.qty)}">${pct(result.qty)}</b>`
+          : stateText[result.state];
+        return `<div><span>${stage.label}</span><b>${eventDate(event[stage.key])}</b><small>${effect}</small></div>`;
+      }).join('')}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
 // 수집이 없던 시간은 0이 아니라 공백이다. 7일 시간축을 직접 채우되,
 // 관측된 0만 value: 0으로 두고 미관측 시간은 whitespace point로 남긴다.
 function depletionSeries(rows) {
@@ -416,6 +495,11 @@ async function renderDetail(it) {
       <h3>가격 · 예측</h3>
       <p class="desc" id="fc-desc">불러오는 중…</p>
       <div class="chart" id="c1"></div>
+      <div class="event-study">
+        <h4>이벤트 스터디</h4>
+        <p class="desc">공지·적용·종료 시점을 가격과 겹쳐 봅니다. 전후 수치는 요일효과를 보정한 3일 평균 비교이며, 동시 발생이 인과관계를 뜻하지는 않습니다.</p>
+        <div id="event-list"></div>
+      </div>
     </div>
     <div class="panel">
       <h3>호가–체결 갭</h3>
@@ -473,6 +557,8 @@ async function renderDetail(it) {
   const desc = document.getElementById('fc-desc');
   const shock = shockData(d);
   const depletion = s.depletion ?? [];
+  const events = s.events ?? [];
+  document.getElementById('event-list').innerHTML = eventStudyHTML(events, d);
 
   if (depletion.length) {
     const cutoff = Date.parse(DATA.builtAt) - 24 * 3600000;
@@ -515,8 +601,9 @@ async function renderDetail(it) {
 
   if (d.length >= 2) {
     const c1 = LightweightCharts.createChart(document.getElementById('c1'), { ...opts, height: 300 });
-    c1.addLineSeries({ color: css('--ink'), lineWidth: 2 })
-      .setData(d.map((x) => ({ time: x.d, value: x.vwap })));
+    const priceSeries = c1.addLineSeries({ color: css('--ink'), lineWidth: 2 });
+    priceSeries.setData(d.map((x) => ({ time: x.d, value: x.vwap })));
+    priceSeries.setMarkers(eventMarkers(events, d));
 
     if (s.forecast) {
       const f = s.forecast;

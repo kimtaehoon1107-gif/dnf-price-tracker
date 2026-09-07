@@ -137,6 +137,22 @@ const depth = (await query<{ item_id: string; price: number; qty: number }>(`
   GROUP BY l.item_id, l.unit_price
   ORDER BY l.item_id, l.unit_price`, [['재료·소모품', '소울 결정']])).rows;
 
+const events = (await query<{
+  id: string; name: string; type: string;
+  announced: string | null; starts: string | null; ends: string | null;
+  related_item_ids: string[] | null; source_url: string | null;
+}>(`
+  SELECT id::text, name, type,
+         CASE WHEN announced_at IS NULL THEN NULL ELSE
+           to_char(announced_at AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') END AS announced,
+         CASE WHEN starts_at IS NULL THEN NULL ELSE
+           to_char(starts_at AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') END AS starts,
+         CASE WHEN ends_at IS NULL THEN NULL ELSE
+           to_char(ends_at AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') END AS ends,
+         related_item_ids, source_url
+  FROM events
+  ORDER BY COALESCE(announced_at, starts_at, ends_at), id`)).rows;
+
 const byItem = <T extends { item_id: string }>(rows: T[]) => {
   const m = new Map<string, Omit<T, 'item_id'>[]>();
   for (const { item_id, ...rest } of rows) {
@@ -150,6 +166,13 @@ const hourlyBy = byItem(hourly);
 const askGapBy = byItem(askGap);
 const depletionBy = byItem(depletion);
 const depthBy = byItem(depth);
+const eventsBy = new Map<string, typeof events>();
+for (const event of events) {
+  for (const itemId of event.related_item_ids ?? []) {
+    if (!eventsBy.has(itemId)) eventsBy.set(itemId, []);
+    eventsBy.get(itemId)!.push(event);
+  }
+}
 
 // ── 요일 효과 ──────────────────────────────────────────────────
 const weekday = (await query<{ dow: string; k: number; n: number; ret: number; se: number; vol: number }>(`
@@ -179,7 +202,7 @@ for (const it of items) {
   writeFileSync(`${OUT}/data/series/${it.item_id}.json`, JSON.stringify({
     daily: d, hourly: hourlyBy.get(it.item_id) ?? [],
     askGap: askGapBy.get(it.item_id) ?? [], depletion: depletionBy.get(it.item_id) ?? [],
-    depth: depthBy.get(it.item_id) ?? [], forecast: f,
+    depth: depthBy.get(it.item_id) ?? [], events: eventsBy.get(it.item_id) ?? [], forecast: f,
   }));
 }
 

@@ -189,6 +189,22 @@ header.top .built { font-size: 12px; color: var(--ink-4); font-variant-numeric: 
 .shock-tick { fill: var(--ink-4); font: 11px var(--mono); }
 .shock-title { fill: var(--ink-3); font: 12px var(--sans); }
 
+.event-study { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 16px; }
+.event-study h4 { margin: 0 0 4px; font-size: 14px; }
+.event-study .desc { margin-bottom: 10px; }
+.event-empty { margin: 0; color: var(--ink-3); font-size: 13px; }
+.event-row { padding: 12px 0; border-top: 1px solid var(--line); }
+.event-row:first-child { border-top: 0; }
+.event-name { display: flex; align-items: center; gap: 7px; font-size: 13px; margin-bottom: 10px; }
+.event-name .tag { margin-left: 0; }
+.event-name a, .event-source { margin-left: auto; color: var(--ink-3); font-size: 12px; font-weight: 500; }
+.event-name a:hover { color: var(--blue); }
+.event-stages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.event-stages > div { background: var(--page); border-radius: 9px; padding: 9px 10px; }
+.event-stages span, .event-stages small { display: block; color: var(--ink-3); font-size: 11.5px; }
+.event-stages > div > b { display: block; font-size: 13px; margin: 2px 0 3px; }
+.event-stages small b { display: inline; font-size: inherit; }
+
 /* ── 분석 페이지 ──────────────────────────────── */
 h2.sec { font-size: 22px; font-weight: 700; letter-spacing: -0.03em; margin: 44px 0 6px; }
 h2.sec .n { color: var(--blue); font-size: 14px; font-weight: 700; margin-right: 8px; vertical-align: 3px; }
@@ -223,6 +239,7 @@ footer b { color: var(--ink-2); }
   .lh, .row { grid-template-columns: 28px minmax(120px, 1.6fr) 92px 84px; }
   .lh .h5, .lh .h6, .lh .h7, .row .c5, .row .c6, .row .c7 { display: none; }
   .bigpx { font-size: 28px; }
+  .event-stages { grid-template-columns: 1fr; }
 }
 
 /* ── 분석 페이지 보조 요소 ────────────────────── */
