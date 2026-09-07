@@ -1,0 +1,27 @@
+name: 공식 이벤트 동기화
+
+on:
+  # 수요일 공지가 나온 뒤, 목요일 점검 종료 무렵에 한 번 반영한다.
+  schedule:
+    - cron: '30 1 * * 4'
+  workflow_dispatch:
+
+concurrency:
+  group: events
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --omit=dev
+      - name: 던파 공식 공지 동기화
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node --no-warnings scripts/sync-events.ts

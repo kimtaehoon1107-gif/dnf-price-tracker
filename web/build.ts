@@ -151,7 +151,7 @@ const events = (await query<{
            to_char(ends_at AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') END AS ends,
          related_item_ids, source_url
   FROM events
-  ORDER BY COALESCE(announced_at, starts_at, ends_at), id`)).rows;
+  ORDER BY COALESCE(announced_at, starts_at, ends_at) DESC, id DESC`)).rows;
 
 const byItem = <T extends { item_id: string }>(rows: T[]) => {
   const m = new Map<string, Omit<T, 'item_id'>[]>();
@@ -168,7 +168,8 @@ const depletionBy = byItem(depletion);
 const depthBy = byItem(depth);
 const eventsBy = new Map<string, typeof events>();
 for (const event of events) {
-  for (const itemId of event.related_item_ids ?? []) {
+  const related = event.related_item_ids?.length ? event.related_item_ids : items.map((item) => item.item_id);
+  for (const itemId of related) {
     if (!eventsBy.has(itemId)) eventsBy.set(itemId, []);
     eventsBy.get(itemId)!.push(event);
   }

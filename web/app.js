@@ -210,7 +210,7 @@ function eventStudyHTML(events, days) {
       ? `<a href="${esc(event.source_url)}" target="_blank" rel="noopener">근거 보기 ↗</a>`
       : '<span class="event-source">출처 미등록</span>';
     return `<div class="event-row">
-      <div class="event-name"><span class="tag">${esc(event.type)}</span><b>${esc(event.name)}</b>${href}</div>
+      <div class="event-name"><span class="tag">${esc(event.type)}</span>${event.related_item_ids?.length ? '' : '<span class="tag g">전체</span>'}<b>${esc(event.name)}</b>${href}</div>
       <div class="event-stages">${EVENT_STAGES.map((stage) => {
         const result = eventStageStudy({ date: event[stage.key] }, days);
         const effect = result.state === 'ready'
@@ -496,7 +496,7 @@ async function renderDetail(it) {
       <p class="desc" id="fc-desc">불러오는 중…</p>
       <div class="chart" id="c1"></div>
       <div class="event-study">
-        <h4>이벤트 스터디</h4>
+        <h4>가격 영향 이벤트 · 이벤트 스터디</h4>
         <p class="desc">공지·적용·종료 시점을 가격과 겹쳐 봅니다. 전후 수치는 요일효과를 보정한 3일 평균 비교이며, 동시 발생이 인과관계를 뜻하지는 않습니다.</p>
         <div id="event-list"></div>
       </div>
