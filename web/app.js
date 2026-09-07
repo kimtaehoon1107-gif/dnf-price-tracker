@@ -616,7 +616,10 @@ async function renderDetail(it) {
     </div></div>
 
     <div class="panel">
-      <h3>가격 · 예측</h3>
+      <div class="panel-head">
+        <h3>가격 · 예측</h3>
+        <button class="chart-toggle" id="candle-toggle" type="button" aria-pressed="true">캔들 켜짐</button>
+      </div>
       <p class="desc" id="fc-desc">불러오는 중…</p>
       <div class="chart" id="c1"></div>
       <div class="event-rail" id="event-rail" aria-label="가격 영향 이벤트 태그" hidden></div>
@@ -770,6 +773,20 @@ async function renderDetail(it) {
       wickUpColor: css('--up'), wickDownColor: css('--down'),
     });
     candleSeries.setData(d.map((x) => ({ time: x.d, open: x.o, high: x.h, low: x.l, close: x.c })));
+    const candleToggle = document.getElementById('candle-toggle');
+    let candleVisible = localStorage.getItem('dnf-candles') !== 'off';
+    const setCandleVisible = (visible) => {
+      candleVisible = visible;
+      candleSeries.applyOptions({ visible });
+      candleToggle.classList.toggle('on', visible);
+      candleToggle.textContent = visible ? '캔들 켜짐' : '캔들 꺼짐';
+      candleToggle.setAttribute('aria-pressed', String(visible));
+    };
+    setCandleVisible(candleVisible);
+    candleToggle.onclick = () => {
+      setCandleVisible(!candleVisible);
+      localStorage.setItem('dnf-candles', candleVisible ? 'on' : 'off');
+    };
     c1.addLineSeries({
       color: css('--ink'), lineWidth: 1, priceLineVisible: false, lastValueVisible: false,
     }).setData(d.map((x) => ({ time: x.d, value: x.vwap })));
@@ -808,6 +825,7 @@ async function renderDetail(it) {
     c2.timeScale().fitContent();
   } else {
     document.getElementById('c1').innerHTML = '<p style="color:var(--ink-3);margin:0">일봉을 그릴 만큼 데이터가 모이지 않았습니다.</p>';
+    document.getElementById('candle-toggle').hidden = true;
     desc.textContent = '';
   }
 
