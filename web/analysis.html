@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>분석 — 던파 경매장 시세 추적기</title>
+<meta name="description" content="던파 경매장 데이터로 검증한 세 가지: 시장 효율성, 요일 효과, 거래량 과소집계 편향.">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1><a href="index.html">던파 경매장 시세 추적기</a></h1>
+  <nav>
+    <a href="index.html">시세</a>
+    <a href="analysis.html" class="on">분석</a>
+    <a href="https://github.com/kimtaehoon1107-gif/dnf-price-tracker" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <span class="spacer"></span>
+  <span class="built" id="built"></span>
+</header>
+
+<main>
+
+<p style="max-width:70ch;font-size:15px;color:var(--ink)">
+  Neople 오픈 API는 과거 시세를 주지 않습니다. 최근 체결 100건 또는 최대 1개월이 전부입니다.
+  그래서 이 프로젝트의 본체는 차트가 아니라 <b>수집 파이프라인</b>이고, 아래 세 가지는 그렇게 모은
+  데이터로 실제로 답한 질문들입니다.
+</p>
+
+<!-- 01 -->
+<h2 class="sec"><span class="n">01</span>던파 경매장은 효율적인 시장인가?</h2>
+<div class="rule"></div>
+
+<p>
+  <b>숲속의 유랑악단 패키지</b>를 뜯으면 다섯 개의 상자가 나옵니다. 그렇다면 패키지를 사서 뜯어 파는 것과
+  그냥 파는 것 중 어느 쪽이 이득일까요? 차이가 크다면 그건 <b>공짜 차익</b>이 방치되어 있다는 뜻입니다.
+</p>
+
+<div class="table-scroll" style="margin:20px 0"><table id="margin-table"></table></div>
+
+<div class="note" id="margin-verdict"></div>
+
+<p>
+  경매장 판매 수수료(약 3%)까지 넣으면 차익이 <b>사실상 0</b>입니다. 유저들이 이미 재정거래로
+  차익을 지워버린 상태이고, 이건 무차익(no-arbitrage) 조건의 교과서적 사례입니다.
+  <b>그래서 흥미로운 질문은 "마진이 얼마인가"가 아니라 "언제 깨지는가"입니다</b> —
+  패키지 출시일과 판매 종료일(2026-11-05)이 유력한 후보입니다.
+</p>
+
+<!-- 02 -->
+<h2 class="sec"><span class="n">02</span>요일에 따라 가격이 다른가?</h2>
+<div class="rule"></div>
+
+<p>
+  던파는 <b>매주 목요일 06시에 주간 던전이 초기화</b>됩니다. 그 직후 재료 공급이 쏟아진다면 가격이
+  내려가야 합니다. 검증해봤습니다.
+</p>
+
+<p>
+  방법: 14일 이상 이력이 있는 아이템만 골라, 아이템별 일간 VWAP을 <b>그 아이템의 평균으로 나눠 정규화</b>한 뒤
+  요일별로 묶었습니다. 정규화하지 않으면 8골드짜리 잡재료와 300만 골드짜리 마법석이 같은 무게로 섞입니다.
+</p>
+
+<div class="bars" id="weekday-bars"></div>
+
+<div class="note" id="weekday-verdict"></div>
+
+<p>
+  <b>가격은 내려가는데 거래량은 오히려 조금 늘었습니다.</b> 이 조합이 중요합니다 —
+  수요가 줄어서 가격이 내렸다면 거래량도 함께 줄었어야 합니다. 가격↓ + 거래량↑는
+  <b>공급 충격</b>의 서명이고, 목요일 06시 초기화 가설과 정확히 맞습니다.
+</p>
+
+<div class="note" style="border-left-color:var(--ink-3)">
+  <b>한 번 틀렸다가 고친 부분입니다.</b> 처음엔 거래가 거의 없는 잡템 70종을 함께 넣었더니
+  "주말에 비싸고 주중에 싸다"는 전혀 다른 그림이 나왔습니다. 8골드짜리 헝겊 조각과 300만 골드짜리
+  마법석을 같은 무게로 평균 낸 탓이었습니다. 시장에서 실제로 거래되는 아이템만 남기니
+  목요일 효과만 유의하게 남았습니다.
+</div>
+
+<!-- 03 -->
+<h2 class="sec"><span class="n">03</span>우리가 재는 거래량은 진짜 거래량인가?</h2>
+<div class="rule"></div>
+
+<p>
+  아닙니다. 그리고 <b>틀리는 방향이 하필 최악입니다.</b>
+</p>
+
+<p>
+  체결 API는 한 번에 <b>100건까지만</b> 줍니다. 폴링 사이에 150건이 거래됐다면 50건은 영원히 못 봅니다.
+  가격에는 별 영향이 없지만 — 남은 100건도 여전히 대표성 있는 표본이니까요 —
+  <b>거래량은 그만큼 통째로 과소집계됩니다.</b> 게다가 거래가 폭발할수록 더 많이 놓치므로,
+  진짜 거래량이 급증한 구간에서 그래프는 오히려 평평해 보입니다.
+</p>
+
+<p>수집을 만들면서 발견하고 고친 것 두 가지입니다.</p>
+
+<h3 style="font-size:15px;margin:26px 0 8px;color:var(--ink)">① 같은 초에 일어난 별개의 체결이 하나로 합쳐지고 있었다</h3>
+<p>
+  체결 API는 <code>auctionNo</code>를 주지 않아서 자연키(시각·가격·수량·강화)로 중복을 제거해야 합니다.
+  그런데 대량 매수가 여러 매물을 한 번에 쓸어가면 <b>같은 초·같은 개당가·같은 수량인 별개의 체결</b>이
+  여러 건 생깁니다. 실측했더니 레전더리 소울 결정은 응답 100건 중 <b>15건이 동일키</b>였습니다.
+  그대로 뒀다면 거래량이 <b>15% 과소집계</b>된 채로 굴러갔을 겁니다.
+</p>
+<p>
+  응답 안에서 동일키가 몇 번째로 나타났는지를 <code>dup_seq</code>로 함께 잠가 해결했습니다.
+  재폴링해도 같은 순번이 매겨지므로 중복 제거는 그대로 동작하고, 그 사이 그룹이 커졌다면 늘어난 만큼만 들어옵니다.
+</p>
+
+<h3 style="font-size:15px;margin:26px 0 8px;color:var(--ink)">② 놓친 거래량을 매물 쪽에서 복원할 수 있다</h3>
+<p>
+  매물 API는 <b>등록 수량(<code>regCount</code>)과 잔여 수량(<code>count</code>)을 따로</b> 줍니다.
+  같은 매물을 반복 관측하면서 잔여 수량이 줄어드는 것을 추적하면,
+  <b>체결 API가 100건 상한 때문에 놓친 거래까지 잡힙니다.</b>
+</p>
+<p id="delta-line"></p>
+
+<div class="note">
+  이 두 가지가 이 프로젝트에서 가장 마음에 드는 부분입니다. "남이 만든 데이터를 분석했다"가 아니라
+  <b>데이터를 만드는 과정에서 생기는 편향을 발견하고 고친 것</b>이기 때문입니다.
+</div>
+
+<!-- 한계 -->
+<h2 class="sec"><span class="n">04</span>한계</h2>
+<div class="rule"></div>
+
+<ul>
+  <li><b>거래량은 여전히 하한값입니다.</b> 매물 소진 관측으로 상당 부분 복원하지만 완전하지는 않습니다.</li>
+  <li><b>팔린 것만 봅니다.</b> 비싸서 안 팔린 매물은 데이터에 없어 실제 균형가보다 낮게 추정될 수 있습니다(생존 편향).</li>
+  <li><b>수집 시작일 이전은 존재하지 않습니다.</b> 백필로 최대 1개월을 확보하지만 아이템마다 다릅니다 —
+      거래가 빠른 아이템일수록 100건이 몇 시간치라 과거를 거의 못 봅니다.</li>
+  <li><b>요일 효과의 표본은 31일, 약 4주입니다.</b> 방향과 유의성은 나왔지만 계절성을 확정하려면 더 긴 관측이 필요합니다.</li>
+  <li>가격은 <b>구매자 지불가</b> 기준입니다. 판매 수수료 때문에 판매자 실수령액은 더 낮습니다.</li>
+</ul>
+
+</main>
+
+<footer>
+  본 서비스는 <b>네오플 오픈 API 서비스</b>를 이용합니다. (<a href="https://developers.neople.co.kr" target="_blank" rel="noopener">developers.neople.co.kr</a>)<br>
+  비상업적 개인 프로젝트이며 API 이용에 대한 어떠한 대가도 받지 않습니다.
+</footer>
+
+</div>
+<script>
+const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
+  ? '-' : Number(n).toLocaleString('ko-KR', { maximumFractionDigits: d });
+
+fetch('data/summary.json').then(r => r.json()).then(D => {
+  const b = new Date(D.builtAt);
+  document.getElementById('built').textContent =
+    `갱신 ${b.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })} KST`;
+
+  // ── 01 해체 마진 ──
+  const m = D.margin;
+  document.getElementById('margin-table').innerHTML = `
+    <thead><tr><th>구성품</th><th class="num">VWAP (골드)</th><th class="num">표본</th></tr></thead>
+    <tbody>
+      ${m.parts.map(p => `<tr style="cursor:default"><td>${p.item_name.replace('숲속의 유랑악단 ', '')}</td><td class="num">${fmt(p.vwap)}</td><td class="num">${p.n}</td></tr>`).join('')}
+      <tr style="cursor:default"><td><b>구성품 합계</b></td><td class="num"><b>${fmt(m.partsSum)}</b></td><td class="num"></td></tr>
+      <tr style="cursor:default"><td><b>패키지 본체</b></td><td class="num"><b>${fmt(m.pkg)}</b></td><td class="num">${m.pkgN}</td></tr>
+    </tbody>`;
+
+  const gross = (m.partsSum / m.pkg - 1) * 100;
+  const net = (m.partsSum * (1 - m.fee) / m.pkg - 1) * 100;
+  document.getElementById('margin-verdict').innerHTML =
+    `해체 차익 — 수수료 전 <b>${gross >= 0 ? '+' : ''}${gross.toFixed(2)}%</b>,
+     판매 수수료 3% 반영 후 <b style="font-size:16px">${net >= 0 ? '+' : ''}${net.toFixed(2)}%</b>
+     (${fmt(m.partsSum * (1 - m.fee) - m.pkg)} 골드).
+     3,300만 골드짜리 거래에서 오차가 이 정도면 <b>우연일 수 없습니다.</b>`;
+
+  // ── 02 요일 효과 ──
+  const w = D.weekday;
+  const mean = w.reduce((a, x) => a + x.ret, 0) / w.length;
+  const rows = w.map(x => ({ ...x, rel: x.ret - mean, t: x.ret / x.se }));
+  const maxAbs = Math.max(...rows.map(r => Math.abs(r.rel)));
+  document.getElementById('weekday-bars').innerHTML = `
+    <div class="bar-row" style="color:var(--ink-3);font-size:11px">
+      <span class="lab">요일</span>
+      <span style="text-align:center">← 쌈 · 비쌈 →</span>
+      <span class="val">주간평균 대비</span>
+    </div>
+    ${rows.map(r => {
+      const w2 = Math.abs(r.rel) / maxAbs * 48;
+      const sig = Math.abs(r.t) > 1.96;
+      const color = r.rel >= 0 ? 'var(--up)' : 'var(--down)';
+      const style = r.rel >= 0
+        ? `left:50%;width:${w2}%;background:${color}` : `right:50%;width:${w2}%;background:${color}`;
+      return `<div class="bar-row ${sig ? 'sig' : ''}">
+        <span class="lab">${r.dow}</span>
+        <span class="bar-track"><span class="zero"></span><span class="fill" style="${style}"></span></span>
+        <span class="val" style="color:${sig ? color : 'var(--ink-3)'}">${r.rel >= 0 ? '+' : ''}${r.rel.toFixed(2)}%${sig ? ' *' : ''}</span>
+      </div>`;
+    }).join('')}
+    <p style="font-size:11.5px;color:var(--ink-3);margin-top:10px">* p &lt; 0.05 · 관측 ${rows.reduce((a, r) => a + r.n, 0)}일</p>`;
+
+  const thu = rows.find(r => r.k === 4);
+  document.getElementById('weekday-verdict').innerHTML =
+    `<b>목요일만 유의하게 낮습니다</b> — 주간 평균 대비 <b style="font-size:16px">${thu.rel.toFixed(2)}%</b>,
+     t = ${thu.t.toFixed(2)} (p &lt; 0.05). 나머지 6일은 전부 ±1.5% 안이고 통계적으로 유의하지 않습니다.
+     목요일 상대 거래량은 <b>${thu.vol.toFixed(2)}</b>로 평균보다 높습니다.`;
+
+  document.getElementById('delta-line').innerHTML =
+    `지금까지 이 방식으로 관측한 매물 소진량은 <b>${fmt(D.meta.qty)}개</b>입니다.
+     체결 API만 봤다면 이 중 상당수를 놓쳤을 것입니다.`;
+});
+</script>
+</body>
+</html>

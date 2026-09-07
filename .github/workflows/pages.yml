@@ -1,0 +1,46 @@
+name: 사이트 배포
+
+# 수집(10분)보다 느슨하게 매시간 굽는다. 데이터는 10분마다 쌓이지만
+# 정적 사이트를 10분마다 재배포할 이유는 없다.
+on:
+  schedule:
+    - cron: '5 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['web/**', '.github/workflows/pages.yml']
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --omit=dev
+
+      - name: 사이트 빌드
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node --no-warnings web/build.ts
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deploy
+        uses: actions/deploy-pages@v4

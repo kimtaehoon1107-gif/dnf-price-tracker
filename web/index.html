@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>던파 경매장 시세 추적기</title>
+<meta name="description" content="던전앤파이터 경매장 시세를 10분마다 수집해 추이와 거래량을 보여줍니다.">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1><a href="index.html">던파 경매장 시세 추적기</a></h1>
+  <nav>
+    <a href="index.html" class="on">시세</a>
+    <a href="analysis.html">분석</a>
+    <a href="https://github.com/kimtaehoon1107-gif/dnf-price-tracker" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <span class="spacer"></span>
+  <span class="built" id="built"></span>
+</header>
+
+<main id="view"></main>
+
+<footer>
+  본 서비스는 <b>네오플 오픈 API 서비스</b>를 이용합니다. (<a href="https://developers.neople.co.kr" target="_blank" rel="noopener">developers.neople.co.kr</a>)<br>
+  비상업적 개인 프로젝트이며 API 이용에 대한 어떠한 대가도 받지 않습니다.<br>
+  모든 가격은 <b>구매자 지불가</b>(unitPrice) 기준입니다. 경매장 판매 수수료 때문에 판매자 실수령액은 이보다 낮습니다.
+</footer>
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+:root {
+  --bg: #0e0e13;
+  --surface: #16161e;
+  --surface-2: #1d1d27;
+  --line: #2a2a37;
+  --ink: #e9e8f0;
+  --ink-2: #a8a4bb;
+  --ink-3: #6f6b85;
+  --gold: #e0b45b;
+  --up: #f0716a;    /* 한국 시장 관행: 상승 빨강 */
+  --down: #6fa5f2;  /* 하락 파랑 */
+  --ok: #7cc5a0;
+  --warn: #e0ae5e;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  --sans: "Pretendard", -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  word-break: keep-all;
+}
+
+a { color: var(--gold); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.wrap { max-width: 1140px; margin: 0 auto; padding: 0 20px 80px; }
+
+header.top {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 28px;
+  padding: 22px 0 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+header.top h1 { font-size: 17px; margin: 0; letter-spacing: -.01em; }
+header.top h1 a { color: var(--ink); }
+header.top nav { display: flex; gap: 16px; font-size: 13px; }
+header.top nav a { color: var(--ink-3); }
+header.top nav a.on, header.top nav a:hover { color: var(--gold); }
+header.top .spacer { flex: 1; }
+header.top .built { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+
+.stats { display: flex; gap: 28px; flex-wrap: wrap; margin-bottom: 26px; }
+.stat .k { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.stat .v { font-family: var(--mono); font-size: 20px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.stat .v small { font-size: 12px; color: var(--ink-3); }
+
+.note {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--gold);
+  border-radius: 2px;
+  padding: 14px 18px;
+  margin: 20px 0;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+.note b { color: var(--ink); }
+
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+thead th {
+  text-align: left;
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 10.5px;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+thead th:hover { color: var(--gold); }
+thead th.num, td.num { text-align: right; }
+td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--surface-2);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--surface); }
+td .nm { color: var(--ink); }
+td .sub { color: var(--ink-3); font-size: 11.5px; }
+
+.up { color: var(--up); }
+.down { color: var(--down); }
+.flat { color: var(--ink-3); }
+
+.chip {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .05em;
+  padding: 2px 6px;
+  border-radius: 2px;
+  background: var(--surface-2);
+  color: var(--ink-3);
+}
+.chip.A { background: #17291f; color: var(--ok); }
+.chip.B { background: #1d2430; color: var(--down); }
+.chip.C { background: #2c2416; color: var(--warn); }
+.chip.D { background: #2a2130; color: var(--ink-3); }
+
+.table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 3px; background: var(--surface); }
+
+/* 상세 */
+.detail-head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 6px; }
+.detail-head h2 { margin: 0; font-size: 22px; letter-spacing: -.015em; }
+.detail-head .price { font-family: var(--mono); font-size: 22px; font-variant-numeric: tabular-nums; }
+.chart-box { background: var(--surface); border: 1px solid var(--line); border-radius: 3px; padding: 14px; margin: 18px 0; }
+.chart-box h3 { margin: 0 0 10px; font-size: 12px; font-family: var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; }
+.chart { height: 300px; }
+.chart.small { height: 150px; }
+
+.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 3px; margin: 18px 0; }
+.kv div { background: var(--surface); padding: 12px 14px; }
+.kv .k { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.kv .v { font-family: var(--mono); font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* 분석 페이지 */
+h2.sec { font-size: 19px; margin: 42px 0 4px; letter-spacing: -.01em; }
+h2.sec .n { font-family: var(--mono); font-size: 12px; color: var(--gold); margin-right: 10px; }
+.rule { height: 1px; background: var(--line); margin: 14px 0 20px; }
+p { margin: 0 0 14px; color: var(--ink-2); max-width: 68ch; }
+p b, li b { color: var(--ink); }
+ul { color: var(--ink-2); max-width: 68ch; padding-left: 20px; }
+li { margin-bottom: 6px; }
+code { font-family: var(--mono); font-size: .88em; background: var(--surface-2); padding: .1em .4em; border-radius: 2px; color: var(--ink); }
+
+.bars { margin: 20px 0; }
+.bar-row { display: grid; grid-template-columns: 42px 1fr 78px; align-items: center; gap: 12px; padding: 5px 0; font-family: var(--mono); font-size: 12.5px; }
+.bar-row .lab { color: var(--ink-2); }
+.bar-track { position: relative; height: 20px; background: var(--surface-2); border-radius: 2px; }
+.bar-track .zero { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--line); }
+.bar-track .fill { position: absolute; top: 3px; bottom: 3px; border-radius: 1px; }
+.bar-row .val { text-align: right; font-variant-numeric: tabular-nums; }
+.bar-row.sig .lab, .bar-row.sig .val { color: var(--ink); font-weight: 500; }
+
+footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-3); line-height: 1.9; }
+
+@media (max-width: 640px) {
+  .stats { gap: 18px; }
+  .stat .v { font-size: 17px; }
+  .detail-head h2 { font-size: 18px; }
+}
