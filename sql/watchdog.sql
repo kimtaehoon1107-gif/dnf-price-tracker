@@ -37,7 +37,11 @@ DECLARE
   v_note        TEXT := NULL;
   v_threshold   CONSTANT NUMERIC := 20;   -- 분. 이보다 벌어지면 비정상
 BEGIN
-  SELECT MAX(started_at) INTO v_last FROM collection_runs;
+  -- 시작만 찍힌 채 멈췄거나 실패한 실행은 생존 신호가 아니다.
+  -- CLI health와 같은 기준인 "마지막 성공 완료"만 본다.
+  SELECT MAX(finished_at) INTO v_last
+  FROM collection_runs
+  WHERE error IS NULL AND finished_at IS NOT NULL;
   v_gap := ROUND(EXTRACT(EPOCH FROM (now() - COALESCE(v_last, now() - interval '1 day'))) / 60, 1);
 
   IF v_gap <= v_threshold THEN

@@ -38,7 +38,7 @@ const items = (await query<{
     FROM listing_snapshots ORDER BY item_id, captured_at DESC
   ),
   last_trade AS (
-    SELECT DISTINCT ON (item_id) item_id, unit_price FROM trades ORDER BY item_id, sold_date DESC
+    SELECT DISTINCT ON (item_id) item_id, unit_price FROM trades ORDER BY item_id, sold_date DESC, id DESC
   )
   SELECT i.item_id, i.item_name, i.item_rarity, i.item_type_detail, i.role,
          COALESCE(i.category,'기타') AS category, i.slot, i.job_role,
@@ -60,16 +60,16 @@ const daily = (await query<{
 }>(`
   SELECT item_id,
          to_char((sold_date AT TIME ZONE 'Asia/Seoul')::date,'YYYY-MM-DD') AS d,
-         (array_agg(unit_price ORDER BY sold_date))[1]::float8 AS o,
+         (array_agg(unit_price ORDER BY sold_date, id))[1]::float8 AS o,
          MAX(unit_price)::float8 AS h, MIN(unit_price)::float8 AS l,
-         (array_agg(unit_price ORDER BY sold_date DESC))[1]::float8 AS c,
+         (array_agg(unit_price ORDER BY sold_date DESC, id DESC))[1]::float8 AS c,
          (SUM(unit_price::numeric*count)/SUM(count))::float8 AS vwap,
          SUM(count)::int AS qty, COUNT(*)::int AS n
   FROM trades GROUP BY 1,2 ORDER BY 1,2`)).rows;
 
 const hourly = (await query<{ item_id: string; t: string; vwap: number; qty: number }>(`
   SELECT item_id,
-         to_char(date_trunc('hour', sold_date),'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS t,
+         to_char(date_trunc('hour', sold_date AT TIME ZONE 'UTC'),'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS t,
          (SUM(unit_price::numeric*count)/SUM(count))::float8 AS vwap, SUM(count)::int AS qty
   FROM trades WHERE sold_date > now() - interval '7 days'
   GROUP BY 1,2 ORDER BY 1,2`)).rows;
@@ -183,7 +183,10 @@ const weekday = (await query<{ dow: string; k: number; n: number; ret: number; s
     HAVING MAX(sold_date)-MIN(sold_date) > interval '14 days' AND COUNT(*)>=25),
   d AS (SELECT t.item_id,(t.sold_date AT TIME ZONE 'Asia/Seoul')::date dd,
     SUM(t.unit_price::numeric*t.count)/SUM(t.count) vwap, SUM(t.count)::int qty
-    FROM trades t JOIN span s USING (item_id) GROUP BY 1,2),
+    FROM trades t JOIN span s USING (item_id)
+    WHERE (t.sold_date AT TIME ZONE 'Asia/Seoul')::date
+          < (now() AT TIME ZONE 'Asia/Seoul')::date
+    GROUP BY 1,2),
   base AS (SELECT item_id, AVG(vwap) m, AVG(qty) mq FROM d GROUP BY 1),
   norm AS (SELECT d.dd, LN(d.vwap/b.m) lr, d.qty/NULLIF(b.mq,0) rq
     FROM d JOIN base b USING (item_id) WHERE b.m>0 AND d.vwap>0)
@@ -198,11 +201,13 @@ const dowCoef = new Map(weekday.map((w) => [w.k, (w.ret - wkMean) / 100]));
 
 // ── 아이템별 시계열 + 예측 ─────────────────────────────────────
 const forecasts = new Map<string, Forecast>();
+const todayKst = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
 for (const it of items) {
   const d = dailyBy.get(it.item_id) ?? [];
+  const complete = d.filter((x) => x.d < todayKst);
   const tradesPerDay = it.span_days > 0.5 ? it.trades / it.span_days : it.trades * 2;
   const f = tradesPerDay >= 5
-    ? forecast(d.map((x) => ({ d: x.d, vwap: x.vwap })) as Point[], dowCoef)
+    ? forecast(complete.map((x) => ({ d: x.d, vwap: x.vwap })) as Point[], dowCoef, 7, todayKst)
     : null;
   if (f) forecasts.set(it.item_id, f);
   writeFileSync(`${OUT}/data/series/${it.item_id}.json`, JSON.stringify({
@@ -218,16 +223,18 @@ const PARTS = ['숲속의 유랑악단 아바타 풀세트 상자', '숲속의 �
 const vw = (await query<{ item_name: string; vwap: number; n: number }>(`
   SELECT i.item_name, (SUM(t.unit_price::numeric*t.count)/SUM(t.count))::float8 vwap, COUNT(*)::int n
   FROM trades t JOIN items i USING (item_id)
-  WHERE i.item_name = ANY($1) OR i.item_name = '숲속의 유랑악단 패키지'
+  WHERE t.sold_date > now() - interval '24 hours'
+    AND (i.item_name = ANY($1) OR i.item_name = '숲속의 유랑악단 패키지')
   GROUP BY 1`, [PARTS])).rows;
 const pkg = vw.find((r) => r.item_name === '숲속의 유랑악단 패키지');
 const parts = vw.filter((r) => r.item_name !== '숲속의 유랑악단 패키지');
+const partsComplete = PARTS.every((name) => parts.some((part) => part.item_name === name));
 
 // ── 레전더리 카드 최저가 지수 ──────────────────────────────────
 const legendary = (await query<{
   captured_at: string; min_unit_price: number; min_item_name: string;
   p10: number; median: number; scanned: number; with_listings: number;
-}>(`SELECT to_char(captured_at,'YYYY-MM-DD"T"HH24:MI:SS"Z"') captured_at,
+}>(`SELECT to_char(captured_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') captured_at,
       min_unit_price, min_item_name, p10, median, scanned, with_listings
     FROM legendary_card_floor ORDER BY captured_at DESC LIMIT 200`)).rows;
 
@@ -238,8 +245,8 @@ const meta = (await query<{
 }>(`
   SELECT (SELECT COUNT(*)::int FROM trades) trades,
          (SELECT COUNT(*)::int FROM items WHERE tracked) items,
-         (SELECT to_char(MIN(sold_date),'YYYY-MM-DD') FROM trades) lo,
-         (SELECT to_char(MAX(sold_date),'YYYY-MM-DD') FROM trades) hi,
+         (SELECT to_char(MIN(sold_date) AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') FROM trades) lo,
+         (SELECT to_char(MAX(sold_date) AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') FROM trades) hi,
          (SELECT COUNT(*)::int FROM collection_runs) runs,
          (SELECT COUNT(error)::int FROM collection_runs) errors,
          (SELECT COALESCE(SUM(qty_sold),0)::int FROM listing_deltas
@@ -275,7 +282,10 @@ const withMeta = items.map((it) => {
 writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
   builtAt: new Date().toISOString(),
   meta, health, weekday, items: withMeta, legendary,
-  margin: { pkg: pkg?.vwap ?? null, pkgN: pkg?.n ?? 0, parts, partsSum: parts.reduce((s, r) => s + r.vwap, 0), fee: 0.03 },
+  margin: {
+    pkg: pkg?.vwap ?? null, pkgN: pkg?.n ?? 0, parts, partsComplete,
+    partsSum: parts.reduce((s, r) => s + r.vwap, 0), fee: 0.03,
+  },
 }));
 
 for (const f of ['index.html', 'analysis.html', 'app.js', 'style.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);

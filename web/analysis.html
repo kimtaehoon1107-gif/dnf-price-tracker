@@ -193,8 +193,12 @@
 <script>
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
   ? '-' : Number(n).toLocaleString('ko-KR', { maximumFractionDigits: d });
+const esc = (s) => String(s).replace(/[&<>\"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[c]));
 
-fetch('data/summary.json').then(r => r.json()).then(D => {
+fetch('data/summary.json').then(r => {
+  if (!r.ok) throw new Error(`요약 데이터 HTTP ${r.status}`);
+  return r.json();
+}).then(D => {
   const b = new Date(D.builtAt);
   document.getElementById('built').textContent =
     `갱신 ${b.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })} KST`;
@@ -202,27 +206,34 @@ fetch('data/summary.json').then(r => r.json()).then(D => {
   // ── 01 해체 마진 ──
   const m = D.margin;
   document.getElementById('margin-table').innerHTML = `
-    <thead><tr><th>구성품</th><th class="num">VWAP (골드)</th><th class="num">표본</th></tr></thead>
+    <thead><tr><th>구성품</th><th class="num">24h VWAP (골드)</th><th class="num">표본</th></tr></thead>
     <tbody>
-      ${m.parts.map(p => `<tr style="cursor:default"><td>${p.item_name.replace('숲속의 유랑악단 ', '')}</td><td class="num">${fmt(p.vwap)}</td><td class="num">${p.n}</td></tr>`).join('')}
+      ${m.parts.map(p => `<tr style="cursor:default"><td>${esc(p.item_name.replace('숲속의 유랑악단 ', ''))}</td><td class="num">${fmt(p.vwap)}</td><td class="num">${p.n}</td></tr>`).join('')}
       <tr style="cursor:default"><td><b>구성품 합계</b></td><td class="num"><b>${fmt(m.partsSum)}</b></td><td class="num"></td></tr>
       <tr style="cursor:default"><td><b>패키지 본체</b></td><td class="num"><b>${fmt(m.pkg)}</b></td><td class="num">${m.pkgN}</td></tr>
     </tbody>`;
 
-  const gross = (m.partsSum / m.pkg - 1) * 100;
-  const net = (m.partsSum * (1 - m.fee) / m.pkg - 1) * 100;
-  document.getElementById('margin-verdict').innerHTML =
-    `해체 차익 — 수수료 전 <b>${gross >= 0 ? '+' : ''}${gross.toFixed(2)}%</b>,
-     판매 수수료 3% 반영 후 <b style="font-size:16px">${net >= 0 ? '+' : ''}${net.toFixed(2)}%</b>
-     (${fmt(m.partsSum * (1 - m.fee) - m.pkg)} 골드).
-     3,300만 골드짜리 거래에서 오차가 이 정도면 <b>우연일 수 없습니다.</b>`;
+  if (m.pkg && m.partsComplete) {
+    const gross = (m.partsSum / m.pkg - 1) * 100;
+    const net = (m.partsSum * (1 - m.fee) / m.pkg - 1) * 100;
+    document.getElementById('margin-verdict').innerHTML =
+      `해체 차익 — 수수료 전 <b>${gross >= 0 ? '+' : ''}${gross.toFixed(2)}%</b>,
+       판매 수수료 3% 반영 후 <b style="font-size:16px">${net >= 0 ? '+' : ''}${net.toFixed(2)}%</b>
+       (${fmt(m.partsSum * (1 - m.fee) - m.pkg)} 골드).`;
+  } else {
+    document.getElementById('margin-verdict').textContent = '해체 차익을 계산할 가격 표본이 아직 부족합니다.';
+  }
 
   // ── 02 요일 효과 ──
   const dayNames = ['월', '화', '수', '목', '금', '토', '일'];
   const w = D.weekday;
+  if (!w.length) {
+    document.getElementById('weekday-bars').textContent = '요일 효과를 계산할 완료 일봉이 아직 없습니다.';
+    document.getElementById('weekday-verdict').textContent = '데이터가 쌓인 뒤 자동으로 계산합니다.';
+  } else {
   const mean = w.reduce((a, x) => a + x.ret, 0) / w.length;
-  const rows = w.map(x => ({ ...x, dow: dayNames[x.k - 1], rel: x.ret - mean, t: x.ret / x.se }));
-  const maxAbs = Math.max(...rows.map(r => Math.abs(r.rel)));
+  const rows = w.map(x => ({ ...x, dow: dayNames[x.k - 1], rel: x.ret - mean, t: x.se ? x.ret / x.se : 0 }));
+  const maxAbs = Math.max(0.001, ...rows.map(r => Math.abs(r.rel)));
   document.getElementById('weekday-bars').innerHTML = `
     <div class="bar-row" style="color:var(--ink-3);font-size:11px">
       <span class="lab">요일</span>
@@ -266,6 +277,7 @@ fetch('data/summary.json').then(r => r.json()).then(D => {
      (t=${thu.t.toFixed(2)}), API 관측 수량은 ${volumeText(thu)}로 ${shockText(thu)}.<br>
      토요일은 주간 평균 대비 <b class="${sat.rel >= 0 ? 'up' : 'down'}">${sat.rel >= 0 ? '+' : ''}${sat.rel.toFixed(2)}%</b>
      (t=${sat.t.toFixed(2)}), API 관측 수량은 ${volumeText(sat)}로 ${shockText(sat)}.`;
+  }
 
   // ── 04 예측 요약 ──
   const withFc = D.items.filter(x => x.fc && x.fc.vsNaive !== null);
@@ -296,6 +308,9 @@ fetch('data/summary.json').then(r => r.json()).then(D => {
      감시견이 기록한 최근 24시간 가동률은 ${rate(D.health.uptime24, D.health.checks24)}입니다.
      pg_cron 전환 시점(2026-09-08 00:15 KST) 전은 ${rate(D.health.uptime_before, D.health.before_checks)},
      이후는 ${rate(D.health.uptime_after, D.health.after_checks)}입니다.`;
+}).catch(error => {
+  console.error(error);
+  document.querySelector('main').innerHTML = '<section><h2>분석 데이터를 불러오지 못했습니다</h2><p>잠시 뒤 새로고침해 주세요.</p></section>';
 });
 </script>
 </body>

@@ -48,5 +48,7 @@ jobs:
         env:
           NEOPLE_API_KEY: ${{ secrets.NEOPLE_API_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          COLLECT_SOURCE: ${{ github.event_name == 'schedule' && 'actions' || 'manual' }}
+          # 이 워크플로는 pg_cron의 workflow_dispatch로만 실행된다.
+          # event_name으로 분기하면 전부 manual로 잘못 기록된다.
+          COLLECT_SOURCE: actions
         run: node --no-warnings src/run.ts --minutes 55 --group ${{ matrix.group }}

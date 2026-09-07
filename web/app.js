@@ -370,7 +370,9 @@ let sortKey = 'turnover';
 let sortDir = -1;
 
 async function boot() {
-  DATA = await (await fetch('data/summary.json')).json();
+  const response = await fetch('data/summary.json');
+  if (!response.ok) throw new Error(`요약 데이터 HTTP ${response.status}`);
+  DATA = await response.json();
   const b = new Date(DATA.builtAt);
   document.getElementById('built').textContent =
     b.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 기준';
@@ -389,7 +391,18 @@ function render() {
   const id = location.hash.slice(1);
   const it = DATA.items.find((x) => x.item_id === id);
   scrollTo(0, 0);
-  if (it) renderDetail(enrich(it)); else renderList();
+  if (it) {
+    renderDetail(enrich(it)).catch((error) => {
+      if (location.hash.slice(1) !== id) return;
+      console.error(error);
+      document.getElementById('view').innerHTML = `
+        <a class="back" href="#">← 전체 목록</a>
+        <div class="panel"><h3>시계열 데이터를 불러오지 못했습니다</h3>
+        <p class="desc">잠시 뒤 다시 시도해 주세요.</p></div>`;
+    });
+  } else {
+    renderList();
+  }
 }
 
 // 요약 카드는 목록과 인벤토리 두 뷰가 공유한다.
@@ -398,13 +411,15 @@ function summaryCards() {
   const m = DATA.meta;
   const lg = DATA.legendary?.[0];
   const mg = DATA.margin;
-  const netMargin = mg?.pkg ? (mg.partsSum * (1 - mg.fee) / mg.pkg - 1) * 100 : null;
+  const netMargin = mg?.pkg && mg.partsComplete
+    ? (mg.partsSum * (1 - mg.fee) / mg.pkg - 1) * 100
+    : null;
   const w = DATA.weekday ?? [];
   const thu = (() => {
     if (!w.length) return null;
     const mean = w.reduce((a, x) => a + x.ret, 0) / w.length;
     const t = w.find((x) => x.k === 4);
-    return t ? t.ret - mean : null;
+    return t ? { rel: t.ret - mean, significant: t.se > 0 && Math.abs(t.ret / t.se) > 1.96 } : null;
   })();
 
   return `<div class="cards">
@@ -425,8 +440,8 @@ function summaryCards() {
     </div>` : ''}
     ${thu !== null ? `<div class="card">
       <div class="k">목요일 효과</div>
-      <div class="v ${cls(thu)}">${pct(thu)}</div>
-      <div class="sub">주간 평균 대비 · p&lt;0.05</div>
+      <div class="v ${cls(thu.rel)}">${pct(thu.rel)}</div>
+      <div class="sub">주간 평균 대비 · ${thu.significant ? 'p&lt;0.05' : '현재 비유의'}</div>
     </div>` : ''}
   </div>`;
 }
@@ -476,7 +491,7 @@ function renderList() {
       ${rows.map((r, i) => {
         const color = css(r.chg > 0 ? '--up' : r.chg < 0 ? '--down' : '--ink-4');
         const thin = r.api_qty24 < 5 && r.chg !== null;
-        return `<div class="row" data-id="${r.item_id}">
+        return `<a class="row" href="#${r.item_id}">
           <div class="rank r">${i + 1}</div>
           <div class="nm">
             <img src="${r.img}" alt="" loading="lazy" width="32" height="32">
@@ -490,7 +505,7 @@ function renderList() {
           <div class="dim c5">${won(r.turnover)}</div>
           <div class="c6">${sparkSVG(r.spark, color)}</div>
           <div class="dim c7">${fmt(r.listings)}</div>
-        </div>`;
+        </a>`;
       }).join('')}
     </div>
 
@@ -501,9 +516,6 @@ function renderList() {
       <b>종결</b>은 현재 기준 최상위 아이템이며, 패치로 교체되면 갱신됩니다.
     </p>`;
 
-  document.querySelectorAll('.row').forEach((el) => {
-    el.onclick = () => { location.hash = el.dataset.id; };
-  });
   document.querySelectorAll('.tab').forEach((el) => {
     el.onclick = () => { tab = el.dataset.c; renderList(); scrollTo(0, 0); };
   });
@@ -561,7 +573,7 @@ function renderInventory(all, cats) {
             const list = bySlot.get(sl) ?? [];
             if (!list.length) return `<div class="slot empty">${sl}<br>미등록</div>`;
             return list.map((c) => `
-              <div class="slot" data-id="${c.item_id}">
+              <a class="slot" href="#${c.item_id}">
                 <div class="sl">${sl}</div>
                 <div class="card-row">
                   <img src="${c.img}" alt="" loading="lazy" width="30" height="30">
@@ -572,16 +584,13 @@ function renderInventory(all, cats) {
                       <i class="${c.api_qty24 < 5 ? 'flat' : cls(c.chg)}">${pct(c.chg)}</i></div>
                   </div>
                 </div>
-              </div>`).join('');
+              </a>`).join('');
           }).join('')}
         </div>
       </div>`).join('')}
 
     <p class="hint">표시 가격은 <b>최저 호가</b>이고, 없으면 최근 체결가입니다.</p>`;
 
-  document.querySelectorAll('.slot[data-id]').forEach((el) => {
-    el.onclick = () => { location.hash = el.dataset.id; };
-  });
   document.querySelectorAll('.job-sw button').forEach((el) => {
     el.onclick = () => { job = el.dataset.j; renderList(); };
   });
@@ -662,7 +671,11 @@ async function renderDetail(it) {
     <div class="panel"><h3>최근 7일 · 시간별 VWAP</h3><div class="chart" id="c3"></div></div>
     <div class="panel"><h3>일별 API 관측 체결 수량</h3><div class="chart sm" id="c2"></div></div>`;
 
-  const s = await (await fetch(`data/series/${it.item_id}.json`)).json();
+  const response = await fetch(`data/series/${it.item_id}.json`);
+  if (!response.ok) throw new Error(`시계열 데이터 HTTP ${response.status}`);
+  const s = await response.json();
+  // 해시가 바뀐 사이 이전 요청이 늦게 도착하면 새 상세 화면을 덮지 않는다.
+  if (location.hash.slice(1) !== it.item_id) return;
   if (hasDepth) {
     const depth = s.depth ?? [];
     const q10 = depthQuote(depth, 10), q100 = depthQuote(depth, 100);
@@ -860,4 +873,9 @@ async function renderDetail(it) {
   }
 }
 
-boot();
+boot().catch((error) => {
+  console.error(error);
+  document.getElementById('view').innerHTML = `
+    <div class="panel"><h3>데이터를 불러오지 못했습니다</h3>
+    <p class="desc">잠시 뒤 새로고침해 주세요.</p></div>`;
+});

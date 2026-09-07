@@ -1,14 +1,19 @@
 name: 사이트 배포
 
 # 아이템별 수집 주기보다 느슨하게 매시간 굽는다.
-# 정적 사이트를 수집 때마다 재배포할 이유는 없다.
+# GitHub schedule은 이 저장소에서 누락된 전력이 있어 Supabase pg_cron이
+# 매시 5분 workflow_dispatch를 호출한다 (sql/scheduler.sql).
 on:
-  schedule:
-    - cron: '5 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['web/**', '.github/workflows/pages.yml']
+    paths:
+      - 'web/**'
+      - 'src/forecast.ts'
+      - 'scripts/legendary-floor.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/pages.yml'
 
 concurrency:
   group: pages

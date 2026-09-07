@@ -50,6 +50,24 @@ SELECT cron.schedule('dnf-events-dispatch', '30 1 * * 4', $$
   );
 $$);
 
+SELECT cron.unschedule('dnf-pages-dispatch')
+WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'dnf-pages-dispatch');
+
+-- 정적 페이지는 매시간 한 번 최신 DB로 다시 굽는다. GitHub schedule 대신
+-- 수집·이벤트와 같은 명시적 dispatch 경로를 사용한다.
+SELECT cron.schedule('dnf-pages-dispatch', '5 * * * *', $$
+  SELECT net.http_post(
+    url := 'https://api.github.com/repos/kimtaehoon1107-gif/dnf-price-tracker/actions/workflows/pages.yml/dispatches',
+    body := '{"ref":"main"}'::jsonb,
+    headers := jsonb_build_object(
+      'Authorization', 'Bearer ' || (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'gh_dispatch_token'),
+      'Accept', 'application/vnd.github+json',
+      'Content-Type', 'application/json',
+      'User-Agent', 'dnf-price-tracker-cron'
+    )
+  );
+$$);
+
 -- 점검용
 --   SELECT jobid, jobname, schedule, active FROM cron.job;
 --   SELECT status, return_message, start_time FROM cron.job_run_details
