@@ -64,9 +64,9 @@ function titledDay(title: string, referenceDay: string) {
 
 function appliedDay(title: string, announcedDay: string) {
   const inTitle = titledDay(title, announcedDay);
-  if (inTitle) return inTitle;
+  if (inTitle) return { date: inTitle, estimated: false };
   // 대규모 업데이트는 통상 수요일 공지, 목요일 적용이다.
-  return nextDay(announcedDay);
+  return { date: nextDay(announcedDay), estimated: true };
 }
 
 async function updateCandidates() {
@@ -87,21 +87,26 @@ async function updateCandidates() {
     const announcedDay = day(row[4]);
     if (announcedDay < cutoffDay) continue;
     const sourceUrl = `${BASE}/community/news/update/${no}`;
-    const detail = await html(sourceUrl);
-    candidates.push({
-      name: title,
-      type: category,
-      announcedAt: publishedAt(detail, announcedDay),
-      // 퍼스트서버 공지는 게시 당일 서버에 적용된다. 본 서버 대규모·주요 패치는 다음 날 적용된다.
-      startsAt: kst(category === '퍼스트서버'
-        ? titledDay(title, announcedDay) ?? announcedDay
-        : appliedDay(title, announcedDay)),
-      endsAt: null,
-      relatedItemIds: null,
-      sourceUrl,
-      note: `던파 공식 업데이트 자동 수집 · 공식 분류 ${category}`,
-    });
+    try {
+      const detail = await html(sourceUrl);
+      const applied = category === '퍼스트서버'
+        ? { date: titledDay(title, announcedDay) ?? announcedDay, estimated: false }
+        : appliedDay(title, announcedDay);
+      candidates.push({
+        name: title,
+        type: category,
+        announcedAt: publishedAt(detail, announcedDay),
+        startsAt: kst(applied.date),
+        endsAt: null,
+        relatedItemIds: null,
+        sourceUrl,
+        note: `던파 공식 업데이트 자동 수집 · 공식 분류 ${category}${applied.estimated ? ' · 적용일 추정(공지 다음 날)' : ''}`,
+      });
+    } catch (error) {
+      console.warn(`업데이트 상세 건너뜀 · [${category}] ${title} · ${sourceUrl} · ${error instanceof Error ? error.message : error}`);
+    }
   }
+  if (!candidates.length) console.warn('경고 · 공식 업데이트 후보가 0건입니다. 목록 HTML 구조를 확인하세요.');
   return candidates;
 }
 
@@ -139,20 +144,25 @@ async function shopCandidates() {
     if (!itemIds.length) continue;
 
     const sourceUrl = `${BASE}/community/news/seriashop/${no}`;
-    const detail = await html(sourceUrl);
-    const startsAt = day(range[1]);
-    const endsAt = day(range[2]);
-    candidates.push({
-      name: title,
-      type: '패키지',
-      announcedAt: publishedAt(detail, startsAt),
-      startsAt: kst(startsAt),
-      endsAt: shopEndAt(detail, endsAt),
-      relatedItemIds: itemIds,
-      sourceUrl,
-      note: '던파 공식 세리아 상점 자동 수집',
-    });
+    try {
+      const detail = await html(sourceUrl);
+      const startsAt = day(range[1]);
+      const endsAt = day(range[2]);
+      candidates.push({
+        name: title,
+        type: '패키지',
+        announcedAt: publishedAt(detail, startsAt),
+        startsAt: kst(startsAt),
+        endsAt: shopEndAt(detail, endsAt),
+        relatedItemIds: itemIds,
+        sourceUrl,
+        note: '던파 공식 세리아 상점 자동 수집',
+      });
+    } catch (error) {
+      console.warn(`세리아 상점 상세 건너뜀 · ${title} · ${sourceUrl} · ${error instanceof Error ? error.message : error}`);
+    }
   }
+  if (!candidates.length) console.warn('경고 · 추적 아이템과 연결된 패키지 후보가 0건입니다. 목록 HTML 구조를 확인하세요.');
   return candidates;
 }
 
