@@ -107,7 +107,7 @@ function weekdayProfile(days, events) {
   if (!complete.length) return { state: 'history', span: 0, remaining: 31 };
 
   const dayNumber = (date) => Date.parse(`${date}T12:00:00Z`) / 86400000;
-  const span = dayNumber(complete.at(-1).d) - dayNumber(complete[0].d) + 1;
+  const span = dayNumber(complete.at(-1).d) - dayNumber(complete[0].d);
   if (span < 31) return { state: 'history', span, remaining: 31 - span };
 
   const eventDays = events.flatMap((event) => eventStages(event)
