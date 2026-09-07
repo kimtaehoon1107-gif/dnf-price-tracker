@@ -120,7 +120,7 @@ FROM collection_health WHERE checked_at > now() - interval '24 hours';
 
 ## P4 · 새 발견을 만들 수 있는 작업
 
-### 6. 카드 34종에 `key_stat` 채우기
+### 6. 카드 34종에 `key_stat` 채우기 — 완료 (2026-09-08)
 
 **왜.** 칭호 4종에 `key_stat`을 채웠더니 발견이 나왔다 —
 *최종뎀 9.6%(종이달 오르골) vs 8%(나머지 3종), 가격 차 약 870만 골드.*
@@ -133,11 +133,12 @@ FROM collection_health WHERE checked_at > now() - interval '24 hours';
 
 | 카테고리 | 종 | key_stat |
 |---|---|---|
-| 카드 | 34 | **0** |
+| 카드 | 34 | **34 ✅** |
 | 강화·증폭 | 11 | **0** |
 | 칭호 | 4 | 4 ✅ |
 
-**할 일.** `/df/items/{itemId}` 의 `itemStatus`에서 읽는다.
+**처리.** `/df/items/{itemId}`의 실제 응답에서 카드 옵션이 든
+`cardInfo.enchant`의 최대 업그레이드 단계를 읽어 핵심 스탯을 채웠다.
 카드는 "모든 공격력", "최종 데미지 증가", "모든 속성 강화" 등이 부위마다
 다르므로, 부위별로 어떤 스탯이 핵심인지 먼저 확인할 것.
 채운 뒤 `scripts/init-db.ts`의 SEED도 재생성한다(레포만으로 재현 가능해야 한다).
