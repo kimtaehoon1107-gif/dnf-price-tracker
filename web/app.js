@@ -15,6 +15,25 @@ function grade(it) {
   return 'D';
 }
 
+// 카테고리별로 묶고 그룹 헤더를 끼워 넣는다. 정렬 기준은 그룹 안에서만 적용되고,
+// 그룹 자체는 24h 거래대금 합으로 세운다 — 돈이 많이 도는 시장이 위로 온다.
+function groupRows(rows) {
+  const g = new Map();
+  for (const r of rows) {
+    if (!g.has(r.cat)) g.set(r.cat, []);
+    g.get(r.cat).push(r);
+  }
+  const groups = [...g.entries()]
+    .map(([cat, list]) => ({ cat, list, sum: list.reduce((a, x) => a + (x.turnover || 0), 0) }))
+    .sort((a, b) => b.sum - a.sum);
+  const out = [];
+  for (const grp of groups) {
+    out.push({ head: true, cat: grp.cat, n: grp.list.length, sum: grp.sum });
+    out.push(...grp.list);
+  }
+  return out;
+}
+
 let DATA = null;
 // 기본 정렬은 24h 거래대금. 변동률로 정렬하면 하루 한두 건 거래된 아이템의
 // 의미 없는 ±40%가 맨 위를 차지한다.
@@ -82,9 +101,10 @@ function renderList() {
         <th class="num" data-k="span_days">이력</th>
         <th data-k="g">유동성</th>
       </tr></thead>
-      <tbody>${rows.map((r) => `
+      <tbody>${groupRows(rows).map((r) => r.head ? `
+        <tr class="grp"><td colspan="11">${r.cat}<span class="cnt">${r.n}종 · 24h 거래대금 ${r.sum >= 100000000 ? (r.sum / 100000000).toFixed(1) + '억' : fmt(r.sum)}</span></td></tr>` : `
         <tr data-id="${r.item_id}">
-          <td><span class="nm">${r.item_name}</span><br><span class="sub">${r.item_rarity} · ${r.item_type_detail}</span></td>
+          <td class="itm"><img src="${r.img}" alt="" loading="lazy" width="28" height="28"><span><span class="nm">${r.item_name}</span><br><span class="sub">${r.item_rarity} · ${r.item_type_detail}</span></span></td>
           <td><span class="sub">${r.role ?? '-'}</span></td>
           <td class="num">${fmt(r.last_price)}</td>
           <td class="num ${r.qty24 < 5 ? 'flat' : cls(r.chg)}" ${r.qty24 < 5 && r.chg !== null ? 'title="24h 표본이 5개 미만이라 변동률을 신뢰하기 어렵습니다"' : ''}>${pct(r.chg)}${r.qty24 < 5 && r.chg !== null ? '<span style="color:var(--ink-3)">?</span>' : ''}</td>
@@ -105,7 +125,7 @@ function renderList() {
       <b>유동성 등급</b>은 일평균 체결 건수입니다 — A ≥ 60건, B ≥ 20건, C ≥ 5건, D는 그 미만.
     </div>`;
 
-  document.querySelectorAll('tbody tr').forEach((tr) => {
+  document.querySelectorAll('tbody tr[data-id]').forEach((tr) => {
     tr.onclick = () => { location.hash = tr.dataset.id; };
   });
   document.querySelectorAll('thead th').forEach((th) => {
@@ -124,6 +144,7 @@ async function renderDetail(it) {
   document.getElementById('view').innerHTML = `
     <p style="margin-bottom:18px"><a href="#">← 전체 목록</a></p>
     <div class="detail-head">
+      <img src="${it.img}" alt="" width="40" height="40" style="border-radius:3px">
       <h2>${it.item_name}</h2>
       <span class="price">${fmt(it.last_price)}<span style="font-size:13px;color:var(--ink-3)"> 골드</span></span>
       <span class="price ${cls(chg)}" style="font-size:15px">${pct(chg)}</span>

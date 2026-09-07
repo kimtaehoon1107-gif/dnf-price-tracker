@@ -157,3 +157,23 @@ footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--line);
   .stat .v { font-size: 17px; }
   .detail-head h2 { font-size: 18px; }
 }
+
+/* 카테고리 그룹 헤더 */
+tr.grp td {
+  background: var(--surface-2);
+  color: var(--gold);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .1em;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+}
+tr.grp .cnt { color: var(--ink-3); letter-spacing: 0; margin-left: 12px; }
+tr.grp { cursor: default; }
+tr.grp:hover td { background: var(--surface-2); }
+
+/* 아이템 아이콘 */
+td.itm { display: flex; align-items: center; gap: 10px; }
+td.itm img { image-rendering: pixelated; flex: none; background: var(--surface-2); border-radius: 3px; }
+.detail-head img { image-rendering: pixelated; background: var(--surface-2); }

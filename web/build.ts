@@ -68,6 +68,19 @@ const hourly = (await query<{ item_id: string; t: string; vwap: number; qty: num
   FROM trades WHERE sold_date > now() - interval '7 days'
   GROUP BY 1,2 ORDER BY 1,2`)).rows;
 
+// 목록을 한 덩어리로 늘어놓으면 80종이 그냥 벽이 된다. 성격이 다른 것들을
+// 묶어줘야 "이 시장이 무엇으로 이루어져 있는지"가 보인다.
+function category(name: string, typeDetail: string): string {
+  if (/증폭권|강화권|증폭 보호권/.test(name)) return '강화·증폭';
+  if (/^숲속의 유랑악단/.test(name)) return '유랑악단 패키지';
+  if (/소울 결정/.test(name)) return '소울 결정';
+  if (/카드$/.test(name)) return '카드';
+  if (/보주$/.test(name)) return '보주';
+  if (/상자|주머니|큐브/.test(name)) return '상자·큐브';
+  if (typeDetail === '크리쳐' || /알$/.test(name)) return '크리쳐';
+  return '재료·소모품';
+}
+
 const byItem = <T extends { item_id: string }>(rows: T[]) => {
   const m = new Map<string, Omit<T, 'item_id'>[]>();
   for (const { item_id, ...rest } of rows) {
@@ -122,9 +135,18 @@ const meta = (await query<{ trades: number; items: number; lo: string; hi: strin
          (SELECT COUNT(error)::int FROM collection_runs) errors,
          (SELECT COALESCE(SUM(qty_sold),0)::int FROM listing_deltas WHERE reason <> 'expired') qty`)).rows[0];
 
+// 아이템 아이콘은 Neople이 공식 제공한다 (img-api.neople.co.kr/df/items/{itemId}).
+// 이미지를 직접 받아 두지 않고 URL만 넘긴다 — 재배포 때마다 80장을 굽는 것보다
+// 브라우저가 CDN에서 캐시하게 두는 편이 빠르고, 아이콘이 바뀌면 자동으로 따라간다.
+const withMeta = items.map((it) => ({
+  ...it,
+  img: `https://img-api.neople.co.kr/df/items/${it.item_id}`,
+  cat: category(it.item_name, it.item_type_detail),
+}));
+
 writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
   builtAt: new Date().toISOString(),
-  meta, items, weekday,
+  meta, weekday, items: withMeta,
   margin: { pkg: pkg?.vwap ?? null, pkgN: pkg?.n ?? 0, parts, partsSum, fee: 0.03 },
 }));
 
