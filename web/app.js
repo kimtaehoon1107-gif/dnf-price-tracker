@@ -143,10 +143,13 @@ function shockSVG(points) {
   </div>`;
 }
 
-const EVENT_STAGES = [
+const eventStages = (event) => [
   { key: 'announced', label: '공지' },
-  { key: 'starts', label: '적용' },
-  { key: 'ends', label: '종료' },
+  {
+    key: 'starts',
+    label: event.type === '패키지' ? '출시' : event.type === '퍼스트서버' ? '패치' : '적용',
+  },
+  ...(event.type === '패키지' ? [{ key: 'ends', label: '종료' }] : []),
 ];
 
 const eventDate = (d) => d
@@ -262,15 +265,12 @@ function eventStudyHTML(events, days) {
       : '<span class="event-source">출처 미등록</span>';
     return `<div class="event-row" id="event-${event.id}">
       <div class="event-name"><span class="tag">${esc(eventTypeLabel(event.type))}</span>${event.related_item_ids?.length ? '' : '<span class="tag g">전체</span>'}<b>${esc(event.name)}</b>${href}</div>
-      <div class="event-stages">${EVENT_STAGES.map((stage) => {
+      <div class="event-stages">${eventStages(event).map((stage) => {
         const result = eventStageStudy({ date: event[stage.key] }, days);
-        const label = stage.key === 'starts'
-          ? event.type === '패키지' ? '출시' : event.type === '퍼스트서버' ? '패치' : stage.label
-          : stage.label;
         const effect = result.state === 'ready'
           ? `요일 보정 VWAP <b class="${cls(result.price)}">${pct(result.price)}</b> · API 관측 수량 <b class="${cls(result.qty)}">${pct(result.qty)}</b>`
           : stateText[result.state];
-        return `<div><span>${label}</span><b>${eventDate(event[stage.key])}</b><small>${effect}</small></div>`;
+        return `<div><span>${stage.label}</span><b>${eventDate(event[stage.key])}</b><small>${effect}</small></div>`;
       }).join('')}</div>
     </div>`;
   }).join('')}</div>`;
@@ -319,6 +319,7 @@ const enrich = (it) => ({
 function render() {
   const id = location.hash.slice(1);
   const it = DATA.items.find((x) => x.item_id === id);
+  scrollTo(0, 0);
   if (it) renderDetail(enrich(it)); else renderList();
 }
 

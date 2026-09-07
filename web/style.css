@@ -227,7 +227,7 @@ header.top .built { font-size: 12px; color: var(--ink-4); font-variant-numeric: 
 .event-name .tag { margin-left: 0; }
 .event-name a, .event-source { margin-left: auto; color: var(--ink-3); font-size: 12px; font-weight: 500; }
 .event-name a:hover { color: var(--blue); }
-.event-stages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.event-stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
 .event-stages > div { background: var(--page); border-radius: 9px; padding: 9px 10px; }
 .event-stages span, .event-stages small { display: block; color: var(--ink-3); font-size: 11.5px; }
 .event-stages > div > b { display: block; font-size: 13px; margin: 2px 0 3px; }
