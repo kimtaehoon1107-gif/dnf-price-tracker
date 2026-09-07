@@ -69,7 +69,7 @@ header.top .inner {
   max-width: 1000px; margin: 0 auto; padding: 0 20px;
   height: 58px; display: flex; align-items: center; gap: 26px;
 }
-header.top .brand { font-weight: 700; font-size: 16px; letter-spacing: -0.02em; }
+header.top .brand { font-weight: 700; font-size: 16px; letter-spacing: -0.02em; white-space: nowrap; }
 header.top nav { display: flex; gap: 22px; font-size: 14.5px; font-weight: 500; }
 header.top nav a { color: var(--ink-3); }
 header.top nav a.on { color: var(--ink); }
@@ -93,6 +93,10 @@ header.top .built { font-size: 12px; color: var(--ink-4); font-variant-numeric: 
 .tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
 .tabs-end { display: flex; gap: 8px; margin-left: auto; padding-left: 16px; }
+.tabs-end::before {
+  content: '종결 슬롯'; align-self: center; flex: none; white-space: nowrap;
+  font-size: 11px; font-weight: 600; color: var(--ink-4); margin-right: 2px;
+}
 .tab {
   flex: none; padding: 8px 15px; border-radius: 999px; font-size: 14px; font-weight: 600;
   background: var(--card); color: var(--ink-3); border: 1px solid var(--line); cursor: pointer;
@@ -285,9 +289,34 @@ footer { margin-top: 56px; padding-top: 22px; border-top: 1px solid var(--line);
 footer b { color: var(--ink-2); }
 
 @media (max-width: 780px) {
-  .lh, .row { grid-template-columns: 28px minmax(120px, 1.6fr) 92px 84px; }
+  .wrap { padding: 0 12px 64px; }
+  header.top { margin-bottom: 18px; }
+  header.top .inner { height: 50px; padding: 0 12px; gap: 14px; }
+  header.top nav { gap: 14px; font-size: 13.5px; }
+  header.top .built { display: none; }
+  .cards {
+    display: flex; overflow-x: auto; gap: 8px; margin-bottom: 18px; padding-bottom: 4px;
+    scroll-snap-type: x mandatory; scrollbar-width: none;
+  }
+  .cards::-webkit-scrollbar { display: none; }
+  .cards .card { flex: 0 0 72%; padding: 13px 15px; scroll-snap-align: start; }
+  .cards .card .k { margin-bottom: 2px; }
+  .cards .card .v { font-size: 20px; }
+  .tabs-end { margin-left: 8px; padding-left: 10px; border-left: 1px solid var(--line-2); }
+  .lh, .row { grid-template-columns: minmax(0, 1fr) 78px 54px; gap: 8px; padding: 0 12px; }
+  .lh > :first-child, .row .rank { display: none; }
   .lh .h5, .lh .h6, .lh .h7, .row .c5, .row .c6, .row .c7 { display: none; }
+  .row { height: 58px; }
+  .nm { gap: 8px; }
+  .nm img { width: 30px; height: 30px; }
+  .nm .t b { font-size: 13.5px; }
+  .nm .t > span, .nm .tag { display: none; }
+  .px { font-size: 13px; }
+  .chg { font-size: 12.5px; }
+  .dh { align-items: flex-start; }
+  .dh h2 { font-size: 18px; line-height: 1.4; word-break: break-word; }
   .bigpx { font-size: 28px; }
+  .panel { padding: 16px 14px; }
   .event-stages { grid-template-columns: 1fr; }
   .weekday-grid { grid-template-columns: 1fr; }
 }

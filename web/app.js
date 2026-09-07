@@ -604,7 +604,9 @@ async function renderDetail(it) {
       </div>
     </div>
     <div class="bigpx">${fmt(it.last_price)}<small>골드</small></div>
-    <div class="bigchg ${cls(it.chg)}">${pct(it.chg)} <span style="color:var(--ink-3);font-weight:500">24시간</span></div>
+    <div class="bigchg ${cls(it.chg)}">${it.chg === null
+      ? '데이터 없음'
+      : `${pct(it.chg)} <span style="color:var(--ink-3);font-weight:500">24시간</span>`}</div>
 
     <div class="panel"><div class="kv">
       <div><div class="k">24h VWAP</div><div class="v">${fmt(it.vwap24)}</div></div>
@@ -631,7 +633,7 @@ async function renderDetail(it) {
         </div>
       </details>
     </div>
-    <div class="panel">
+    <div class="panel" id="weekday-panel">
       <h3>아이템별 요일 프로파일</h3>
       <p class="desc" id="weekday-desc">완료된 일봉을 분석하는 중…</p>
       <div id="weekday-profile"></div>
@@ -725,6 +727,7 @@ async function renderDetail(it) {
       `${labels.map((label, index) => `${label} ${weekday.counts[index]}일`).join(' · ')} (요일당 최소 3일)`;
     weekdayEl.innerHTML = `<p class="weekday-empty">사용 가능 ${weekday.used}일 · 이벤트 전후 제외 ${weekday.excluded}일</p>`;
   }
+  if (weekday.state !== 'ready') document.getElementById('view').append(document.getElementById('weekday-panel'));
 
   if (depletion.length) {
     const cutoff = Date.parse(DATA.builtAt) - 24 * 3600000;
