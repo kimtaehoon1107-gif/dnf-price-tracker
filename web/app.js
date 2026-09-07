@@ -614,7 +614,13 @@ async function renderDetail(it) {
   const desc = document.getElementById('fc-desc');
   const shock = shockData(d);
   const depletion = s.depletion ?? [];
-  const events = (s.events ?? []).filter((event) => EVENT_TYPES[event.type]);
+  const firstDay = d[0]?.d;
+  const lastDay = d.at(-1)?.d;
+  const events = (s.events ?? []).filter((event) => {
+    if (!EVENT_TYPES[event.type]) return false;
+    if (event.related_item_ids?.length) return true;
+    return firstDay && lastDay && event.starts >= firstDay && event.starts <= lastDay;
+  });
   document.getElementById('event-count').textContent = `${events.length}건`;
   document.getElementById('event-list').innerHTML = eventStudyHTML(events, d);
 
