@@ -122,7 +122,9 @@ for (const [id, name, rarity, type, interval, role, category, slot, jobRole, isF
                        role, category, slot, job_role, is_final, final_since, key_stat, note)
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::date,$12,$13)
     ON CONFLICT (item_id) DO UPDATE SET
-      poll_interval_sec = EXCLUDED.poll_interval_sec,
+      -- 포화 감지로 자동 단축된 운영 주기를 init이 원래 시드값으로 되돌리면 안 된다.
+      -- 시드에서 더 짧게 조정한 값은 반영하되, 주기를 늘릴 때는 의식적으로 DB를 수정한다.
+      poll_interval_sec = LEAST(items.poll_interval_sec, EXCLUDED.poll_interval_sec),
       role = EXCLUDED.role, category = EXCLUDED.category, slot = EXCLUDED.slot,
       job_role = EXCLUDED.job_role, is_final = EXCLUDED.is_final,
       final_since = EXCLUDED.final_since, key_stat = EXCLUDED.key_stat, note = EXCLUDED.note`,
