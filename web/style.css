@@ -214,3 +214,39 @@ footer b { color: var(--ink-2); }
 th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .rule { display: none; }
 .big { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+
+/* ── 인챈트 인벤토리 (던파 장비창 배치) ─────────── */
+.job-sw { display: inline-flex; background: var(--line); border-radius: 999px; padding: 3px; gap: 2px; margin-bottom: 18px; }
+.job-sw button {
+  border: 0; background: transparent; color: var(--ink-3); font-family: inherit;
+  font-size: 14px; font-weight: 600; padding: 6px 20px; border-radius: 999px; cursor: pointer;
+}
+.job-sw button.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+
+.inv-group { margin-bottom: 22px; }
+.inv-group > h4 {
+  margin: 0 0 10px; font-size: 12.5px; font-weight: 600; color: var(--ink-3);
+  letter-spacing: 0.02em;
+}
+.inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 10px; }
+
+.slot {
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 11px 12px; cursor: pointer; min-height: 96px;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.slot:hover { border-color: var(--line-2); }
+.slot .sl { font-size: 11.5px; font-weight: 600; color: var(--ink-3); }
+.slot .card-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.slot img {
+  width: 30px; height: 30px; flex: none; image-rendering: pixelated;
+  border-radius: 7px; background: var(--line);
+}
+.slot .cn { min-width: 0; flex: 1; }
+.slot .cn b {
+  display: block; font-size: 13px; font-weight: 600; line-height: 1.35;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.slot .cn .p { font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--ink-2); font-weight: 600; }
+.slot .cn .p i { font-style: normal; font-size: 11.5px; font-weight: 500; margin-left: 5px; }
+.slot.empty { opacity: .45; justify-content: center; align-items: center; cursor: default; font-size: 12.5px; color: var(--ink-3); }

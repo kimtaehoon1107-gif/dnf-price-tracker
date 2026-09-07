@@ -31,6 +31,7 @@ let DATA = null;
 let tab = '전체';
 // 기본 정렬은 24h 거래대금. 변동률로 정렬하면 하루 한두 건 거래된 아이템의
 // 의미 없는 ±40%가 맨 위를 차지한다.
+let job = '딜러';
 let sortKey = 'turnover';
 let sortDir = -1;
 
@@ -56,13 +57,53 @@ function render() {
   if (it) renderDetail(enrich(it)); else renderList();
 }
 
+// 요약 카드는 목록과 인벤토리 두 뷰가 공유한다.
+// 프로젝트의 결론(레전더리 최저가·해체 차익·목요일 효과)을 첫 화면에 올린다.
+function summaryCards() {
+  const m = DATA.meta;
+  const lg = DATA.legendary?.[0];
+  const mg = DATA.margin;
+  const netMargin = mg?.pkg ? (mg.partsSum * (1 - mg.fee) / mg.pkg - 1) * 100 : null;
+  const w = DATA.weekday ?? [];
+  const thu = (() => {
+    if (!w.length) return null;
+    const mean = w.reduce((a, x) => a + x.ret, 0) / w.length;
+    const t = w.find((x) => x.k === 4);
+    return t ? t.ret - mean : null;
+  })();
+
+  return `<div class="cards">
+    <div class="card">
+      <div class="k">추적 아이템</div>
+      <div class="v">${m.items}<small>종</small></div>
+      <div class="sub">체결 ${fmt(m.trades)}건 · ${m.lo}~${m.hi}</div>
+    </div>
+    ${lg ? `<div class="card hl">
+      <div class="k">레전더리 카드 최저가</div>
+      <div class="v">${fmt(lg.min_unit_price)}</div>
+      <div class="sub">${esc(lg.min_item_name)} · ${lg.with_listings}/${lg.scanned}종 매물</div>
+    </div>` : ''}
+    ${netMargin !== null ? `<div class="card">
+      <div class="k">패키지 해체 차익</div>
+      <div class="v ${cls(netMargin)}">${pct(netMargin)}</div>
+      <div class="sub">수수료 3% 반영 · 유랑악단</div>
+    </div>` : ''}
+    ${thu !== null ? `<div class="card">
+      <div class="k">목요일 효과</div>
+      <div class="v ${cls(thu)}">${pct(thu)}</div>
+      <div class="sub">주간 평균 대비 · p&lt;0.05</div>
+    </div>` : ''}
+  </div>`;
+}
+
 // ── 목록 ───────────────────────────────────────────────────────
 function renderList() {
-  const m = DATA.meta;
   const all = DATA.items.map(enrich);
   const cats = [...new Set(all.map((x) => x.category))]
     .map((c) => ({ c, sum: all.filter((x) => x.category === c).reduce((a, x) => a + x.turnover, 0) }))
     .sort((a, b) => b.sum - a.sum).map((x) => x.c);
+
+  if (tab === '카드') { renderInventory(all, cats); return; }
 
   const rows = (tab === '전체' ? all : all.filter((x) => x.category === tab))
     .sort((a, b) => {
@@ -72,40 +113,8 @@ function renderList() {
       return (typeof va === 'string' ? va.localeCompare(vb) : va - vb) * sortDir;
     });
 
-  const lg = DATA.legendary?.[0];
-  const mg = DATA.margin;
-  const netMargin = mg?.pkg ? (mg.partsSum * (1 - mg.fee) / mg.pkg - 1) * 100 : null;
-  const thu = (() => {
-    const w = DATA.weekday;
-    if (!w?.length) return null;
-    const mean = w.reduce((a, x) => a + x.ret, 0) / w.length;
-    const t = w.find((x) => x.k === 4);
-    return t ? t.ret - mean : null;
-  })();
-
   document.getElementById('view').innerHTML = `
-    <div class="cards">
-      <div class="card">
-        <div class="k">추적 아이템</div>
-        <div class="v">${m.items}<small>종</small></div>
-        <div class="sub">체결 ${fmt(m.trades)}건 · ${m.lo}~${m.hi}</div>
-      </div>
-      ${lg ? `<div class="card hl">
-        <div class="k">레전더리 카드 최저가</div>
-        <div class="v">${fmt(lg.min_unit_price)}</div>
-        <div class="sub">${esc(lg.min_item_name)} · ${lg.with_listings}/${lg.scanned}종 매물</div>
-      </div>` : ''}
-      ${netMargin !== null ? `<div class="card">
-        <div class="k">패키지 해체 차익</div>
-        <div class="v ${cls(netMargin)}">${pct(netMargin)}</div>
-        <div class="sub">수수료 3% 반영 · 유랑악단</div>
-      </div>` : ''}
-      ${thu !== null ? `<div class="card">
-        <div class="k">목요일 효과</div>
-        <div class="v ${cls(thu)}">${pct(thu)}</div>
-        <div class="sub">주간 평균 대비 · p&lt;0.05</div>
-      </div>` : ''}
-    </div>
+    ${summaryCards()}
 
     <div class="tabs">
       ${['전체', ...cats].map((c) => `<button class="tab ${c === tab ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`).join('')}
@@ -162,6 +171,86 @@ function renderList() {
       sortKey = k;
       renderList();
     };
+  });
+}
+
+
+// ── 인챈트 인벤토리 ────────────────────────────────────────────
+// 카드는 "부위마다 무엇을 끼울까"로 보는 물건이라, 가격순 리스트보다
+// 던파 장비창 배치가 실제 사용 맥락에 맞는다.
+const SLOT_GROUPS = [
+  ['무기', ['무기']],
+  ['방어구', ['상의', '하의', '머리어깨', '벨트', '신발']],
+  ['악세서리', ['팔찌', '목걸이', '반지']],
+  ['특수장비', ['보조장비', '마법석', '귀걸이']],
+];
+
+function renderInventory(all, cats) {
+  const cards = all.filter((x) => x.category === '카드' && x.job_role === job);
+  const bySlot = new Map();
+  for (const c of cards) {
+    if (!bySlot.has(c.slot)) bySlot.set(c.slot, []);
+    bySlot.get(c.slot).push(c);
+  }
+  for (const list of bySlot.values()) list.sort((a, b) => b.last_price - a.last_price);
+
+  const total = cards.reduce((a, c) => a + (c.min_ask || c.last_price || 0), 0);
+
+  document.getElementById('view').innerHTML = `
+    ${summaryCards()}
+    <div class="tabs">
+      ${['전체', ...cats].map((c) => `<button class="tab ${c === tab ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`).join('')}
+    </div>
+
+    <div class="job-sw">
+      ${['딜러', '버퍼'].map((j) => `<button class="${j === job ? 'on' : ''}" data-j="${j}">${j}</button>`).join('')}
+    </div>
+
+    <div class="card" style="margin-bottom:20px">
+      <div class="k">${job} 종결 인챈트 풀세트</div>
+      <div class="v">${fmt(total)}<small>골드</small></div>
+      <div class="sub">부위별 최저 호가 합계 · ${cards.length}종</div>
+    </div>
+
+    ${SLOT_GROUPS.map(([g, slots]) => `
+      <div class="inv-group">
+        <h4>${g}</h4>
+        <div class="inv-grid">
+          ${slots.map((sl) => {
+            const list = bySlot.get(sl) ?? [];
+            if (!list.length) return `<div class="slot empty">${sl}<br>미등록</div>`;
+            return list.map((c) => `
+              <div class="slot" data-id="${c.item_id}">
+                <div class="sl">${sl}</div>
+                <div class="card-row">
+                  <img src="${c.img}" alt="" loading="lazy" width="30" height="30">
+                  <div class="cn">
+                    <b>${esc(c.item_name.replace(/ 카드$/, ''))}</b>
+                    <div class="p">${fmt(c.min_ask || c.last_price)}
+                      <i class="${c.qty24 < 5 ? 'flat' : cls(c.chg)}">${pct(c.chg)}</i></div>
+                  </div>
+                </div>
+              </div>`).join('');
+          }).join('')}
+        </div>
+      </div>`).join('')}
+
+    <p class="hint">
+      던파 장비창 배치를 따랐습니다. 카드는 "부위마다 무엇을 끼울까"로 보는 물건이라
+      가격순 목록보다 이쪽이 실제 사용 맥락에 맞습니다.<br>
+      표시 가격은 <b>최저 호가</b>이고, 없으면 최근 체결가입니다.
+      한 부위에 카드가 여러 개인 것은 <b>종결이 여럿</b>이라는 뜻입니다 — 옵션이 갈리거나 성능이 비슷한 경우입니다.
+      종결 목록은 <a href="https://dnf-power.com/enchant-search" target="_blank" rel="noopener" style="color:var(--blue)">던파파워</a>를 참고했습니다.
+    </p>`;
+
+  document.querySelectorAll('.slot[data-id]').forEach((el) => {
+    el.onclick = () => { location.hash = el.dataset.id; };
+  });
+  document.querySelectorAll('.job-sw button').forEach((el) => {
+    el.onclick = () => { job = el.dataset.j; renderList(); };
+  });
+  document.querySelectorAll('.tab').forEach((el) => {
+    el.onclick = () => { tab = el.dataset.c; renderList(); scrollTo(0, 0); };
   });
 }
 
