@@ -16,7 +16,9 @@ function grade(it) {
 }
 
 let DATA = null;
-let sortKey = 'chg';
+// 기본 정렬은 24h 거래대금. 변동률로 정렬하면 하루 한두 건 거래된 아이템의
+// 의미 없는 ±40%가 맨 위를 차지한다.
+let sortKey = 'turnover';
 let sortDir = -1;
 
 async function boot() {
@@ -40,6 +42,7 @@ function renderList() {
   const rows = DATA.items.map((it) => ({
     ...it,
     chg: it.vwap24 && it.vwap_prev ? (it.vwap24 / it.vwap_prev - 1) * 100 : null,
+    turnover: (it.vwap24 ?? it.last_price) * it.qty24,
     g: grade(it),
   }));
   const key = sortKey;
@@ -71,6 +74,7 @@ function renderList() {
         <th data-k="role">역할</th>
         <th class="num" data-k="last_price">최근 체결가</th>
         <th class="num" data-k="chg">24h</th>
+        <th class="num" data-k="turnover">24h 거래대금</th>
         <th class="num" data-k="qty24">24h 수량</th>
         <th class="num" data-k="min_ask">최저 호가</th>
         <th class="num" data-k="listings">매물</th>
@@ -83,7 +87,8 @@ function renderList() {
           <td><span class="nm">${r.item_name}</span><br><span class="sub">${r.item_rarity} · ${r.item_type_detail}</span></td>
           <td><span class="sub">${r.role ?? '-'}</span></td>
           <td class="num">${fmt(r.last_price)}</td>
-          <td class="num ${cls(r.chg)}">${pct(r.chg)}</td>
+          <td class="num ${r.qty24 < 5 ? 'flat' : cls(r.chg)}" ${r.qty24 < 5 && r.chg !== null ? 'title="24h 표본이 5개 미만이라 변동률을 신뢰하기 어렵습니다"' : ''}>${pct(r.chg)}${r.qty24 < 5 && r.chg !== null ? '<span style="color:var(--ink-3)">?</span>' : ''}</td>
+          <td class="num">${r.turnover >= 100000000 ? (r.turnover / 100000000).toFixed(1) + '억' : fmt(r.turnover)}</td>
           <td class="num">${fmt(r.qty24)}</td>
           <td class="num">${fmt(r.min_ask)}</td>
           <td class="num">${fmt(r.listings)}</td>
@@ -94,8 +99,10 @@ function renderList() {
     </table></div>
 
     <div class="note" style="border-left-color:var(--ink-3)">
+      기본 정렬은 <b>24h 거래대금</b>입니다. 변동률로 정렬하면 하루 한두 건 거래된 아이템의
+      의미 없는 ±40%가 맨 위를 차지합니다. 같은 이유로 24h 표본이 5개 미만인 변동률에는
+      <b>?</b>를 붙이고 색을 뺐습니다.<br>
       <b>유동성 등급</b>은 일평균 체결 건수입니다 — A ≥ 60건, B ≥ 20건, C ≥ 5건, D는 그 미만.
-      표본이 얇으면 어떤 가격 지표도 신뢰할 수 없어서, 숫자보다 먼저 보시라고 앞에 뒀습니다.
     </div>`;
 
   document.querySelectorAll('tbody tr').forEach((tr) => {
