@@ -184,19 +184,53 @@ function eventStageStudy(stage, days) {
   };
 }
 
-function eventMarkers(events, days) {
+function eventTimeline(events, days, forecast) {
   if (!days.length) return [];
-  const first = days[0].d, last = days.at(-1).d;
-  return events.flatMap((event) => EVENT_STAGES.flatMap((stage) => {
-    const date = event[stage.key];
-    return !date || date < first || date > last ? [] : [{
-      time: date,
-      position: stage.position,
-      shape: stage.shape,
-      color: css(stage.color),
-      text: `${stage.label} · ${event.name}`,
-    }];
-  })).sort((a, b) => a.time.localeCompare(b.time));
+  const first = days[0].d;
+  const last = forecast?.points?.at(-1)?.d ?? days.at(-1).d;
+  const byDate = new Map();
+  for (const event of events) {
+    for (const [key, stage] of [['starts', '적용'], ['ends', '종료']]) {
+      const date = event[key];
+      if (!date || date < first || date > last) continue;
+      if (!byDate.has(date)) byDate.set(date, { date, entries: [] });
+      byDate.get(date).entries.push({ event, stage });
+    }
+  }
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function eventBadge(group) {
+  if (group.entries.length > 1) return String(group.entries.length);
+  if (group.entries[0].stage === '종료') return '종';
+  return ({ 대규모: '대', 주요: '주', 레이드: '레', 패키지: '패', 아바타: '아', 아이템: '템' })
+    [group.entries[0].event.type] ?? '공';
+}
+
+function renderEventRail(chart, groups) {
+  const rail = document.getElementById('event-rail');
+  if (!groups.length) {
+    rail.hidden = true;
+    return;
+  }
+  rail.hidden = false;
+  rail.innerHTML = groups.map((group, index) => {
+    const major = group.entries.some(({ event }) => ['대규모', '주요', '레이드'].includes(event.type));
+    const ending = group.entries.every(({ stage }) => stage === '종료');
+    const tone = ending ? 'end' : major ? 'major' : 'market';
+    const title = group.entries.map(({ event, stage }) => `${stage} · [${event.type}] ${event.name}`).join('\n');
+    return `<button class="event-pin ${tone}" type="button" data-event-pin="${index}" title="${esc(title)}" aria-label="${esc(`${group.date} ${title}`)}">${eventBadge(group)}</button>`;
+  }).join('');
+
+  requestAnimationFrame(() => {
+    for (const [index, group] of groups.entries()) {
+      const pin = rail.querySelector(`[data-event-pin="${index}"]`);
+      const x = chart.timeScale().timeToCoordinate(group.date);
+      if (x === null) { pin.hidden = true; continue; }
+      pin.style.left = `${Math.max(14, Math.min(rail.clientWidth - 14, x))}px`;
+      pin.onclick = () => { document.getElementById('event-details').open = true; };
+    }
+  });
 }
 
 function eventStudyHTML(events, days) {
@@ -209,7 +243,7 @@ function eventStudyHTML(events, days) {
     const href = /^https?:\/\//.test(event.source_url ?? '')
       ? `<a href="${esc(event.source_url)}" target="_blank" rel="noopener">근거 보기 ↗</a>`
       : '<span class="event-source">출처 미등록</span>';
-    return `<div class="event-row">
+    return `<div class="event-row" id="event-${event.id}">
       <div class="event-name"><span class="tag">${esc(event.type)}</span>${event.related_item_ids?.length ? '' : '<span class="tag g">전체</span>'}<b>${esc(event.name)}</b>${href}</div>
       <div class="event-stages">${EVENT_STAGES.map((stage) => {
         const result = eventStageStudy({ date: event[stage.key] }, days);
@@ -495,11 +529,14 @@ async function renderDetail(it) {
       <h3>가격 · 예측</h3>
       <p class="desc" id="fc-desc">불러오는 중…</p>
       <div class="chart" id="c1"></div>
-      <div class="event-study">
-        <h4>가격 영향 이벤트 · 이벤트 스터디</h4>
-        <p class="desc">공지·적용·종료 시점을 가격과 겹쳐 봅니다. 전후 수치는 요일효과를 보정한 3일 평균 비교이며, 동시 발생이 인과관계를 뜻하지는 않습니다.</p>
-        <div id="event-list"></div>
-      </div>
+      <div class="event-rail" id="event-rail" aria-label="가격 영향 이벤트 태그" hidden></div>
+      <details class="event-study" id="event-details">
+        <summary><span>가격 영향 이벤트 · 이벤트 스터디</span><small id="event-count"></small><i aria-hidden="true">⌄</i></summary>
+        <div class="event-body">
+          <p class="desc">공지·적용·종료 시점을 가격과 겹쳐 봅니다. 전후 수치는 요일효과를 보정한 3일 평균 비교이며, 동시 발생이 인과관계를 뜻하지는 않습니다.</p>
+          <div id="event-list"></div>
+        </div>
+      </details>
     </div>
     <div class="panel">
       <h3>호가–체결 갭</h3>
@@ -558,6 +595,7 @@ async function renderDetail(it) {
   const shock = shockData(d);
   const depletion = s.depletion ?? [];
   const events = s.events ?? [];
+  document.getElementById('event-count').textContent = `${events.length}건`;
   document.getElementById('event-list').innerHTML = eventStudyHTML(events, d);
 
   if (depletion.length) {
@@ -601,9 +639,14 @@ async function renderDetail(it) {
 
   if (d.length >= 2) {
     const c1 = LightweightCharts.createChart(document.getElementById('c1'), { ...opts, height: 300 });
+    const timeline = eventTimeline(events, d, s.forecast);
     const priceSeries = c1.addLineSeries({ color: css('--ink'), lineWidth: 2 });
     priceSeries.setData(d.map((x) => ({ time: x.d, value: x.vwap })));
-    priceSeries.setMarkers(eventMarkers(events, d));
+    if (timeline.length) {
+      c1.addLineSeries({
+        lineVisible: false, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+      }).setData(timeline.map((x) => ({ time: x.date, value: d[0].vwap })));
+    }
 
     if (s.forecast) {
       const f = s.forecast;
@@ -626,6 +669,7 @@ async function renderDetail(it) {
       desc.textContent = '예측에는 일봉이 최소 10일 필요합니다. 아직 그만큼 쌓이지 않았습니다.';
     }
     c1.timeScale().fitContent();
+    renderEventRail(c1, timeline);
 
     const c2 = LightweightCharts.createChart(document.getElementById('c2'), { ...opts, height: 130 });
     c2.addHistogramSeries({ color: css('--blue') }).setData(d.map((x) => ({ time: x.d, value: x.qty })));
