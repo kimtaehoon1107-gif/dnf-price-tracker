@@ -240,12 +240,7 @@ function renderInventory(all, cats) {
         </div>
       </div>`).join('')}
 
-    <p class="hint">
-      던파 장비창 배치를 따랐습니다. 카드는 "부위마다 무엇을 끼울까"로 보는 물건이라
-      가격순 목록보다 이쪽이 실제 사용 맥락에 맞습니다.<br>
-      표시 가격은 <b>최저 호가</b>이고, 없으면 최근 체결가입니다.
-      한 부위에 카드가 여러 개인 것은 <b>종결이 여럿</b>이라는 뜻입니다 — 옵션이 갈리거나 성능이 비슷한 경우입니다.
-    </p>`;
+    <p class="hint">표시 가격은 <b>최저 호가</b>이고, 없으면 최근 체결가입니다.</p>`;
 
   document.querySelectorAll('.slot[data-id]').forEach((el) => {
     el.onclick = () => { location.hash = el.dataset.id; };
