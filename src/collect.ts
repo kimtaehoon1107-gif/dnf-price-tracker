@@ -28,8 +28,9 @@ export async function collectItem(
   source: CollectionSource = 'local',
 ): Promise<CollectResult> {
   const startedAt = nowIso();
-  const context = await query<{ category: string | null; t: Date | null }>(`
+  const context = await query<{ category: string | null; upgrade_max: number | null; t: Date | null }>(`
     SELECT i.category,
+      (SELECT MAX(upgrade_max) FROM listings WHERE item_id = i.item_id) AS upgrade_max,
       (SELECT MAX(started_at) FROM collection_runs
        WHERE item_id = i.item_id AND error IS NULL AND finished_at IS NOT NULL) AS t
     FROM items i WHERE i.item_id = $1`, [itemId]);
@@ -77,7 +78,16 @@ export async function collectItem(
 
     // ── 2. 현재 매물 ────────────────────────────────────────────
     const auction = await getAuction(itemId, 400);
-    const listings = isCard ? auction.filter((r) => r.upgrade === 0) : auction;
+    const observedUpgradeMaxes = [...new Set(auction
+      .map((r) => r.upgradeMax)
+      .filter((value): value is number => Number.isInteger(value) && value > 0))];
+    if (isCard && observedUpgradeMaxes.length > 1) {
+      throw new Error(`카드 최대 업그레이드 단계 불일치: ${observedUpgradeMaxes.join(', ')}`);
+    }
+    const cardUpgradeMax = isCard ? (observedUpgradeMaxes[0] ?? context.rows[0]?.upgrade_max ?? null) : null;
+    const listings = isCard
+      ? auction.filter((r) => r.upgrade === 0 || (cardUpgradeMax !== null && r.upgrade === cardUpgradeMax))
+      : auction;
     const capped = auction.length >= 400;
     const observedAt = nowIso();
 
@@ -88,7 +98,8 @@ export async function collectItem(
     }
     const open = await query<{ auction_no: string; unit_price: number; cur_count: number; expire_date: Date }>(
       `SELECT auction_no, unit_price, cur_count, expire_date FROM listings
-       WHERE item_id = $1 AND closed_at IS NULL AND ($2::boolean = false OR upgrade = 0)`,
+       WHERE item_id = $1 AND closed_at IS NULL
+         AND ($2::boolean = false OR upgrade = 0 OR upgrade = upgrade_max)`,
       [itemId, isCard]);
     const prevByNo = new Map(open.rows.map((p) => [Number(p.auction_no), p]));
     const seen = new Set(listings.map((r) => r.auctionNo));
@@ -146,8 +157,6 @@ export async function collectItem(
       toClose.push(no);
     }
 
-    const prices = listings.map((r) => r.unitPrice).sort((a, b) => a - b);
-
     // ── 3. 한 트랜잭션으로 기록 ─────────────────────────────────
     const soldNew = await tx(async (c) => {
       const ins = await c.query(`
@@ -190,12 +199,22 @@ export async function collectItem(
           [observedAt, toClose]);
       }
 
-      await c.query(`
-        INSERT INTO listing_snapshots
-          (item_id, captured_at, min_unit_price, p10, p25, median, listing_count, total_qty, upgrade)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING`,
-        [itemId, observedAt, prices[0] ?? null, quantile(prices, 0.1), quantile(prices, 0.25),
-          quantile(prices, 0.5), listings.length, listings.reduce((s, r) => s + r.count, 0), isCard ? 0 : null]);
+      const snapshotGroups = isCard
+        ? [0, ...(cardUpgradeMax === null ? [] : [cardUpgradeMax])].map((upgrade) => ({
+            upgrade,
+            rows: listings.filter((row) => row.upgrade === upgrade),
+          }))
+        : [{ upgrade: null, rows: listings }];
+      for (const group of snapshotGroups) {
+        const groupPrices = group.rows.map((row) => row.unitPrice).sort((a, b) => a - b);
+        await c.query(`
+          INSERT INTO listing_snapshots
+            (item_id, captured_at, min_unit_price, p10, p25, median, listing_count, total_qty, upgrade, upgrade_max)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT DO NOTHING`,
+          [itemId, observedAt, groupPrices[0] ?? null, quantile(groupPrices, 0.1), quantile(groupPrices, 0.25),
+            quantile(groupPrices, 0.5), group.rows.length, group.rows.reduce((s, r) => s + r.count, 0),
+            group.upgrade, cardUpgradeMax]);
+      }
 
       return ins.rowCount ?? 0;
     });

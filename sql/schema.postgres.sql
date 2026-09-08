@@ -95,9 +95,13 @@ CREATE TABLE IF NOT EXISTS listing_snapshots (
   listing_count  INTEGER     NOT NULL,
   total_qty      INTEGER     NOT NULL,
   upgrade        INTEGER,
-  UNIQUE (item_id, captured_at)
+  upgrade_max    INTEGER
 );
 ALTER TABLE listing_snapshots ADD COLUMN IF NOT EXISTS upgrade INTEGER;
+ALTER TABLE listing_snapshots ADD COLUMN IF NOT EXISTS upgrade_max INTEGER;
+ALTER TABLE listing_snapshots DROP CONSTRAINT IF EXISTS listing_snapshots_item_id_captured_at_key;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_snapshots_item_time_upgrade
+  ON listing_snapshots (item_id, captured_at, COALESCE(upgrade, -1));
 CREATE INDEX IF NOT EXISTS idx_snapshots_item_upgrade_time
   ON listing_snapshots (item_id, upgrade, captured_at DESC);
 

@@ -339,12 +339,19 @@ th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .big { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 
 /* ── 인챈트 인벤토리 (던파 장비창 배치) ─────────── */
-.job-sw { display: inline-flex; background: var(--line); border-radius: 999px; padding: 3px; gap: 2px; margin-bottom: 18px; }
-.job-sw button {
+.job-sw, .upgrade-sw { display: inline-flex; background: var(--line); border-radius: 999px; padding: 3px; gap: 2px; margin-bottom: 18px; }
+.job-sw button, .upgrade-sw button {
   border: 0; background: transparent; color: var(--ink-3); font-family: inherit;
   font-size: 14px; font-weight: 600; padding: 6px 20px; border-radius: 999px; cursor: pointer;
 }
-.job-sw button.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.job-sw button.on, .upgrade-sw button.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.upgrade-sw { margin: 2px 0 16px; }
+.upgrade-economics .desc { margin: 14px 0 0; }
+.upgrade-verdict {
+  margin-top: 14px; padding: 12px 14px; border-radius: 10px;
+  background: var(--blue-bg); color: var(--ink-2); font-size: 14px;
+}
+.upgrade-verdict b { color: var(--blue); }
 
 .inv-group { margin-bottom: 22px; }
 .inv-group > h4 {
@@ -372,5 +379,15 @@ th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
 }
 .slot .cn .p { font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--ink-2); font-weight: 600; }
 .slot .cn .p i { font-style: normal; font-size: 11.5px; font-weight: 500; margin-left: 5px; }
+.slot .price-mode {
+  display: grid; grid-template-columns: 34px 1fr auto; gap: 5px; align-items: baseline;
+  font-size: 11.5px; font-variant-numeric: tabular-nums;
+}
+.slot .price-mode span { color: var(--ink-3); }
+.slot .price-mode b { text-align: right; font-size: 12px; }
+.slot .price-mode i { font-style: normal; font-size: 10.5px; }
+.slot .upgrade-hint { margin-top: 3px; font-size: 10.5px; color: var(--ink-3); line-height: 1.35; }
+.slot .upgrade-hint.self { color: var(--blue); }
+.slot .upgrade-hint.max { color: var(--gold); }
 .slot.empty { opacity: .45; justify-content: center; align-items: center; cursor: default; font-size: 12.5px; color: var(--ink-3); }
 .slot .cn .ks { font-size: 11px; color: var(--blue); font-weight: 600; }
