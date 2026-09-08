@@ -10,6 +10,24 @@ const cls = (n) => n === null || !isFinite(n) || Math.abs(n) < 0.005 ? 'flat' : 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const css = (n) => getComputedStyle(document.body).getPropertyValue(n).trim();
 
+// 카드 목록에서는 같은 능력치 이름을 반복하지 않고 0업→맥스업 변화만 압축한다.
+// 이름이나 순서가 달라지면 억지로 합치지 않고 두 단계의 원문을 모두 보여준다.
+function statTransition(base, max) {
+  if (!base) return max ? `맥스업 ${max}` : '';
+  if (!max || base === max) return base;
+  const parse = (text) => text.split(' · ').map((part) => {
+    const match = part.match(/^(.*?)\s+([+-]?\d+(?:\.\d+)?%?)$/);
+    return match ? { name: match[1], value: match[2] } : null;
+  });
+  const from = parse(base), to = parse(max);
+  if (from.some((part) => !part) || to.some((part) => !part) ||
+      from.length !== to.length || from.some((part, i) => part.name !== to[i].name)) {
+    return `0업 ${base} → 맥스업 ${max}`;
+  }
+  return from.map((part, i) => `${part.name} ${part.value === to[i].value
+    ? part.value : `${part.value}→${to[i].value}`}`).join(' · ');
+}
+
 // 종결이 언제 교체됐는지. 종결은 패치로 바뀌므로 "얼마나 오래 종결이었나"가
 // 곧 다음 교체가 임박했는지의 신호가 된다.
 const sinceDays = (d) => d ? Math.floor((Date.now() - Date.parse(d + 'T00:00:00+09:00')) / 86400000) : null;
@@ -546,13 +564,16 @@ function renderList() {
       ${rows.map((r, i) => {
         const color = css(r.chg > 0 ? '--up' : r.chg < 0 ? '--down' : '--ink-4');
         const thin = r.price_basis === 'trade' && r.api_qty24 < 5 && r.chg !== null;
+        const shownStat = r.price_basis === 'ask0' ? statTransition(r.key_stat, r.key_stat_max) : r.key_stat;
+        const shownStatText = shownStat
+          ? `${r.price_basis === 'ask0' ? ' · 부여 능력치 ' : ' · '}${esc(shownStat)}` : '';
         return `<a class="row" href="#${r.item_id}">
           <div class="rank r">${i + 1}</div>
           <div class="nm">
             <img src="${r.img}" alt="" loading="lazy" width="32" height="32">
             <div class="t">
               <b>${esc(r.item_name)}${r.is_final ? '<span class="tag fin">종결</span>' : ''}${r.price_basis === 'ask0' ? '<span class="tag">0업</span>' : ''}${r.slot ? `<span class="tag">${esc(r.slot)}</span>` : ''}</b>
-              <span>${esc(r.item_rarity)}${r.job_role ? ' · ' + esc(r.job_role) : ''}${r.key_stat ? ' · ' + esc(r.key_stat) : ''}${r.price_basis === 'ask0' ? ` · 0업 호가 관측 ${fmt(r.trades)}${r.max_last_price ? ` · 맥스업 ${fmt(r.max_last_price)}` : ''}` : ` · 표본 ${fmt(r.trades)} · ${r.g}등급`}${r.final_since ? ` · 종결 D+${sinceDays(r.final_since)}` : ''}</span>
+              <span>${esc(r.item_rarity)}${r.job_role ? ' · ' + esc(r.job_role) : ''}${shownStatText}${r.price_basis === 'ask0' ? ` · 0업 호가 관측 ${fmt(r.trades)}${r.max_last_price ? ` · 맥스업 ${fmt(r.max_last_price)}` : ''}` : ` · 표본 ${fmt(r.trades)} · ${r.g}등급`}${r.final_since ? ` · 종결 D+${sinceDays(r.final_since)}` : ''}</span>
             </div>
           </div>
           <div class="px">
@@ -640,7 +661,7 @@ function renderInventory(all, cats) {
                   <img src="${c.img}" alt="" loading="lazy" width="30" height="30">
                   <div class="cn">
                      <b>${esc(c.item_name.replace(/ 카드$/, ''))}</b>
-                     ${c.key_stat ? `<div class="ks">${esc(c.key_stat)}</div>` : ''}
+                     ${c.key_stat ? `<div class="ks">부여 능력치 · ${esc(statTransition(c.key_stat, c.key_stat_max))}</div>` : ''}
                      <div class="price-mode"><span>0업</span><b>${fmt(c.min_ask)}</b><i class="${cls(c.chg)}">${pct(c.chg)}</i></div>
                      <div class="price-mode"><span>${c.max_upgrade ? `${c.max_upgrade}업` : '맥스업'}</span><b>${fmt(c.max_min_ask)}</b><i class="${cls(c.max_chg)}">${pct(c.max_chg)}</i></div>
                      ${(() => {
@@ -672,6 +693,7 @@ async function renderDetail(it) {
   const isZeroCard = it.price_basis === 'ask0';
   const showingMax = isZeroCard && cardMode === 'max';
   const cardTier = showingMax ? `${it.max_upgrade ?? '맥스'}업` : '0업';
+  const selectedKeyStat = showingMax ? (it.key_stat_max ?? it.key_stat) : it.key_stat;
   if (showingMax) {
     it = {
       ...it,
@@ -692,7 +714,7 @@ async function renderDetail(it) {
       <img src="${it.img}" alt="" width="48" height="48">
       <div>
         <h2>${esc(it.item_name)}${it.is_final ? '<span class="tag fin">종결</span>' : ''}${isZeroCard ? `<span class="tag">${cardTier}</span>` : ''}</h2>
-        <div class="meta">${esc(it.item_rarity)} · ${esc(it.item_type_detail)}${it.slot ? ' · ' + esc(it.slot) : ''}${it.job_role ? ' · ' + esc(it.job_role) : ''}${it.key_stat ? ' · ' + esc(it.key_stat) : ''}</div>
+        <div class="meta">${esc(it.item_rarity)} · ${esc(it.item_type_detail)}${it.slot ? ' · ' + esc(it.slot) : ''}${it.job_role ? ' · ' + esc(it.job_role) : ''}${selectedKeyStat ? ' · 부여 능력치 ' + esc(selectedKeyStat) : ''}</div>
         ${it.final_since ? `<div class="meta">종결 지정 ${it.final_since} · <b style="color:var(--ink-2)">D+${sinceDays(it.final_since)}일차</b></div>` : ''}
       </div>
     </div>

@@ -22,10 +22,12 @@ CREATE TABLE IF NOT EXISTS items (
   job_role          TEXT,          -- 딜러 / 버퍼
   is_final          BOOLEAN     NOT NULL DEFAULT FALSE,
   key_stat          TEXT,          -- 종결 안에서 성능이 갈릴 때의 핵심 옵션 (예: 최종뎀 9.6%)
+  key_stat_max      TEXT,          -- 카드 맥스업 기준 핵심 부여 능력치
   final_since       DATE,
   backfilled_at     TIMESTAMPTZ,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE items ADD COLUMN IF NOT EXISTS key_stat_max TEXT;
 
 -- auction-sold에는 auctionNo가 없어 자연키로 중복을 제거한다.
 -- 대량 매수가 "같은 초·같은 개당가·같은 수량"인 별개 체결을 여러 건 만들기 때문에

@@ -117,19 +117,60 @@ const SEED = [
   ['3e4f1a4b2bc623c582b9845e0bcc9033', '플로럴 스태그 플래티넘 크리쳐 알 선택 상자' , '레어'      , '선택 부스터'     , 3600, '거래액 상위' , '크리쳐'      , null        , null    ,  true, '2026-01-22'  , null            , '던파나우 24h 거래액 상위. 100건=23.3시간 (2026-09-07)'],
 ] as const;
 
+// Neople 아이템 상세 API의 cardInfo.enchant에서 실제 최대 업그레이드 단계를 읽었다.
+// key_stat과 같은 핵심 능력치만 남겨 0업과 맥스업을 화면에서 바로 비교한다 (2026-09-08 확인).
+const CARD_MAX_STATS: Record<string, string> = {
+  '783a58949707168439e96189662f5783': '힘·지·체·정 +120',
+  '54ca23697b18f72eca1a3bc8c4c8b442': '힘·지·체·정 +120',
+  'd764ad320566b4ecff5931574a148bb7': '모속강 +45',
+  '8385f8e92ee9413839b84703f68271db': '힘·지·체·정 +120',
+  'd869a5f5a2f5d9ae636763285a29a78d': '모속강 +35 · 최종뎀 +2%',
+  '2e59d40e70bd397a7712d9aaf46f7403': '모속강 +15 · 물·마·독공 +30',
+  'aefd43bba0bdfee5203fde4a954b6e59': '모속강 +15 · 물·마·독공 +30',
+  '3493ade40cfe2c70e8afaf7ad7aeca73': '힘·지·체·정 +120',
+  '12a4a6ce6c34b550563f9fc9bf2ec3e6': '힘·지·체·정 +110 · 캐속 +7%',
+  '7483aac25864738f6fe621612cedda2a': '최종뎀 +3% · 물·마·독공 +110',
+  '2abf4a1103ef88fde63cf9b0a110422d': '힘·지·체·정 +210',
+  '42ee831ce6b283ecd8b06969caad7894': '모속강 +15 · 물·마·독공 +30',
+  '31beba4a3b0942f2632ea0cfaff2f520': '모속강 +35 · 최종뎀 +2%',
+  '3e35d98c4bcbba4ba074a969c333e213': '모속강 +35 · 최종뎀 +2%',
+  'c356034de6089f6599be09e0305fd5ea': '힘·지·체·정 +210',
+  '0239b1478c2a8214e70eac57581cddd2': '힘·지·체·정 +110 · 캐속 +7%',
+  '2e2f841e760d7d14feb08f0cc5791b65': '최종뎀 +3%',
+  'c6eff9fae931a04e0cee7027f2d6a046': '힘·지·체·정 +110 · 캐속 +7%',
+  '078630e1f610eee7c724e477d13425b2': '힘·지·체·정 +120',
+  'c1e30babd14b79cb3af085049475563c': '모속강 +35 · 최종뎀 +2%',
+  '23bc91d20f0640bff7056bb9fc1a9f28': '힘·지·체·정 +120',
+  'b04b0dba9140a05fe1efe5b132a32be9': '힘·지·체·정 +200',
+  'af298490c509cf7411d2e5728dd8d6d6': '힘·지·체·정 +120 · 물·마크 +7%',
+  '6c4341d152241ab589c664937d98b807': '모속강 +35 · 최종뎀 +2%',
+  'e16b819c7fc536ec49d9c0529ffdb844': '최종뎀 +4% · 모속강 +15',
+  'da6e39a296bdad132d58958b1aadab63': '최종뎀 +3% · 물·마·독공 +110',
+  '050b5060a003e81df20b1446d5e0ef1d': '최종뎀 +3%',
+  '106f84309e51308c7ff364f2b9a3ad21': '최종뎀 +3%',
+  '5f32b1f449302f13924a4a2d4405de65': '모속강 +35',
+  '809f27840312af5097094cf9a09548f6': '힘·지·체·정 +120 · 물·마크 +7%',
+  'e3a3309fb7f49c465a78466e28d5b994': '힘·지·체·정 +170',
+  '94759f60b71abea7e535bdd3d2aa9e21': '힘·지·체·정 +300',
+  '9f765670c9fdefeec6a7b31571748d04': '최종뎀 +3%',
+  'e9e6e8a494598dc2a54b48bb70b8f34f': '힘·지·체·정 +190',
+};
+
 for (const [id, name, rarity, type, interval, role, category, slot, jobRole, isFinal, finalSince, keyStat, note] of SEED) {
+  const keyStatMax = CARD_MAX_STATS[id] ?? null;
   await query(`
     INSERT INTO items (item_id, item_name, item_rarity, item_type_detail, poll_interval_sec,
-                       role, category, slot, job_role, is_final, final_since, key_stat, note)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::date,$12,$13)
+                       role, category, slot, job_role, is_final, final_since, key_stat, key_stat_max, note)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::date,$12,$13,$14)
     ON CONFLICT (item_id) DO UPDATE SET
       -- 포화 감지로 자동 단축된 운영 주기를 init이 원래 시드값으로 되돌리면 안 된다.
       -- 시드에서 더 짧게 조정한 값은 반영하되, 주기를 늘릴 때는 의식적으로 DB를 수정한다.
       poll_interval_sec = LEAST(items.poll_interval_sec, EXCLUDED.poll_interval_sec),
       role = EXCLUDED.role, category = EXCLUDED.category, slot = EXCLUDED.slot,
       job_role = EXCLUDED.job_role, is_final = EXCLUDED.is_final,
-      final_since = EXCLUDED.final_since, key_stat = EXCLUDED.key_stat, note = EXCLUDED.note`,
-    [id, name, rarity, type, interval, role, category, slot, jobRole, isFinal, finalSince, keyStat, note]);
+      final_since = EXCLUDED.final_since, key_stat = EXCLUDED.key_stat,
+      key_stat_max = EXCLUDED.key_stat_max, note = EXCLUDED.note`,
+    [id, name, rarity, type, interval, role, category, slot, jobRole, isFinal, finalSince, keyStat, keyStatMax, note]);
 }
 
 const tables = await query<{ table_name: string }>(

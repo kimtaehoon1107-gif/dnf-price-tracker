@@ -18,7 +18,7 @@ mkdirSync(`${OUT}/data/series`, { recursive: true });
 const items = (await query<{
   item_id: string; item_name: string; item_rarity: string; item_type_detail: string;
   role: string; category: string; slot: string | null; job_role: string | null;
-  is_final: boolean; final_since: string | null; key_stat: string | null;
+  is_final: boolean; final_since: string | null; key_stat: string | null; key_stat_max: string | null;
   price_basis: 'trade' | 'ask0';
   trades: number; span_days: number; last_price: number;
   vwap24: number | null; vwap_prev: number | null; api_qty24: number;
@@ -86,7 +86,7 @@ const items = (await query<{
   )
   SELECT i.item_id, i.item_name, i.item_rarity, i.item_type_detail, i.role,
          COALESCE(i.category,'기타') AS category, i.slot, i.job_role,
-         i.is_final, to_char(i.final_since,'YYYY-MM-DD') AS final_since, i.key_stat,
+         i.is_final, to_char(i.final_since,'YYYY-MM-DD') AS final_since, i.key_stat, i.key_stat_max,
          CASE WHEN i.category = '카드' THEN 'ask0' ELSE 'trade' END AS price_basis,
          COALESCE(a.trades,0) AS trades, COALESCE(a.span_days,0) AS span_days,
          COALESCE(CASE WHEN i.category = '카드' THEN ls.min_unit_price ELSE lt.unit_price END,0)::float8 AS last_price,
