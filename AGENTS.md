@@ -86,7 +86,7 @@ scripts/migrate-sqlite.ts  (1회성, 이미 완료)
 
 sql/schema.postgres.sql   정본 스키마
 web/build.ts              Supabase → dist/ 정적 사이트
-web/index.html app.js style.css analysis.html
+web/index.html app.js style.css analysis.html guide.html
 ```
 
 ### 명령

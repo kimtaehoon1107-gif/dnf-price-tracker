@@ -289,11 +289,108 @@ td b { color: var(--ink); }
 footer { margin-top: 56px; padding-top: 22px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--ink-3); line-height: 1.9; }
 footer b { color: var(--ink-2); }
 
+/* ── 지표 설명 페이지 ─────────────────────────── */
+.guide-title .guide-icon {
+  width: 48px; height: 48px; flex: none; display: grid; place-items: center;
+  border-radius: 12px; background: var(--blue-bg); color: var(--blue);
+  font: 700 24px var(--mono);
+}
+.guide-overview { margin-top: 22px; }
+.guide-jumps {
+  display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 14px;
+}
+.guide-jumps a {
+  padding: 6px 11px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--card); color: var(--ink-3); font-size: 12.5px; font-weight: 600;
+}
+.guide-jumps a:hover { color: var(--blue); border-color: var(--line-2); }
+.guide-panel { scroll-margin-top: 76px; }
+.guide-panel h3 { margin-bottom: 5px; }
+.guide-no { color: var(--blue); font: 700 11px var(--mono); margin-right: 8px; vertical-align: 1px; }
+.guide-example {
+  margin: 14px 0; padding: 16px; border-radius: 12px; background: var(--page);
+}
+.guide-example .bigpx { margin-top: 0; }
+.guide-muted { color: var(--ink-3); font-weight: 500; }
+.guide-copy {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px; margin-top: 14px;
+}
+.guide-copy > div {
+  padding: 13px 14px; border: 1px solid var(--line); border-radius: 10px;
+}
+.guide-copy b, .guide-copy span { display: block; }
+.guide-copy b { margin-bottom: 3px; font-size: 13px; color: var(--ink); }
+.guide-copy span { font-size: 12.5px; line-height: 1.55; color: var(--ink-3); }
+.guide-foot { margin: 14px 0 0; max-width: none; font-size: 12.5px; color: var(--ink-3); }
+.guide-table { margin-bottom: 0; max-width: none; }
+.guide-table table { min-width: 520px; }
+.guide-chart {
+  height: 250px; margin: 14px 0 8px; overflow: hidden; border-radius: 12px;
+  background: var(--page);
+}
+.guide-chart svg { display: block; width: 100%; height: 100%; }
+.guide-grid { stroke: var(--line-2); stroke-width: 1; }
+.guide-candles line { stroke: var(--ink-3); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.guide-candles rect.up-candle { fill: var(--up); }
+.guide-candles rect.down-candle { fill: var(--down); }
+.guide-vwap, .guide-forecast-mid, .guide-forecast-band {
+  fill: none; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round;
+}
+.guide-vwap { stroke: var(--ink); stroke-width: 2; }
+.guide-forecast-mid { stroke: var(--blue); stroke-width: 2; stroke-dasharray: 6 5; }
+.guide-forecast-band { stroke: var(--blue); stroke-width: 1; stroke-dasharray: 4 5; opacity: .75; }
+.guide-legend { display: flex; flex-wrap: wrap; gap: 9px 18px; color: var(--ink-3); font-size: 12px; }
+.guide-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.guide-legend i { width: 18px; height: 3px; display: inline-block; border-radius: 2px; }
+.guide-legend i.candle { background: linear-gradient(90deg, var(--up) 0 50%, var(--down) 50%); }
+.guide-legend i.actual { background: var(--ink); }
+.guide-legend i.forecast { border-top: 2px dashed var(--blue); }
+.guide-static-toggle { pointer-events: none; }
+.guide-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.guide-tags .tag { margin-left: 0; }
+.tag.guide-package { background: rgba(245,166,35,.14); color: var(--gold); }
+.guide-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; margin: 14px 0; }
+.guide-weekdays > div { padding: 11px 6px; text-align: center; border-radius: 9px; background: var(--page); }
+.guide-weekdays span, .guide-weekdays b { display: block; }
+.guide-weekdays span { color: var(--ink-3); font-size: 11px; }
+.guide-weekdays b { font: 700 15px var(--mono); }
+.guide-weekdays .thu { background: rgba(245,166,35,.1); color: var(--gold); }
+.guide-formula {
+  margin: 14px 0; padding: 13px 15px; border-radius: 10px; background: var(--page);
+  color: var(--ink-2); font: 500 13px var(--mono); text-align: center;
+}
+.guide-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+.guide-split > div { padding: 15px; border-radius: 10px; }
+.guide-split > div:first-child { background: var(--up-bg); }
+.guide-split > div:last-child { background: var(--down-bg); }
+.guide-split.neutral > div { background: var(--page); color: var(--ink); }
+.guide-split b, .guide-split span, .guide-split small { display: block; }
+.guide-split span { color: var(--ink-2); font-size: 13px; }
+.guide-split small { margin-top: 4px; color: var(--ink-3); font-size: 11.5px; }
+.guide-quadrant {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px; overflow: hidden; margin: 14px 0; border-radius: 12px; background: var(--line);
+}
+.guide-quadrant > div { min-height: 94px; padding: 18px; }
+.guide-quadrant b, .guide-quadrant span { display: block; }
+.guide-quadrant b { font-size: 14px; }
+.guide-quadrant span { margin-top: 3px; color: var(--ink-3); font-size: 12px; }
+.guide-quadrant .supply-down { background: rgba(245,166,35,.08); }
+.guide-quadrant .demand-up { background: var(--up-bg); }
+.guide-quadrant .demand-down { background: var(--page); }
+.guide-quadrant .supply-up { background: var(--down-bg); }
+.guide-static-switch span {
+  padding: 6px 20px; border-radius: 999px; color: var(--ink-3); font-size: 14px; font-weight: 600;
+}
+.guide-static-switch span.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.guide-limit ul { max-width: none; margin-bottom: 0; }
+
 @media (max-width: 780px) {
   .wrap { padding: 0 12px 64px; }
   header.top { margin-bottom: 18px; }
   header.top .inner { height: 50px; padding: 0 12px; gap: 14px; }
-  header.top nav { gap: 14px; font-size: 13.5px; }
+  header.top nav { gap: 12px; font-size: 13.5px; }
   header.top .built { display: none; }
   .cards {
     display: flex; overflow-x: auto; gap: 8px; margin-bottom: 18px; padding-bottom: 4px;
@@ -320,6 +417,13 @@ footer b { color: var(--ink-2); }
   .panel { padding: 16px 14px; }
   .event-stages { grid-template-columns: 1fr; }
   .weekday-grid { grid-template-columns: 1fr; }
+  .guide-jumps { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; }
+  .guide-jumps::-webkit-scrollbar { display: none; }
+  .guide-jumps a { flex: none; }
+  .guide-copy, .guide-split { grid-template-columns: 1fr; }
+  .guide-weekdays { grid-template-columns: repeat(4, 1fr); }
+  .guide-chart { height: 190px; }
+  .guide-quadrant > div { min-height: 82px; padding: 13px; }
 }
 
 /* ── 분석 페이지 보조 요소 ────────────────────── */

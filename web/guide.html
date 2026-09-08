@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>지표 설명 — 던파 경매장 시세 추적기</title>
+<meta name="description" content="던파 경매장 시세 추적기의 가격, 거래량, 예측, 호가와 이벤트 지표를 읽는 방법입니다.">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="inner">
+    <a class="brand" href="index.html">던파 경매장</a>
+    <nav>
+      <a href="index.html">시세</a>
+      <a href="analysis.html">분석</a>
+      <a href="guide.html" class="on">지표</a>
+      <a href="https://github.com/kimtaehoon1107-gif/dnf-price-tracker" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+    <span class="spacer"></span>
+    <span class="built">지표 읽는 법</span>
+  </div>
+</header>
+<div class="wrap">
+
+<main class="guide">
+  <a class="back" href="index.html">← 시세로 돌아가기</a>
+  <div class="dh guide-title">
+    <div class="guide-icon" aria-hidden="true">i</div>
+    <div>
+      <h2>지표 설명</h2>
+      <div class="meta">아이템 상세 화면을 위에서 아래로 읽는 법</div>
+    </div>
+  </div>
+  <div class="bigpx">숫자보다 기준부터</div>
+  <div class="bigchg flat">같은 가격이라도 체결가인지 호가인지에 따라 뜻이 달라집니다.</div>
+
+  <div class="panel guide-overview">
+    <div class="kv">
+      <div><div class="k">가격 기준</div><div class="v">구매자 지불가</div></div>
+      <div><div class="k">시간 기준</div><div class="v">한국 시간</div></div>
+      <div><div class="k">상승 · 하락</div><div class="v"><span class="up">빨강</span> · <span class="down">파랑</span></div></div>
+      <div><div class="k">당일 일봉</div><div class="v">수집 중</div></div>
+      <div><div class="k">거래량</div><div class="v">API 관측값</div></div>
+      <div><div class="k">카드 가격</div><div class="v">0업 · 맥스업 호가</div></div>
+    </div>
+    <p class="guide-foot">아래 숫자와 그래프는 읽는 법을 보여주기 위한 예시이며 실제 시세가 아닙니다.</p>
+  </div>
+
+  <nav class="guide-jumps" aria-label="지표 바로가기">
+    <a href="#price">가격 요약</a>
+    <a href="#grade">등급</a>
+    <a href="#forecast">캔들·예측</a>
+    <a href="#event">이벤트</a>
+    <a href="#weekday">요일</a>
+    <a href="#gap">호가 갭</a>
+    <a href="#quadrant">4분면</a>
+    <a href="#depth">매물 사다리</a>
+    <a href="#depletion">소진 속도</a>
+    <a href="#hourly">시간별 데이터</a>
+    <a href="#card">카드 강화</a>
+  </nav>
+
+  <section class="panel guide-panel" id="price">
+    <h3><span class="guide-no">01</span>현재가 · 24시간 요약</h3>
+    <p class="desc">상세 화면 맨 위에서 현재 가격, 최근 평균, 거래 활동과 매물 상태를 함께 보여줍니다.</p>
+    <div class="guide-example">
+      <div class="bigpx">10,000,000<small>골드</small></div>
+      <div class="bigchg up">+3.20% <span class="guide-muted">24시간</span></div>
+      <div class="kv">
+        <div><div class="k">24h VWAP</div><div class="v">9,800,000</div></div>
+        <div><div class="k">24h API 관측 수량</div><div class="v">126</div></div>
+        <div><div class="k">최저 호가</div><div class="v">10,100,000</div></div>
+        <div><div class="k">등록 매물</div><div class="v">18</div></div>
+      </div>
+    </div>
+    <div class="guide-copy">
+      <div><b>현재가</b><span>일반 아이템은 가장 최근 체결의 개당가입니다. 카드는 현재 0업 또는 맥스업 최저 호가입니다.</span></div>
+      <div><b>24h 등락률</b><span>최근 24시간 평균과 그 직전 24시간 평균을 비교합니다. 큰 값 하나가 아니라 두 구간 전체의 변화를 봅니다.</span></div>
+      <div><b>VWAP</b><span>거래 수량으로 가중한 평균 체결가입니다. 1개 거래와 100개 거래를 같은 무게로 평균 내지 않습니다.</span></div>
+      <div><b>등록 매물</b><span>현재 API에서 확인한 매물 행 수입니다. 한 매물에 여러 개가 들어 있을 수 있으며 API는 최대 400행을 반환합니다.</span></div>
+    </div>
+  </section>
+
+  <section class="panel guide-panel" id="grade">
+    <h3><span class="guide-no">02</span>표본과 A~D 유동성 등급</h3>
+    <p class="desc">등급은 아이템의 좋고 나쁨이 아니라, 가격 지표를 믿을 만한 체결 표본이 있는지를 나타냅니다.</p>
+    <div class="table-scroll guide-table">
+      <table>
+        <thead><tr><th>등급</th><th>일평균 체결 건수</th><th>해석</th></tr></thead>
+        <tbody>
+          <tr><td><b>A</b></td><td>60건 이상</td><td>가격 대표성이 비교적 높음</td></tr>
+          <tr><td><b>B</b></td><td>20~59건</td><td>일반적인 비교에 사용 가능</td></tr>
+          <tr><td><b>C</b></td><td>5~19건</td><td>개별 거래의 영향을 함께 확인</td></tr>
+          <tr><td><b>D</b></td><td>5건 미만</td><td>표본이 얇아 예측을 표시하지 않음</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="guide-foot">카드는 체결 API에서 업그레이드 단계를 구분할 수 없으므로 체결 등급을 매기지 않습니다. 24시간 API 관측 수량이 5개 미만인 변동률에는 <b>?</b>가 붙습니다.</p>
+  </section>
+
+  <section class="panel guide-panel" id="forecast">
+    <div class="panel-head">
+      <h3><span class="guide-no">03</span>가격 캔들 · VWAP · 예측</h3>
+      <span class="chart-toggle on guide-static-toggle">캔들 켜짐</span>
+    </div>
+    <p class="desc">한 그래프에 실제 가격 범위, 평균 체결가와 앞으로의 예상 범위를 겹쳐 봅니다.</p>
+    <div class="guide-chart" role="img" aria-label="일봉 캔들, VWAP 실선과 예측 점선 예시">
+      <svg viewBox="0 0 900 250" preserveAspectRatio="none">
+        <line class="guide-grid" x1="30" y1="55" x2="870" y2="55"/>
+        <line class="guide-grid" x1="30" y1="125" x2="870" y2="125"/>
+        <line class="guide-grid" x1="30" y1="195" x2="870" y2="195"/>
+        <g class="guide-candles">
+          <line x1="90" y1="58" x2="90" y2="178"/><rect class="up-candle" x="80" y="92" width="20" height="48"/>
+          <line x1="190" y1="82" x2="190" y2="200"/><rect class="down-candle" x="180" y="118" width="20" height="42"/>
+          <line x1="290" y1="45" x2="290" y2="150"/><rect class="up-candle" x="280" y="76" width="20" height="48"/>
+          <line x1="390" y1="70" x2="390" y2="168"/><rect class="up-candle" x="380" y="95" width="20" height="38"/>
+          <line x1="490" y1="52" x2="490" y2="144"/><rect class="down-candle" x="480" y="86" width="20" height="36"/>
+        </g>
+        <polyline class="guide-vwap" points="50,145 150,139 250,124 350,128 450,105 520,111"/>
+        <polyline class="guide-forecast-mid" points="520,111 625,101 730,92 835,82"/>
+        <polyline class="guide-forecast-band" points="520,111 625,72 730,48 835,28"/>
+        <polyline class="guide-forecast-band" points="520,111 625,137 730,158 835,182"/>
+      </svg>
+    </div>
+    <div class="guide-legend">
+      <span><i class="candle"></i>일별 시가·고가·저가·종가</span>
+      <span><i class="actual"></i>일별 VWAP</span>
+      <span><i class="forecast"></i>7일 예측과 80% 구간</span>
+    </div>
+    <div class="guide-copy">
+      <div><b>캔들</b><span>그날의 첫 체결가·최고가·최저가·마지막 체결가입니다. 오늘 봉은 하루가 끝나지 않은 미완성 값입니다.</span></div>
+      <div><b>검은 실선</b><span>그날 체결 수량으로 가중한 VWAP입니다. 캔들보다 하루의 대표 가격을 읽기 좋습니다.</span></div>
+      <div><b>파란 점선</b><span>추세와 공통 요일효과를 반영한 7일 예측입니다. 바깥 두 선은 과거 잔차의 10·90 분위수로 만든 80% 예상 구간입니다.</span></div>
+      <div><b>naive 대비 MAPE</b><span>“내일도 마지막 가격”이라는 단순 예측보다 오차가 얼마나 줄거나 늘었는지입니다. 개선값이 양수일수록 모델이 더 나았습니다.</span></div>
+    </div>
+    <p class="guide-foot">완료 일봉 10일 이상이면서 D등급이 아닌 일반 아이템만 예측합니다. 예상 구간은 보장이 아니며 멀어질수록 넓어집니다.</p>
+  </section>
+
+  <section class="panel guide-panel" id="event">
+    <h3><span class="guide-no">04</span>이벤트 태그 · 이벤트 스터디</h3>
+    <p class="desc">공지일이 아니라 실제 시장 충격이 시작된 패치·적용·출시일을 가격선의 날짜 아래에 붙입니다.</p>
+    <div class="guide-tags">
+      <span class="tag">퍼스트서버</span>
+      <span class="tag fin">대규모</span>
+      <span class="tag fin">주요</span>
+      <span class="tag guide-package">패키지</span>
+    </div>
+    <div class="guide-example">
+      <div class="event-name"><span class="tag guide-package">패키지</span><b>출시·종료 이벤트 예시</b><span class="event-source">근거 URL 연결</span></div>
+      <div class="event-stages">
+        <div><span>출시</span><b>2026. 8. 27.</b><small>요일 보정 VWAP <b class="up">+4.10%</b></small></div>
+        <div><span>종료</span><b>2026. 11. 5.</b><small>분석 대기 중</small></div>
+      </div>
+    </div>
+    <div class="guide-copy">
+      <div><b>표시 대상</b><span>퍼스트서버, 대규모, 주요, 패키지 네 종류만 사용합니다. 일반 정기점검처럼 가격 영향이 작을 공지는 제외합니다.</span></div>
+      <div><b>분석값</b><span>이벤트 전 완료 일봉 3일과 이벤트 당일부터 3일을 비교하고 전체 시장의 요일효과를 보정합니다.</span></div>
+      <div><b>해석</b><span>이벤트와 가격 변화가 같은 시점에 나타났다는 뜻입니다. 다른 사건도 함께 일어날 수 있으므로 인과관계를 확정하지 않습니다.</span></div>
+    </div>
+  </section>
+
+  <section class="panel guide-panel" id="weekday">
+    <h3><span class="guide-no">05</span>아이템별 요일 프로파일</h3>
+    <p class="desc">월요일부터 일요일까지 가격과 API 관측 수량을 해당 아이템의 평균 100으로 환산합니다.</p>
+    <div class="guide-weekdays" aria-label="요일 프로파일 예시">
+      <div><span>월</span><b>98</b></div><div><span>화</span><b>101</b></div><div><span>수</span><b>99</b></div>
+      <div class="thu"><span>목</span><b>96</b></div><div><span>금</span><b>100</b></div><div><span>토</span><b>104</b></div><div><span>일</span><b>102</b></div>
+    </div>
+    <div class="guide-copy">
+      <div><b>100보다 높음</b><span>그 요일의 평균이 아이템 전체 평균보다 높았습니다. 예를 들어 104는 평균보다 약 4% 높은 수준입니다.</span></div>
+      <div><b>표본 조건</b><span>완료 일봉 범위가 31일 이상이고, 이벤트 전후 3일을 제외한 뒤에도 요일마다 3일 이상 있어야 표시합니다.</span></div>
+      <div><b>목요일 강조</b><span>주간 던전 초기화와 패치가 겹치는 날이라 별도로 강조하지만, 높은 값이나 낮은 값이 항상 반복된다는 뜻은 아닙니다.</span></div>
+    </div>
+  </section>
+
+  <section class="panel guide-panel" id="gap">
+    <h3><span class="guide-no">06</span>호가–체결 갭</h3>
+    <p class="desc">지금 팔려는 가격과 최근 실제로 팔린 평균 가격 사이의 간격입니다.</p>
+    <div class="guide-formula">(최저 호가 ÷ 직전 24시간 VWAP − 1) × 100</div>
+    <div class="guide-split">
+      <div class="up"><b>양수</b><span>최저 호가가 최근 체결 평균보다 높음</span><small>매물 부족 또는 상승 기대 신호일 수 있음</small></div>
+      <div class="down"><b>음수</b><span>최저 호가가 최근 체결 평균보다 낮음</span><small>급매 또는 가격 하락 신호일 수 있음</small></div>
+    </div>
+    <p class="guide-foot">최근 24시간에 체결이 없으면 계산하지 않습니다. 호가만으로 다음 체결 방향을 확정할 수는 없습니다.</p>
+  </section>
+
+  <section class="panel guide-panel" id="quadrant">
+    <h3><span class="guide-no">07</span>가격 × API 관측 거래량 4분면</h3>
+    <p class="desc">최근 최대 30개의 완료 일봉에서 가격과 관측 수량이 각자의 평균보다 높은지 낮은지를 함께 봅니다.</p>
+    <div class="guide-quadrant" role="img" aria-label="가격과 거래량의 4분면 해석">
+      <div class="supply-down"><b>공급 감소</b><span>가격↑ · 수량↓</span></div>
+      <div class="demand-up"><b>수요 증가</b><span>가격↑ · 수량↑</span></div>
+      <div class="demand-down"><b>수요 감소</b><span>가격↓ · 수량↓</span></div>
+      <div class="supply-up"><b>공급 증가</b><span>가격↓ · 수량↑</span></div>
+    </div>
+    <p class="guide-foot">완료 일봉 3일 이상부터 표시합니다. 이름은 경제적 패턴을 읽기 위한 분류이며 원인을 증명하지 않습니다. 체결 API의 100건 상한 때문에 거래량 급증은 실제보다 작게 보일 수 있습니다.</p>
+  </section>
+
+  <section class="panel guide-panel" id="depth">
+    <h3><span class="guide-no">08</span>매물 사다리</h3>
+    <p class="desc">낮은 호가부터 매물을 쌓아, 실제로 원하는 수량을 살 때 평균 단가가 얼마나 오르는지 보여줍니다.</p>
+    <div class="kv guide-example">
+      <div><div class="k">10개 구매 평균</div><div class="v">12,040<small> 골드</small></div></div>
+      <div><div class="k">100개 구매 평균</div><div class="v">12,830<small> 골드</small></div></div>
+      <div><div class="k">현재 열린 수량</div><div class="v">246<small> 개</small></div></div>
+    </div>
+    <div class="guide-copy">
+      <div><b>계단의 높이</b><span>해당 가격대의 개당 호가입니다. 오른쪽으로 갈수록 더 많은 수량을 사기 위해 비싼 매물까지 먹게 됩니다.</span></div>
+      <div><b>구매 평균</b><span>최저가 한 건이 아니라 목표 수량 전체에 실제로 지불할 평균 단가입니다. 수량이 부족하면 값을 추정하지 않습니다.</span></div>
+      <div><b>표시 범위</b><span>대량 구매 의미가 있는 재료·소모품과 소울 결정에만 표시하며 낮은 호가부터 최대 100개를 그립니다.</span></div>
+    </div>
+  </section>
+
+  <section class="panel guide-panel" id="depletion">
+    <h3><span class="guide-no">09</span>매물 소진 속도</h3>
+    <p class="desc">같은 매물을 반복 관측해 잔여 수량 감소와 만료 전 소멸을 시간당 수량으로 환산합니다.</p>
+    <div class="kv guide-example">
+      <div><div class="k">24h 관측 소진</div><div class="v">1,240<small> 개</small></div></div>
+      <div><div class="k">시간당 평균</div><div class="v">56<small> 개/시간</small></div></div>
+      <div><div class="k">수량 감소 확인</div><div class="v">910<small> 개</small></div></div>
+      <div><div class="k">조기 소멸 추정</div><div class="v">330<small> 개</small></div></div>
+    </div>
+    <div class="guide-copy">
+      <div><b>수량 감소 확인</b><span>같은 경매번호의 잔여 수량이 실제로 줄어든 값입니다.</span></div>
+      <div><b>조기 소멸 추정</b><span>만료 전 사라진 매물입니다. 판매와 판매 취소를 구분할 수 없어 추정치로 따로 표시합니다.</span></div>
+      <div><b>빈 구간</b><span>소진량 0이 아니라 수집되지 않은 시간입니다. 실제 관측 간격으로 나눠 시간당 속도를 계산합니다.</span></div>
+    </div>
+    <p class="guide-foot">매물 소진량은 체결 API와 같은 거래를 중복해서 볼 수 있으므로 API 관측 거래량과 합산하지 않습니다.</p>
+  </section>
+
+  <section class="panel guide-panel" id="hourly">
+    <h3><span class="guide-no">10</span>시간별 가격 · 일별 관측 수량</h3>
+    <p class="desc">상세 화면 아래쪽에서 짧은 시간의 가격 움직임과 날짜별 거래 활동을 나눠 봅니다.</p>
+    <div class="guide-split neutral">
+      <div><b>최근 7일 · 시간별 VWAP</b><span>각 시간에 체결된 수량으로 가중한 평균 가격</span><small>장중 가격 변화와 급등락 시점 확인</small></div>
+      <div><b>일별 API 관측 체결 수량</b><span>그날 수집기가 확인한 체결 수량의 합</span><small>100건 상한 때문에 실제 거래량의 하한값</small></div>
+    </div>
+    <p class="guide-foot">카드는 단계별 체결을 구분할 수 없어 시간별 VWAP과 일별 체결 수량 대신 시간별 0업·맥스업 최저 호가를 표시합니다.</p>
+  </section>
+
+  <section class="panel guide-panel" id="card">
+    <h3><span class="guide-no">11</span>카드 0업 · 맥스업과 강화 기대비용</h3>
+    <p class="desc">카드는 체결가 대신 현재 매물을 업그레이드 단계별로 나눠 직접 강화와 완성품 구매 비용을 비교합니다.</p>
+    <div class="upgrade-sw guide-static-switch" aria-label="카드 단계 표시 예시">
+      <span class="on">0업</span><span>맥스업 (2업)</span>
+    </div>
+    <div class="guide-formula">맥스업 프리미엄 = 맥스업 최저 호가 − 0업 최저 호가</div>
+    <div class="guide-copy">
+      <div><b>카드 24h 평균</b><span>24시간 동안 반복 관측한 단계별 최저 호가의 평균입니다. 실제 체결가의 VWAP은 아닙니다.</span></div>
+      <div><b>강화 재료 기대량</b><span>1장 40%와 2장 80%는 성공 1회당 평균 2.5장입니다. 맥스 단계 수에 2.5장을 곱합니다.</span></div>
+      <div><b>직접 강화 기대비용</b><span>레전더리 0업 카드 전체 스캔의 현재 최저가 × 기대 재료 카드 수입니다.</span></div>
+      <div><b>판정</b><span>맥스업 프리미엄과 재료 기대비용을 비교해 어느 방법이 기대값상 저렴한지 보여줍니다.</span></div>
+    </div>
+    <p class="guide-foot">실패해도 강화 대상 카드는 유지된다는 전제입니다. 최저가 매물이 먼저 팔리거나 강화 운이 달라지면 실제 비용도 달라집니다.</p>
+  </section>
+
+  <section class="panel guide-panel guide-limit" id="limits">
+    <h3><span class="guide-no">12</span>모든 지표에 공통인 한계</h3>
+    <ul>
+      <li>체결 API는 한 번에 최근 <b>100건</b>까지만 반환하므로 API 관측 거래량은 실제 거래량보다 작을 수 있습니다.</li>
+      <li>매물 API는 최대 <b>400행</b>이며, 사라진 매물이 판매됐는지 취소됐는지 완전히 구분할 수 없습니다.</li>
+      <li>카드 체결에는 업그레이드 단계가 없어 카드 가격 분석은 단계별 <b>최저 호가 관측</b>을 사용합니다.</li>
+      <li>당일 일봉은 수집 중이고, 모든 가격은 판매자 실수령액이 아닌 <b>구매자 지불가</b>입니다.</li>
+      <li>지표는 의사결정을 돕는 관측값이며 미래 가격이나 사건의 인과관계를 보장하지 않습니다.</li>
+    </ul>
+  </section>
+</main>
+
+<footer>
+  본 서비스는 <b>네오플 오픈 API 서비스</b>를 이용합니다. (<a href="https://developers.neople.co.kr" target="_blank" rel="noopener">developers.neople.co.kr</a>)<br>
+  차트: <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a> · Copyright © 2023 TradingView, Inc.<br>
+  비상업적 개인 프로젝트이며 API 이용에 대한 어떠한 대가도 받지 않습니다.
+</footer>
+
+</div>
+</body>
+</html>

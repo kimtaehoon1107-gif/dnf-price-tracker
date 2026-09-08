@@ -405,7 +405,7 @@ writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
   },
 }));
 
-for (const f of ['index.html', 'analysis.html', 'app.js', 'style.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
+for (const f of ['index.html', 'analysis.html', 'guide.html', 'app.js', 'style.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
 writeFileSync(`${OUT}/.nojekyll`, '');
 
 console.log(`빌드 완료 — ${items.length}종 · 체결 ${meta.trades.toLocaleString()}건 · 일봉 ${daily.length}행 · 예측 ${forecasts.size}종`);
