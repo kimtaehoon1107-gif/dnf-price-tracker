@@ -417,16 +417,15 @@ const marketRanking = {
 };
 
 // ── 수집 현황 ──────────────────────────────────────────────────
+// 원본 체결은 30일만 보존하므로, 누적 건수와 전체 기간은 영구 시간봉에서 읽는다.
 const meta = (await query<{
-  trades: number; items: number; lo: string; hi: string; runs: number; errors: number;
+  trades: number; items: number; lo: string; hi: string;
   depletion_qty: number;
 }>(`
-  SELECT (SELECT COUNT(*)::int FROM trades) trades,
+  SELECT (SELECT COALESCE(SUM(n), 0)::int FROM candles_1h) trades,
          (SELECT COUNT(*)::int FROM items WHERE tracked) items,
-         (SELECT to_char(MIN(sold_date) AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') FROM trades) lo,
-         (SELECT to_char(MAX(sold_date) AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') FROM trades) hi,
-         (SELECT COUNT(*)::int FROM collection_runs) runs,
-         (SELECT COUNT(error)::int FROM collection_runs) errors,
+         (SELECT to_char(MIN(hour) AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') FROM candles_1h) lo,
+         (SELECT to_char(MAX(hour) AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') FROM candles_1h) hi,
          (SELECT COALESCE(SUM(qty_sold),0)::int FROM listing_deltas
           WHERE reason <> 'expired' AND observed_at > now() - interval '7 days') depletion_qty`)).rows[0];
 
