@@ -686,6 +686,47 @@ function renderInventory(all, cats) {
   });
 }
 
+// ── 차트 툴팁 ──────────────────────────────────────────────────
+// LightweightCharts는 크로스헤어만 주고 값 말풍선은 주지 않는다.
+// 차트 위에 절대배치 div를 띄우고 크로스헤어가 움직일 때마다 채운다.
+
+/** 일봉은 'YYYY-MM-DD' 문자열, 장중 차트는 UNIX 초로 들어온다. */
+const tipTime = (time) => typeof time === 'number'
+  ? new Date(time * 1000).toLocaleString('ko-KR', {
+      timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    })
+  : String(time);
+
+/** rows는 [라벨, 값, 클래스?] 배열. 값에는 fmt·pct가 만든 숫자 문자열만 넣는다. */
+const tipRows = (time, rows) => `<div class="tt">${esc(tipTime(time))}</div>` +
+  rows.filter(Boolean).map(([label, value, cl]) =>
+    `<div class="tr"><span>${esc(label)}</span><b class="${cl ?? ''}">${value}</b></div>`).join('');
+
+function attachTooltip(chart, container, format) {
+  const tip = document.createElement('div');
+  tip.className = 'chart-tip';
+  tip.hidden = true;
+  container.style.position = 'relative';
+  container.append(tip);
+  chart.subscribeCrosshairMove((param) => {
+    if (!param.point || param.time === undefined) { tip.hidden = true; return; }
+    const html = format(param);
+    if (!html) { tip.hidden = true; return; }
+    tip.innerHTML = html;
+    tip.hidden = false;
+    // 오른쪽 끝에서 잘리지 않도록 넘치면 커서 왼쪽에 붙인다.
+    const width = tip.offsetWidth;
+    const max = container.clientWidth - width - 8;
+    tip.style.left = `${Math.max(8, Math.min(param.point.x + 16, max))}px`;
+    tip.style.top = '10px';
+  });
+}
+
+/** 시각(초) → 원본 행. 차트는 값만 알고 있어 원자료를 되찾으려면 필요하다. */
+const bySecond = (rows, key) =>
+  new Map(rows.map((row) => [Math.floor(Date.parse(row[key]) / 1000), row]));
+
 // ── 상세 ───────────────────────────────────────────────────────
 async function renderDetail(it) {
   const baseItem = it;
@@ -760,6 +801,13 @@ async function renderDetail(it) {
         </div>
       </details>
     </div>
+    <div class="panel">
+      <h3>${isZeroCard ? `최근 7일 · 시간별 ${cardTier} 최저호가` : '최근 7일 · 시간별 VWAP'}</h3>
+      <p class="desc">${isZeroCard
+        ? '수집 시점마다 관측한 최저호가를 시간 단위로 평균했습니다.'
+        : '그 시간에 체결된 수량으로 가중한 평균가입니다. 일봉이 며칠치뿐일 때 장중 움직임을 볼 수 있는 유일한 차트입니다.'}</p>
+      <div class="chart" id="c3"></div>
+    </div>
     ${isZeroCard ? '' : `<div class="panel" id="weekday-panel">
       <h3>아이템별 요일 프로파일</h3>
       <p class="desc" id="weekday-desc">완료된 일봉을 분석하는 중…</p>
@@ -786,7 +834,6 @@ async function renderDetail(it) {
       <div class="kv depth-kv" id="depletion-kv"></div>
       <div class="chart" id="c6"></div>
     </div>
-    <div class="panel"><h3>${isZeroCard ? `최근 7일 · 시간별 ${cardTier} 최저호가` : '최근 7일 · 시간별 VWAP'}</h3><div class="chart" id="c3"></div></div>
     ${isZeroCard ? '' : '<div class="panel"><h3>일별 API 관측 체결 수량</h3><div class="chart sm" id="c2"></div></div>'}`;
 
   document.querySelectorAll('.upgrade-sw button').forEach((button) => {
@@ -884,14 +931,29 @@ async function renderDetail(it) {
       <div><div class="k">수량 감소 확인</div><div class="v">${fmt(sum('partial'))}<small> 개</small></div></div>
       <div><div class="k">조기 소멸 추정</div><div class="v">${fmt(sum('vanished'))}<small> 개</small></div></div>`;
 
-    const c6 = LightweightCharts.createChart(document.getElementById('c6'), {
+    const box6 = document.getElementById('c6');
+    const c6 = LightweightCharts.createChart(box6, {
       ...opts, height: 300, rightPriceScale: { borderVisible: false, mode: 0 },
+      timeScale: { borderVisible: false, timeVisible: true },
       localization: { locale: 'ko-KR', priceFormatter: (v) => `${fmt(v)}개/h` },
     });
     c6.addAreaSeries({
       lineColor: css('--gold'), topColor: css('--gold') + '33', bottomColor: css('--gold') + '08',
       lineWidth: 2, priceFormat: { type: 'custom', formatter: (v) => `${fmt(v)}개/h` },
     }).setData(depletionSeries(depletion));
+    const depletionAt = bySecond(depletion, 't');
+    attachTooltip(c6, box6, (param) => {
+      const row = depletionAt.get(param.time);
+      // 빈 구간은 수집되지 않은 시간이라 표시할 원자료가 없다.
+      if (!row) return null;
+      return tipRows(param.time, [
+        ['시간당 소진', `${fmt(row.rate)}개/h`],
+        ['관측 소진', `${fmt(row.qty)}개`],
+        ['수량 감소 확인', `${fmt(row.partial)}개`],
+        ['조기 소멸 추정', `${fmt(row.vanished)}개`],
+        ['관측 시간', `${row.observed_min.toFixed(0)}분`],
+      ]);
+    });
     c6.timeScale().fitContent();
   } else {
     document.getElementById('depletion-kv').innerHTML = '';
@@ -912,7 +974,8 @@ async function renderDetail(it) {
   }
 
   if (d.length >= 2) {
-    const c1 = LightweightCharts.createChart(document.getElementById('c1'), { ...opts, height: 300 });
+    const box1 = document.getElementById('c1');
+    const c1 = LightweightCharts.createChart(box1, { ...opts, height: 300 });
     const timeline = eventTimeline(events, d, s.forecast);
     const candleSeries = c1.addCandlestickSeries({
       upColor: css('--up'), downColor: css('--down'), borderVisible: false,
@@ -967,12 +1030,36 @@ async function renderDetail(it) {
         ? '캔들은 일별 시가·고가·저가·종가이며 오늘 봉은 수집 중입니다. 검은 실선은 일별 VWAP입니다. D등급은 일평균 체결이 5건 미만이라 예측을 표시하지 않습니다.'
         : '캔들은 일별 시가·고가·저가·종가이며 오늘 봉은 수집 중입니다. 검은 실선은 일별 VWAP입니다. 예측에는 일봉이 최소 10일 필요합니다.';
     }
+    const dayAt = new Map(d.map((x) => [x.d, x]));
+    const forecastAt = new Map((s.forecast?.points ?? []).map((p) => [p.d, p]));
+    attachTooltip(c1, box1, (param) => {
+      const day = dayAt.get(param.time);
+      if (day) {
+        return tipRows(param.time, [
+          [isZeroCard ? '평균 최저호가' : 'VWAP', fmt(day.vwap)],
+          ['시가 · 종가', `${fmt(day.o)} · ${fmt(day.c)}`],
+          ['고가 · 저가', `${fmt(day.h)} · ${fmt(day.l)}`],
+          isZeroCard ? ['관측', `${fmt(day.n)}회`] : ['체결 수량', `${fmt(day.qty)}개 · ${fmt(day.n)}건`],
+        ]);
+      }
+      const point = forecastAt.get(param.time);
+      if (!point) return null;
+      return tipRows(param.time, [
+        ['예측', fmt(point.mid)],
+        ['80% 구간', `${fmt(point.lo)} ~ ${fmt(point.hi)}`],
+      ]);
+    });
     c1.timeScale().fitContent();
     renderEventRail(c1, timeline);
 
     if (!isZeroCard) {
-      const c2 = LightweightCharts.createChart(document.getElementById('c2'), { ...opts, height: 130 });
+      const box2 = document.getElementById('c2');
+      const c2 = LightweightCharts.createChart(box2, { ...opts, height: 130 });
       c2.addHistogramSeries({ color: css('--blue') }).setData(d.map((x) => ({ time: x.d, value: x.qty })));
+      attachTooltip(c2, box2, (param) => {
+        const day = dayAt.get(param.time);
+        return day ? tipRows(param.time, [['관측 체결 수량', `${fmt(day.qty)}개`], ['체결 건수', `${fmt(day.n)}건`]]) : null;
+      });
       c2.timeScale().fitContent();
     }
   } else {
@@ -982,16 +1069,31 @@ async function renderDetail(it) {
   }
 
   if (s.hourly?.length) {
-    const c3 = LightweightCharts.createChart(document.getElementById('c3'), { ...opts, height: 300 });
+    const box3 = document.getElementById('c3');
+    // 장중 차트라 축에 시각까지 보여준다. 일봉 차트는 날짜 문자열이라 켜지 않는다.
+    const c3 = LightweightCharts.createChart(box3, {
+      ...opts, height: 300, timeScale: { borderVisible: false, timeVisible: true },
+    });
     c3.addAreaSeries({
       lineColor: css('--blue'), topColor: css('--blue') + '33', bottomColor: css('--blue') + '08', lineWidth: 2,
     }).setData(s.hourly.map((h) => ({ time: Math.floor(Date.parse(h.t) / 1000), value: h.vwap })));
+    const hourlyAt = bySecond(s.hourly, 't');
+    attachTooltip(c3, box3, (param) => {
+      const row = hourlyAt.get(param.time);
+      if (!row) return null;
+      return tipRows(param.time, [
+        [isZeroCard ? '최저호가' : 'VWAP', fmt(row.vwap)],
+        isZeroCard ? null : ['체결 수량', fmt(row.qty)],
+      ]);
+    });
     c3.timeScale().fitContent();
   }
 
   if (!isZeroCard && s.askGap?.length) {
-    const c4 = LightweightCharts.createChart(document.getElementById('c4'), {
+    const box4 = document.getElementById('c4');
+    const c4 = LightweightCharts.createChart(box4, {
       ...opts, height: 300, rightPriceScale: { borderVisible: false },
+      timeScale: { borderVisible: false, timeVisible: true },
       localization: { locale: 'ko-KR', priceFormatter: (v) => pct(v) },
     });
     c4.addBaselineSeries({
@@ -1001,6 +1103,18 @@ async function renderDetail(it) {
       lineWidth: 2,
       priceFormat: { type: 'custom', formatter: (v) => pct(v) },
     }).setData(s.askGap.map((x) => ({ time: Math.floor(Date.parse(x.t) / 1000), value: x.gap })));
+    // 갭은 두 값의 비율이므로 원자료(호가·체결)를 함께 보여야 검증할 수 있다.
+    // 퍼센트만으로는 2천 골드의 −9.8%와 3억 골드의 −9.8%가 구분되지 않는다.
+    const gapAt = bySecond(s.askGap, 't');
+    attachTooltip(c4, box4, (param) => {
+      const row = gapAt.get(param.time);
+      if (!row) return null;
+      return tipRows(param.time, [
+        ['최저 호가', fmt(row.min_ask)],
+        ['체결 24h VWAP', fmt(row.vwap)],
+        ['갭', pct(row.gap), cls(row.gap)],
+      ]);
+    });
     c4.timeScale().fitContent();
   } else if (!isZeroCard) {
     document.getElementById('c4').innerHTML = '<p style="color:var(--ink-3);margin:0">비교할 호가와 직전 24시간 체결 데이터가 아직 없습니다.</p>';
