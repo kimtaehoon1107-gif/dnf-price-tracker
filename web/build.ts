@@ -9,6 +9,7 @@
 import { mkdirSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
 import { query, pool } from '../src/db.ts';
 import { forecast, type Point, type Forecast } from '../src/forecast.ts';
+import { varianceRatio } from '../src/market-logic.ts';
 
 const OUT = 'dist';
 rmSync(OUT, { recursive: true, force: true });
@@ -387,6 +388,19 @@ const pkg = vw.find((r) => r.item_name === '숲속의 유랑악단 패키지');
 const parts = vw.filter((r) => r.item_name !== '숲속의 유랑악단 패키지');
 const partsComplete = PARTS.every((name) => parts.some((part) => part.item_name === name));
 
+// 패키지 출시·종료일과, 우리가 실제로 관측을 시작한 날.
+// 출시일이 관측 시작보다 앞서면 t=0이 없어 출시 충격은 분석할 수 없다.
+const packageEvent = (await query<{
+  name: string; starts: string | null; ends: string | null; first_seen: string | null;
+}>(`
+  SELECT e.name,
+         to_char(e.starts_at AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') starts,
+         to_char(e.ends_at   AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') ends,
+         (SELECT to_char(MIN(c.hour) AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD')
+            FROM candles_1h c JOIN items i USING (item_id)
+           WHERE i.category = '유랑악단 패키지') first_seen
+  FROM events e WHERE e.type = '패키지' ORDER BY e.starts_at DESC LIMIT 1`)).rows[0] ?? null;
+
 // ── 레전더리 카드 최저가 지수 ──────────────────────────────────
 const legendary = (await query<{
   captured_at: string; min_unit_price: number; min_item_name: string;
@@ -457,12 +471,84 @@ const withMeta = items.map((it) => {
   };
 });
 
+// ── 랜덤워크 검정 ──────────────────────────────────────────────
+// 시간봉 로그수익률로 분산비를 구한다. 일봉은 종목당 2~27개뿐이라 검정이 안 된다.
+//
+// VR < 1이 나오면 "정말 평균회귀인가, 표본이 얇아서 생긴 인공물인가"를 반드시 가려야 한다.
+// 봉 하나에 체결이 한두 건뿐이면 매수·매도 호가를 오가는 것만으로도 음의 자기상관이 생긴다.
+// 그래서 봉당 체결 수로 3분위를 나눠 VR이 두꺼운 쪽에서 1로 돌아가는지 함께 내보낸다.
+const rwRows = (await query<{
+  item_id: string; item_name: string; category: string; vwap: number; n: number;
+}>(`
+  SELECT c.item_id, i.item_name, COALESCE(i.category,'기타') category, c.vwap::float8 vwap, c.n
+  FROM candles_1h c JOIN items i USING (item_id)
+  WHERE i.category <> '카드' AND c.vwap > 0
+  ORDER BY c.item_id, c.hour`)).rows;
+
+const rwBy = new Map<string, { name: string; category: string; prices: number[]; trades: number[] }>();
+for (const row of rwRows) {
+  if (!rwBy.has(row.item_id)) {
+    rwBy.set(row.item_id, { name: row.item_name, category: row.category, prices: [], trades: [] });
+  }
+  const bucket = rwBy.get(row.item_id)!;
+  bucket.prices.push(row.vwap);
+  bucket.trades.push(row.n);
+}
+
+const rwItems = [...rwBy.entries()].flatMap(([itemId, b]) => {
+  const result = varianceRatio(b.prices);
+  if (!result) return [];
+  // 시간당 로그수익률의 표준편차. 아이템 유형을 가르는 두 축 중 하나다(나머지는 유동성).
+  const logReturns = b.prices.slice(1).map((p, i) => Math.log(p / b.prices[i]));
+  const mean = logReturns.reduce((a, x) => a + x, 0) / logReturns.length;
+  const volatility = Math.sqrt(
+    logReturns.reduce((a, x) => a + (x - mean) ** 2, 0) / (logReturns.length - 1),
+  ) * 100;
+  return [{
+    item_id: itemId,
+    item_name: b.name,
+    category: b.category,
+    bars: b.prices.length,
+    per_bar: b.trades.reduce((a, x) => a + x, 0) / b.trades.length,
+    price: b.prices.reduce((a, x) => a + x, 0) / b.prices.length,
+    volatility,
+    vr: result.vr,
+    z: result.z,
+    significant: Math.abs(result.z) > 1.96,
+  }];
+}).sort((a, b) => a.vr - b.vr);
+
+const byThickness = [...rwItems].sort((a, b) => a.per_bar - b.per_bar);
+const third = Math.ceil(byThickness.length / 3) || 1;
+const thickness = [
+  ['얇음', byThickness.slice(0, third)],
+  ['중간', byThickness.slice(third, third * 2)],
+  ['두꺼움', byThickness.slice(third * 2)],
+] as const;
+const vrSorted = rwItems.map((x) => x.vr).sort((a, b) => a - b);
+
+const randomWalk = {
+  q: 2,
+  items: rwItems,
+  total: rwItems.length,
+  significant: rwItems.filter((x) => x.significant).length,
+  medianVr: vrSorted.length ? vrSorted[Math.floor(vrSorted.length / 2)] : null,
+  // 인공물이라면 아래 세 구간의 vr이 두꺼워질수록 1에 가까워져야 한다.
+  thickness: thickness.filter(([, g]) => g.length).map(([label, group]) => ({
+    label,
+    items: group.length,
+    perBar: group.reduce((a, x) => a + x.per_bar, 0) / group.length,
+    vr: group.reduce((a, x) => a + x.vr, 0) / group.length,
+  })),
+};
+
 writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
   builtAt: new Date().toISOString(),
-  meta, health, weekday, weekdaySample, items: withMeta, legendary, marketRanking,
+  meta, health, weekday, weekdaySample, randomWalk, items: withMeta, legendary, marketRanking,
   margin: {
     pkg: pkg?.vwap ?? null, pkgN: pkg?.n ?? 0, parts, partsComplete,
     partsSum: parts.reduce((s, r) => s + r.vwap, 0), fee: 0.03,
+    event: packageEvent,
   },
 }));
 

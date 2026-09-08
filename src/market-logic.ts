@@ -41,6 +41,46 @@ export function isTooFast(
     && spanMinutes < pollIntervalSeconds / 60 * 1.5;
 }
 
+export interface VarianceRatio {
+  vr: number;
+  z: number;
+  returns: number;
+}
+
+/**
+ * 분산비 검정 (Lo–MacKinlay 1988).
+ *
+ * 랜덤워크라면 q기간 수익률의 분산은 1기간 분산의 정확히 q배다.
+ *   VR(q) = Var(q기간) / (q × Var(1기간))
+ *   VR = 1  랜덤워크    VR > 1  추세(모멘텀)    VR < 1  평균회귀
+ *
+ * z는 동분산 가정 아래의 표준화 통계량이다. 이분산에 견고한 형태가 따로 있지만,
+ * 지금 표본(시간봉 30~90개)에서는 어느 쪽을 써도 결론이 갈릴 만큼 정밀하지 않다.
+ * 그래서 z는 방향의 참고값으로만 쓰고, 판정은 겹치는 구간의 일관성으로 뒷받침한다.
+ */
+export function varianceRatio(prices: number[], q = 2): VarianceRatio | null {
+  if (prices.length < 30 || prices.some((p) => !(p > 0))) return null;
+
+  const one = prices.slice(1).map((p, i) => Math.log(p / prices[i]));
+  const variance = (xs: number[]) => {
+    if (xs.length < 2) return null;
+    const mean = xs.reduce((a, b) => a + b, 0) / xs.length;
+    return xs.reduce((a, b) => a + (b - mean) ** 2, 0) / (xs.length - 1);
+  };
+  const var1 = variance(one);
+  if (var1 === null || var1 <= 0) return null;
+
+  // q기간 수익률은 한 칸씩 겹쳐가며 만든다(overlapping). 표본이 얇을수록 이 편이 낫다.
+  const multi: number[] = [];
+  for (let i = 0; i + q < prices.length; i++) multi.push(Math.log(prices[i + q] / prices[i]));
+  const varq = variance(multi);
+  if (varq === null) return null;
+
+  const vr = varq / (q * var1);
+  const se = Math.sqrt((2 * (2 * q - 1) * (q - 1)) / (3 * q * one.length));
+  return { vr, z: (vr - 1) / se, returns: one.length };
+}
+
 /** 카드 가격은 단계가 명시된 0업과 실제 최대 업그레이드 매물만 사용한다. */
 export function selectCardListings<T extends { upgrade?: number | null }>(
   rows: T[],
