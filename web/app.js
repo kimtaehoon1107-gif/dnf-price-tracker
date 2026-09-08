@@ -385,11 +385,19 @@ async function boot() {
   addEventListener('hashchange', render);
 }
 
+// 호가–체결 갭 — 지금 최저 호가가 최근 24시간 VWAP보다 얼마나 위/아래인가.
+// 분모는 상세 화면 askGap 차트와 같은 24h VWAP을 쓴다(정의를 갈라놓으면 두 화면이 어긋난다).
+// 카드는 현재가 자체가 호가라 갭이 정의되지 않는다.
+const askGap = (it) => it.price_basis === 'trade' && it.min_ask > 0 && it.vwap24 > 0
+  ? (it.min_ask / it.vwap24 - 1) * 100
+  : null;
+
 const enrich = (it) => ({
   ...it,
   chg: it.vwap24 && it.vwap_prev ? (it.vwap24 / it.vwap_prev - 1) * 100 : null,
   max_chg: it.max_vwap24 && it.max_vwap_prev ? (it.max_vwap24 / it.max_vwap_prev - 1) * 100 : null,
   turnover: it.price_basis === 'ask0' ? 0 : (it.vwap24 ?? it.last_price) * it.api_qty24,
+  gap: askGap(it),
   g: grade(it),
 });
 
@@ -529,7 +537,7 @@ function renderList() {
       <div class="lh">
         <span class="r">#</span>
         <span data-k="item_name">아이템</span>
-        <span class="r" data-k="last_price">현재가</span>
+        <span class="r" data-k="last_price">현재가 · 호가</span>
         <span class="r" data-k="chg">24h</span>
         <span class="r h5" data-k="turnover">관측 거래대금</span>
         <span class="r h6">14일 추이</span>
@@ -547,7 +555,11 @@ function renderList() {
               <span>${esc(r.item_rarity)}${r.job_role ? ' · ' + esc(r.job_role) : ''}${r.key_stat ? ' · ' + esc(r.key_stat) : ''}${r.price_basis === 'ask0' ? ` · 0업 호가 관측 ${fmt(r.trades)}${r.max_last_price ? ` · 맥스업 ${fmt(r.max_last_price)}` : ''}` : ` · 표본 ${fmt(r.trades)} · ${r.g}등급`}${r.final_since ? ` · 종결 D+${sinceDays(r.final_since)}` : ''}</span>
             </div>
           </div>
-          <div class="px">${fmt(r.last_price)}</div>
+          <div class="px">
+            <b>${fmt(r.last_price)}</b>
+            ${r.gap === null ? '' :
+              `<small class="${cls(r.gap)}" title="최저호가 ${fmt(r.min_ask)} · 24h VWAP ${fmt(r.vwap24)} 대비">호가 ${pct(r.gap)}</small>`}
+          </div>
           <div class="chg ${thin ? 'flat' : cls(r.chg)}"${thin ? ' title="24h 표본 5개 미만 — 신뢰하기 어렵습니다"' : ''}>${pct(r.chg)}${thin ? '<span style="color:var(--ink-4)">?</span>' : ''}</div>
           <div class="dim c5">${won(r.turnover)}</div>
           <div class="c6">${sparkSVG(r.spark, color)}</div>
@@ -559,6 +571,7 @@ function renderList() {
     <p class="hint">
       기본 정렬은 <b>24h 거래대금</b>입니다. 변동률로 정렬하면 하루 한두 건 거래된 아이템의 의미 없는 ±40%가 맨 위를 차지합니다.
       같은 이유로 24h 표본이 5개 미만인 변동률에는 <b>?</b>를 붙였습니다.<br>
+      <b>호가</b>는 현재 최저 호가가 최근 24시간 VWAP보다 얼마나 높거나 낮은지입니다. 음수는 지금 올라온 매물이 최근 체결 평균보다 싸다는 뜻입니다. 카드는 현재가 자체가 호가라 표시하지 않습니다.<br>
       <b>등급</b>은 일평균 체결 건수입니다 — A ≥ 60건, B ≥ 20건, C ≥ 5건, D는 그 미만.
       <b>카드</b>는 0업 최저호가만 표시하며 체결 등급을 매기지 않습니다.
       <b>종결</b>은 현재 기준 최상위 아이템이며, 패치로 교체되면 갱신됩니다.

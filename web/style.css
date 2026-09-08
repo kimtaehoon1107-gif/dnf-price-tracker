@@ -129,7 +129,12 @@ header.top .built { font-size: 12px; color: var(--ink-4); font-variant-numeric: 
 .nm .t { min-width: 0; }
 .nm .t b { display: block; font-weight: 600; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nm .t span { font-size: 12px; color: var(--ink-3); }
-.px { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.px {
+  display: flex; flex-direction: column; align-items: flex-end; justify-content: center;
+  gap: 2px; font-variant-numeric: tabular-nums; text-align: right;
+}
+.px b { font-size: 15px; font-weight: 600; }
+.px small { font-size: 11.5px; font-weight: 500; }
 .chg { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
 .dim { font-size: 13.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; text-align: right; }
 .up { color: var(--up); }
@@ -434,7 +439,8 @@ footer b { color: var(--ink-2); }
   .nm img { width: 30px; height: 30px; }
   .nm .t b { font-size: 13.5px; }
   .nm .t > span, .nm .tag { display: none; }
-  .px { font-size: 13px; }
+  .px b { font-size: 13px; }
+  .px small { font-size: 10.5px; }
   .chg { font-size: 12.5px; }
   .dh { align-items: flex-start; }
   .dh h2 { font-size: 18px; line-height: 1.4; word-break: break-word; }
