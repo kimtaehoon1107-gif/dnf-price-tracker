@@ -112,14 +112,14 @@ const daily = (await query<{
   item_id: string; d: string; o: number; h: number; l: number; c: number; vwap: number; qty: number; n: number;
 }>(`
   WITH trade_daily AS (
-    SELECT t.item_id,
-         to_char((sold_date AT TIME ZONE 'Asia/Seoul')::date,'YYYY-MM-DD') AS d,
-         (array_agg(unit_price ORDER BY sold_date, id))[1]::float8 AS o,
-         MAX(unit_price)::float8 AS h, MIN(unit_price)::float8 AS l,
-         (array_agg(unit_price ORDER BY sold_date DESC, id DESC))[1]::float8 AS c,
-         (SUM(unit_price::numeric*count)/SUM(count))::float8 AS vwap,
-         SUM(count)::int AS qty, COUNT(*)::int AS n
-    FROM trades t JOIN items i USING (item_id)
+    SELECT b.item_id,
+         to_char((hour AT TIME ZONE 'Asia/Seoul')::date,'YYYY-MM-DD') AS d,
+         (array_agg(o ORDER BY hour))[1]::float8 AS o,
+         MAX(h)::float8 AS h, MIN(l)::float8 AS l,
+         (array_agg(c ORDER BY hour DESC))[1]::float8 AS c,
+         (SUM(vwap*qty)/SUM(qty))::float8 AS vwap,
+         SUM(qty)::int AS qty, SUM(n)::int AS n
+    FROM candles_1h b JOIN items i USING (item_id)
     WHERE i.category <> '카드'
     GROUP BY 1,2
   ), card_daily AS (
@@ -137,12 +137,11 @@ const daily = (await query<{
 
 const hourly = (await query<{ item_id: string; t: string; vwap: number; qty: number }>(`
   WITH trade_hourly AS (
-    SELECT t.item_id,
-         to_char(date_trunc('hour', sold_date AT TIME ZONE 'UTC'),'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS t,
-         (SUM(unit_price::numeric*count)/SUM(count))::float8 AS vwap, SUM(count)::int AS qty
-    FROM trades t JOIN items i USING (item_id)
-    WHERE sold_date > now() - interval '7 days' AND i.category <> '카드'
-    GROUP BY 1,2
+    SELECT b.item_id,
+         to_char(hour AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') AS t,
+         vwap::float8 AS vwap, qty
+    FROM candles_1h b JOIN items i USING (item_id)
+    WHERE hour >= date_trunc('hour', now() - interval '7 days') AND i.category <> '카드'
   ), card_hourly AS (
     SELECT s.item_id,
            to_char(date_trunc('hour', s.captured_at AT TIME ZONE 'UTC'),'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS t,
@@ -340,6 +339,11 @@ const weekdaySample = {
   ...weekdaySampleDb,
   minHistoryDays: WEEKDAY_MIN_HISTORY_DAYS,
   minTrades: WEEKDAY_MIN_TRADES,
+  // 양측 alpha=0.05의 1.96과 검정력 80%의 0.84를 더한 값이다.
+  // 표본이 늘어 SE가 줄면 화면의 최소 탐지 가능 효과도 자동으로 내려간다.
+  mde: weekday.length
+    ? 2.80 * weekday.reduce((sum, row) => sum + row.se, 0) / weekday.length
+    : null,
 };
 
 // 예측에 쓸 공통 요일 계수 (주간 평균을 0으로 맞춘 로그 편차).
@@ -424,7 +428,7 @@ const meta = (await query<{
          (SELECT COUNT(*)::int FROM collection_runs) runs,
          (SELECT COUNT(error)::int FROM collection_runs) errors,
          (SELECT COALESCE(SUM(qty_sold),0)::int FROM listing_deltas
-          WHERE reason <> 'expired' AND observed_at > now() - interval '90 days') depletion_qty`)).rows[0];
+          WHERE reason <> 'expired' AND observed_at > now() - interval '7 days') depletion_qty`)).rows[0];
 
 const health = (await query<{
   checks24: number; global_uptime24: number | null;

@@ -48,6 +48,57 @@ CREATE TABLE IF NOT EXISTS trades (
 );
 CREATE INDEX IF NOT EXISTS idx_trades_item_time ON trades (item_id, sold_date);
 
+-- 오래 보존할 가격 이력은 개별 체결 대신 시간봉으로 압축한다. 최근 48시간은
+-- 늦게 들어온 체결이 섞일 수 있으므로 refresh 함수가 같은 봉을 계속 upsert한다.
+CREATE TABLE IF NOT EXISTS candles_1h (
+  item_id TEXT        NOT NULL REFERENCES items(item_id) ON DELETE CASCADE,
+  hour    TIMESTAMPTZ NOT NULL,
+  o       BIGINT,
+  h       BIGINT,
+  l       BIGINT,
+  c       BIGINT,
+  vwap    NUMERIC     NOT NULL,
+  qty     INTEGER     NOT NULL,
+  n       INTEGER     NOT NULL,
+  PRIMARY KEY (item_id, hour)
+);
+CREATE INDEX IF NOT EXISTS idx_candles_1h_hour ON candles_1h (hour);
+
+CREATE OR REPLACE FUNCTION refresh_candles_1h(
+  p_from TIMESTAMPTZ DEFAULT now() - interval '48 hours'
+) RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  affected INTEGER;
+BEGIN
+  INSERT INTO candles_1h (item_id, hour, o, h, l, c, vwap, qty, n)
+  SELECT item_id,
+         date_trunc('hour', sold_date) AS hour,
+         (array_agg(unit_price ORDER BY sold_date, id))[1] AS o,
+         MAX(unit_price) AS h,
+         MIN(unit_price) AS l,
+         (array_agg(unit_price ORDER BY sold_date DESC, id DESC))[1] AS c,
+         SUM(unit_price::numeric * count) / SUM(count) AS vwap,
+         SUM(count)::int AS qty,
+         COUNT(*)::int AS n
+  FROM trades
+  WHERE sold_date >= p_from
+  GROUP BY item_id, date_trunc('hour', sold_date)
+  ON CONFLICT (item_id, hour) DO UPDATE SET
+    o = EXCLUDED.o,
+    h = EXCLUDED.h,
+    l = EXCLUDED.l,
+    c = EXCLUDED.c,
+    vwap = EXCLUDED.vwap,
+    qty = EXCLUDED.qty,
+    n = EXCLUDED.n;
+
+  GET DIAGNOSTICS affected = ROW_COUNT;
+  RETURN affected;
+END;
+$$;
+
 -- 경매장 전체 후보를 하루 한 번 훑은 거래대금 순위. 연속수집 대상과 분리해
 -- 분석용 시계열을 불필요하게 늘리지 않는다.
 CREATE TABLE IF NOT EXISTS market_rankings (

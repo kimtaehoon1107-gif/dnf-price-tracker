@@ -513,8 +513,11 @@ function summaryCards() {
     </div>` : ''}
     ${thu !== null ? `<div class="card">
       <div class="k">목요일 효과</div>
-      <div class="v ${cls(thu.rel)}">${pct(thu.rel)}</div>
-      <div class="sub">주간 평균 대비 · ${thu.significant ? 'p&lt;0.05' : '현재 비유의'}</div>
+      ${thu.significant
+        ? `<div class="v ${cls(thu.rel)}">${pct(thu.rel)}</div>
+           <div class="sub">주간 평균 대비 · p&lt;0.05</div>`
+        : `<div class="v">판별 불가</div>
+           <div class="sub">관측 ${pct(thu.rel)} · 현재 비유의</div>`}
     </div>` : ''}
   </div>`;
 }

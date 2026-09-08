@@ -54,6 +54,7 @@
 Supabase pg_cron ──workflow_dispatch──> GitHub Actions
                                           │
 Neople API ──아이템별 주기(src/run.ts)─────┴──> Supabase Postgres
+                                                     │ 원본 체결 → 시간봉
                                                      │ 매시간 빌드
                                                      ▼
                                       정적 사이트 ──> GitHub Pages
@@ -87,6 +88,7 @@ scripts/legendary-floor.ts 레전더리 카드 165종 최저가 지수
 scripts/migrate-sqlite.ts  (1회성, 이미 완료)
 
 sql/schema.postgres.sql   정본 스키마
+sql/scheduler.sql         pg_cron 트리거·시간봉 집계·보존 정책
 web/build.ts              Supabase → dist/ 정적 사이트
 web/index.html app.js style.css ranking.html ranking.js analysis.html guide.html
 data/legendary-cards.json Actions용 레전더리 카드 165종 목록
@@ -141,10 +143,11 @@ node --env-file=.env --no-warnings web/build.ts   # 사이트 빌드
 | `dnf-collect-dispatch` | `*/15` | GitHub `workflow_dispatch` 호출 → 수집 워크플로 기동 |
 | `dnf-collect-watchdog` | `*/5` | 수집 공백 감시 · 자가복구 · 이슈 알림 |
 | `dnf-events-dispatch` | 목요일 01:30 UTC | 공식 이벤트 동기화 |
+| `dnf-candles-refresh` | 매시 2분 | 최근 48시간 원본 체결을 시간봉으로 upsert |
 | `dnf-pages-dispatch` | 매시 5분 | 최신 DB로 정적 사이트 빌드·배포 |
 | `dnf-health-prune` | 매일 04:17 | `collection_health` 90일 초과분 정리 |
-| `dnf-runs-prune` | 매일 04:23 | `collection_runs` 30일 초과분 정리 |
-| `dnf-deltas-prune` | 매일 04:29 | `listing_deltas` 90일 초과분 정리 |
+| `dnf-runs-prune` | 매일 04:23 | `collection_runs` 7일 초과분 정리 |
+| `dnf-deltas-prune` | 매일 04:29 | `listing_deltas` 14일 초과분 정리 |
 
 감시견 동작:
 - **기록** — 매 점검마다 전역 공백과 각 아이템의 주기 대비 지연을 `collection_health`에 남긴다. 아이템은 자기 폴링 주기의 5배를 넘기면 stale이다
@@ -186,9 +189,9 @@ FROM collection_health WHERE checked_at > now() - interval '24 hours';
 
 숲속의 유랑악단 패키지를 뜯으면 5개 상자가 나온다. 구성품 5종과 패키지의 최근 24시간 VWAP이 모두 있을 때만 차익을 계산한다. 판매 수수료 3%를 반영하면 사실상 0에 가까워 재정거래로 이미 지워졌다는 뜻이고, 무차익 조건의 교과서적 사례다.
 
-### ② 요일에 따라 가격이 다른가 → 목요일·토요일 주간 사이클
+### ② 요일에 따라 가격이 다른가 → 검증했지만 현재 표본에서는 판별 불가
 
-14일 이상 이력이 있는 아이템만 골라 아이템별 평균으로 정규화한 뒤 요일별로 묶는다. 분석 페이지는 최신 데이터에서 유의한 요일과 가격·API 관측 수량을 매번 다시 계산한다. 2026-09-08 리뷰에서는 목요일 하락과 토요일 상승이 함께 유의해 주간 사이클의 양 끝이 드러났다.
+14일 이상 이력이 있는 아이템만 골라 아이템별 평균으로 정규화한 뒤 요일별로 묶는다. 분석 페이지는 최신 데이터에서 유의한 요일과 가격·API 관측 수량을 매번 다시 계산한다. 2026-09-08 리뷰에서는 7일 모두 유의하지 않았으며, 검정력 80% 기준 최소 탐지 가능 효과보다 관측 차이가 작아 효과가 없다고도 단정할 수 없다.
 
 ### ③ 우리가 재는 거래량은 진짜인가 → 아니다
 

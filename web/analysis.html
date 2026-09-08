@@ -84,8 +84,8 @@
 <div class="note quiet">
   <b>한 번 틀렸다가 고친 부분입니다.</b> 처음엔 거래가 거의 없는 잡템 70종을 함께 넣었더니
   "주말에 비싸고 주중에 싸다"는 전혀 다른 그림이 나왔습니다. 8골드짜리 헝겊 조각과 300만 골드짜리
-  마법석을 같은 무게로 평균 낸 탓이었습니다. 시장에서 실제로 거래되는 아이템만 남기니
-  해석 가능한 주간 사이클이 드러났습니다. 어떤 요일이 유의한지는 위 최신 데이터에서 매번 다시 계산합니다.
+  마법석을 같은 무게로 평균 낸 탓이었습니다. 시장에서 실제로 거래되는 아이템만 남겨
+  낮은 유동성이 만들던 왜곡을 줄였습니다. 어떤 요일이 유의한지는 위 최신 데이터에서 매번 다시 계산합니다.
 </div>
 
 <!-- 03 -->
@@ -244,12 +244,19 @@ fetch('data/summary.json').then(r => {
       `<b>${fmt(sample.item_count)}종</b>(${categories})이 남긴 <b>${fmt(sample.span_days)}일</b>의 ` +
       `완료 일봉 범위(총 ${fmt(sample.item_days)} 아이템-일)에서 계산했습니다.`
     : '현재 요일 효과 계산 조건을 충족한 아이템이 없습니다.';
+  const averageWeekdayObservations = w.length
+    ? w.reduce((sum, row) => sum + row.n, 0) / w.length
+    : 0;
+  const powerSummary = sample?.mde > 0 && w.length
+    ? `현재 표본(${fmt(sample.item_count)}종·${fmt(sample.span_days)}일, 요일당 평균 ${averageWeekdayObservations.toFixed(1)}개 관측)의 ` +
+      `<b>최소 탐지 가능 효과는 ±${sample.mde.toFixed(1)}%</b>입니다.`
+    : '';
   document.getElementById('weekday-sample-scope').innerHTML =
     `요일 효과는 ${sampleSummary} 거래가 빠른 아이템은 체결 API의 100건 상한 때문에 ` +
     `과거 이력이 짧아 아직 조건을 충족하지 못합니다. 표본이 얇고 일부 종목이 같은 계열이므로 ` +
     `시장 전체로 일반화하지 않습니다.`;
   document.getElementById('weekday-sample-limit').innerHTML =
-    `요일 효과는 ${sampleSummary} 표본이 얇고 일부 종목이 같은 계열이므로 ` +
+    `요일 효과는 ${sampleSummary} ${powerSummary} 표본이 얇고 일부 종목이 같은 계열이므로 ` +
     `시장 전체로 일반화하지 않습니다.`;
   if (!w.length) {
     document.getElementById('weekday-bars').textContent = '요일 효과를 계산할 완료 일봉이 아직 없습니다.';
@@ -288,6 +295,9 @@ fetch('data/summary.json').then(r => {
   };
   const shockText = r => {
     const volumeChange = (r.vol - 1) * 100;
+    // 유의하지 않으면 방향을 말하지 않는다. t가 0에 가까운 값을 "신호"라 부르면
+    // 표본이 얇다는 사실을 스스로 지워버린다.
+    if (Math.abs(r.t) <= 1.96) return '통계적으로 유의하지 않아 방향을 단정하지 않습니다';
     if (Math.abs(volumeChange) < 5) return '거래량이 평균과 비슷해 충격 원인은 아직 단정하기 어렵습니다';
     if (r.rel > 0 && volumeChange > 0) return '<b>수요 충격</b> 신호입니다';
     if (r.rel < 0 && volumeChange > 0) return '<b>공급 충격</b> 신호입니다';
@@ -295,8 +305,18 @@ fetch('data/summary.json').then(r => {
     return '<b>수요 감소</b> 신호입니다';
   };
   const sig = rows.filter(r => Math.abs(r.t) > 1.96).map(r => r.dow).join('요일·');
+  const maxObserved = Math.max(...rows.map(r => Math.abs(r.rel)));
+  if (sample?.mde > 0) {
+    document.getElementById('weekday-sample-limit').innerHTML +=
+      ` 관측된 요일별 차이는 ${maxObserved < sample.mde ? '모두 최소 탐지 가능 효과보다 작으므로' : '일부가 최소 탐지 가능 효과보다 크지만 유의성 검정을 통과하지 못했으므로'}, ` +
+      `<b>효과가 없다는 결론이 아니라 이 표본으로는 판별할 수 없다는 뜻</b>입니다.`;
+  }
+  const powerVerdict = sample?.mde > 0
+    ? `${powerSummary} 관측된 요일별 차이는 ${maxObserved < sample.mde ? '모두 이보다 작으므로' : '일부가 이보다 크지만 유의성 검정을 통과하지 못했으므로'}, ` +
+      `<b>효과가 없다는 결론이 아니라 이 표본으로는 판별할 수 없다는 뜻</b>입니다.<br>`
+    : '';
   document.getElementById('weekday-verdict').innerHTML =
-    `<b>현재 유의한 요일은 ${sig ? `${sig}요일` : '없습니다'}</b>.<br>
+    `${powerVerdict}<b>현재 유의한 요일은 ${sig ? `${sig}요일` : '없습니다'}</b>.<br>
      목요일은 주간 평균 대비 <b class="${thu.rel >= 0 ? 'up' : 'down'}">${thu.rel >= 0 ? '+' : ''}${thu.rel.toFixed(2)}%</b>
      (t=${thu.t.toFixed(2)}), API 관측 수량은 ${volumeText(thu)}로 ${shockText(thu)}.<br>
      토요일은 주간 평균 대비 <b class="${sat.rel >= 0 ? 'up' : 'down'}">${sat.rel >= 0 ? '+' : ''}${sat.rel.toFixed(2)}%</b>
@@ -320,7 +340,7 @@ fetch('data/summary.json').then(r => {
   }
 
   document.getElementById('delta-line').innerHTML =
-    `최근 90일에 관측한 매물 소진량은 <b>${fmt(D.meta.depletion_qty)}개</b>입니다.
+    `최근 7일에 관측한 매물 소진량은 <b>${fmt(D.meta.depletion_qty)}개</b>입니다.
      이 값은 API 관측 거래량과 별개이며, 판매·취소 및 중복 가능성 때문에 서로 더하지 않습니다.`;
 
   const rate = (pct, count) => count && pct !== null
