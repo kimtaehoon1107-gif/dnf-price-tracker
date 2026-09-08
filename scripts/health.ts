@@ -27,9 +27,20 @@ if (!last) {
     console.error(`⚠ 마지막 성공 수집이 10분을 넘었습니다: ${detail}`);
     unhealthy = true;
   } else {
-    console.log(`정상 · 마지막 성공 수집 ${detail}`);
+    console.log(`전역 마지막 성공 수집 ${detail}`);
   }
 }
 
+const stale = (await query<{ item_name: string }>(`
+  SELECT i.item_name FROM items i
+  WHERE i.tracked AND COALESCE((
+    SELECT MAX(r.finished_at) FROM collection_runs r
+    WHERE r.item_id = i.item_id AND r.error IS NULL AND r.finished_at IS NOT NULL
+  ), '-infinity'::timestamptz) < now() - make_interval(secs => i.poll_interval_sec * 5)
+  ORDER BY i.item_name`)).rows;
+if (stale.length) {
+  console.error(`⚠ 개별 수집 지연 ${stale.length}종: ${stale.map((i) => i.item_name).join(', ')}`);
+  unhealthy = true;
+}
 await pool.end();
 if (unhealthy) process.exitCode = 1;

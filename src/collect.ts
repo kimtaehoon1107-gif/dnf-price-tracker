@@ -147,7 +147,7 @@ export async function collectItem(
     const priceCeiling = capped ? Math.max(...auction.map((r) => r.unitPrice)) : Infinity;
     const toClose: number[] = [];
     for (const [no, p] of prevByNo) {
-      if (seen.has(no) || p.unit_price > priceCeiling) continue;
+      if (seen.has(no) || (capped && p.unit_price >= priceCeiling)) continue;
       const expired = Date.parse(observedAt) >= p.expire_date.getTime();
       if (p.cur_count > 0 && !expired) {
         pushDelta(no, p.unit_price, p.cur_count, p.cur_count, 0, 'vanished_before_expiry');
@@ -160,6 +160,10 @@ export async function collectItem(
 
     // ── 3. 한 트랜잭션으로 기록 ─────────────────────────────────
     const soldNew = await tx(async (c) => {
+      // 같은 경매 번호가 다시 보이면 이전의 완전 소멸 판정은 반증된 것이다.
+      await c.query(`UPDATE listing_deltas SET invalidated_at = $2
+        WHERE auction_no = ANY($1::bigint[]) AND reason = 'vanished_before_expiry'
+          AND invalidated_at IS NULL AND observed_at < $2`, [L.auctionNo, observedAt]);
       const ins = await c.query(`
         INSERT INTO trades (item_id, sold_date, unit_price, count, price, reinforce, refine, amplification_name, dup_seq)
         SELECT $1, u.* FROM UNNEST(

@@ -143,16 +143,16 @@ node --env-file=.env --no-warnings web/build.ts   # 사이트 빌드
 | `dnf-collect-dispatch` | `*/15` | GitHub `workflow_dispatch` 호출 → 수집 워크플로 기동 |
 | `dnf-collect-watchdog` | `*/5` | 수집 공백 감시 · 자가복구 · 이슈 알림 |
 | `dnf-events-dispatch` | 목요일 01:30 UTC | 공식 이벤트 동기화 |
-| `dnf-candles-refresh` | 매시 2분 | 최근 48시간 원본 체결을 시간봉으로 upsert |
+| `dnf-candles-refresh` | 매시 2분 | 보존 중인 원본 전체를 시간봉으로 upsert (오래된 백필 포함) |
 | `dnf-pages-dispatch` | 매시 5분 | 최신 DB로 정적 사이트 빌드·배포 |
 | `dnf-health-prune` | 매일 04:17 | `collection_health` 90일 초과분 정리 |
 | `dnf-runs-prune` | 매일 04:23 | `collection_runs` 7일 초과분 정리 |
 | `dnf-deltas-prune` | 매일 04:29 | `listing_deltas` 14일 초과분 정리 |
-| `dnf-trades-prune` | 매일 04:41 | 시간봉으로 집계된 30일 초과 원본 체결 정리 |
+| `dnf-trades-prune` | 매일 04:41 | 집계 성공 후 35일 초과 원본을 시간 단위로 정리 (같은 트랜잭션) |
 
 감시견 동작:
 - **기록** — 매 점검마다 전역 공백과 각 아이템의 주기 대비 지연을 `collection_health`에 남긴다. 아이템은 자기 폴링 주기의 5배를 넘기면 stale이다
-- **자가복구** — 공백 20분 초과 시 즉시 dispatch. 쿨다운 10분(없으면 워크플로가 계속 죽을 때 무한 재시도한다)
+- **자가복구** — 공백 20분 초과 또는 아이템이 자체 주기의 5배를 초과하면 dispatch. 쿨다운 10분. 복구와 알림의 요청 ID를 따로 보존한다.
 - **알림** — 40분 안에 복구 2회가 실패하면 GitHub Issue 생성. 쿨다운 6시간
 
 **임계치 20분의 근거:** dispatch가 15분 주기이고 워크플로는 55분을 돈다. 실행 중이면 새 dispatch가 대기했다 이어받으므로 공백은 보통 몇 분 이내다. 20분을 넘겼다면 한 사이클이 통째로 유실된 것이다.
@@ -161,9 +161,17 @@ node --env-file=.env --no-warnings web/build.ts   # 사이트 빌드
 
 가동률 확인:
 ```sql
-SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE action IN ('ok','stale_items')) / COUNT(*), 2) AS global_uptime_pct
+SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE gap_min <= 20) / COUNT(*), 2) AS global_uptime_pct
 FROM collection_health WHERE checked_at > now() - interval '24 hours';
 ```
+
+2026-09-09 집중 점검 수정: 집계 하한을 정시로 맞췄고, 원본이 일부 삭제된 과거 봉은
+`candle_pipeline_state.raw_from`과 `candles_1h.raw_complete`로 보호한다. 새 종목의 오래된 백필은
+별도로 집계한다. `npm run test:candles`는 읽기 전용 대조이며 복구하지 않는다.
+`npm run test:pipeline`은 SQL 함수를 임시 테이블에서 검증하고 롤백한다.
+빌드는 원본 대조에 실패하면 배포를 중단한다. 수집·집계·검사 시각은 분석 화면에서 구분한다.
+매물 400개 응답의 경계 가격은 소진 판정을 보류하며, 재관측된 매물의 과거 소진은
+`listing_deltas.invalidated_at`으로 원본을 보존한 채 집계에서 제외한다.
 
 ### 데이터
 

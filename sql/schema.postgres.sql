@@ -64,15 +64,34 @@ CREATE TABLE IF NOT EXISTS candles_1h (
 );
 CREATE INDEX IF NOT EXISTS idx_candles_1h_hour ON candles_1h (hour);
 
+-- BEGIN CANDLE PIPELINE
+-- raw_from 이전에는 원본이 일부 삭제됐을 수 있으므로 기존 봉을 덮어쓰지 않는다.
+-- 새 종목의 오래된 백필은 기존의 불완전한 봉과 구별해 집계할 수 있어야 한다.
+ALTER TABLE candles_1h ADD COLUMN IF NOT EXISTS raw_complete BOOLEAN NOT NULL DEFAULT FALSE;
+CREATE TABLE IF NOT EXISTS candle_pipeline_state (
+  singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton),
+  raw_from TIMESTAMPTZ NOT NULL,
+  refreshed_at TIMESTAMPTZ
+);
+INSERT INTO candle_pipeline_state (raw_from)
+SELECT COALESCE(date_trunc('hour', MIN(sold_date)) + interval '1 hour',
+                date_trunc('hour', now() - interval '35 days')) FROM trades
+ON CONFLICT DO NOTHING;
+
 CREATE OR REPLACE FUNCTION refresh_candles_1h(
-  p_from TIMESTAMPTZ DEFAULT now() - interval '48 hours'
+  p_from TIMESTAMPTZ DEFAULT NULL
 ) RETURNS INTEGER
 LANGUAGE plpgsql
 AS $$
 DECLARE
   affected INTEGER;
+  v_from TIMESTAMPTZ;
 BEGIN
-  INSERT INTO candles_1h (item_id, hour, o, h, l, c, vwap, qty, n)
+  PERFORM pg_advisory_xact_lock(73190421);
+  SELECT GREATEST(raw_from, COALESCE(date_trunc('hour', p_from), raw_from))
+    INTO v_from FROM candle_pipeline_state WHERE singleton;
+  -- 최근 48시간 밖의 백필도 반영한다. 보존 중인 원본은 현재 수만 건 규모다.
+  INSERT INTO candles_1h (item_id, hour, o, h, l, c, vwap, qty, n, raw_complete)
   SELECT item_id,
          date_trunc('hour', sold_date) AS hour,
          (array_agg(unit_price ORDER BY sold_date, id))[1] AS o,
@@ -81,9 +100,14 @@ BEGIN
          (array_agg(unit_price ORDER BY sold_date DESC, id DESC))[1] AS c,
          SUM(unit_price::numeric * count) / SUM(count) AS vwap,
          SUM(count)::int AS qty,
-         COUNT(*)::int AS n
+         COUNT(*)::int AS n,
+         TRUE
   FROM trades
-  WHERE sold_date >= p_from
+  WHERE sold_date >= v_from OR (p_from IS NULL AND NOT EXISTS (
+    SELECT 1 FROM candles_1h old
+    WHERE old.item_id = trades.item_id AND old.hour = date_trunc('hour', trades.sold_date)
+      AND NOT old.raw_complete
+  ))
   GROUP BY item_id, date_trunc('hour', sold_date)
   ON CONFLICT (item_id, hour) DO UPDATE SET
     o = EXCLUDED.o,
@@ -92,12 +116,37 @@ BEGIN
     c = EXCLUDED.c,
     vwap = EXCLUDED.vwap,
     qty = EXCLUDED.qty,
-    n = EXCLUDED.n;
+    n = EXCLUDED.n,
+    raw_complete = TRUE;
 
   GET DIAGNOSTICS affected = ROW_COUNT;
+  IF p_from IS NULL THEN
+    UPDATE candle_pipeline_state SET refreshed_at = transaction_timestamp() WHERE singleton;
+  END IF;
   RETURN affected;
 END;
 $$;
+
+CREATE OR REPLACE FUNCTION prune_aggregated_trades() RETURNS INTEGER
+LANGUAGE plpgsql AS $$
+DECLARE
+  v_to TIMESTAMPTZ := date_trunc('hour', now() - interval '35 days');
+  affected INTEGER;
+BEGIN
+  PERFORM pg_advisory_xact_lock(73190421);
+  -- 집계와 삭제 사이에 체결이 추가되면 영구 누락되므로 짧게 쓰기를 막는다.
+  LOCK TABLE trades IN SHARE ROW EXCLUSIVE MODE;
+  PERFORM refresh_candles_1h();
+  DELETE FROM trades t USING candles_1h b
+    WHERE t.item_id=b.item_id AND date_trunc('hour',t.sold_date)=b.hour
+      AND b.raw_complete AND t.sold_date < v_to;
+  GET DIAGNOSTICS affected = ROW_COUNT;
+  UPDATE candles_1h SET raw_complete=FALSE WHERE hour < v_to AND raw_complete;
+  UPDATE candle_pipeline_state SET raw_from = GREATEST(raw_from, v_to) WHERE singleton;
+  RETURN affected;
+END;
+$$;
+-- END CANDLE PIPELINE
 
 -- 경매장 전체 후보를 하루 한 번 훑은 거래대금 순위. 연속수집 대상과 분리해
 -- 분석용 시계열을 불필요하게 늘리지 않는다.
@@ -155,6 +204,8 @@ CREATE TABLE IF NOT EXISTS listing_deltas (
   reason      TEXT        NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_deltas_item_time ON listing_deltas (item_id, observed_at);
+-- 원본 기록은 남기되 재관측으로 반증된 소진은 분석에서 제외한다.
+ALTER TABLE listing_deltas ADD COLUMN IF NOT EXISTS invalidated_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS listing_snapshots (
   id             BIGSERIAL PRIMARY KEY,

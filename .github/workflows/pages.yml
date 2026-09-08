@@ -10,6 +10,8 @@ on:
     paths:
       - 'web/**'
       - 'src/forecast.ts'
+      - 'src/market-logic.ts'
+      - 'src/candle-check.ts'
       - 'src/db.ts'
       - 'scripts/legendary-floor.ts'
       - 'scripts/scan-turnover.ts'

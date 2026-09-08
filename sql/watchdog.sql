@@ -24,6 +24,9 @@ CREATE TABLE IF NOT EXISTS collection_health (
   note            TEXT
 );
 ALTER TABLE collection_health ADD COLUMN IF NOT EXISTS stale_items INTEGER;
+-- 알림이 복구 action을 덮어써도 실제 요청 시각을 잃지 않는다.
+ALTER TABLE collection_health ADD COLUMN IF NOT EXISTS recovery_request_id BIGINT;
+ALTER TABLE collection_health ADD COLUMN IF NOT EXISTS alert_request_id BIGINT;
 CREATE INDEX IF NOT EXISTS idx_health_time ON collection_health (checked_at DESC);
 CREATE INDEX IF NOT EXISTS idx_health_action ON collection_health (action, checked_at DESC);
 
@@ -36,6 +39,8 @@ DECLARE
   v_token       TEXT;
   v_recovers    INT;
   v_stale       INT;
+  v_recovery_id BIGINT;
+  v_alert_id    BIGINT;
   v_action      TEXT := 'ok';
   v_note        TEXT := NULL;
   v_threshold   CONSTANT NUMERIC := 20;   -- 분. 이보다 벌어지면 비정상
@@ -60,14 +65,9 @@ BEGIN
         AND r.finished_at IS NOT NULL
     ), '-infinity'::timestamptz) < now() - make_interval(secs => i.poll_interval_sec * 5);
 
-  IF v_gap <= v_threshold THEN
-    IF v_stale > 0 THEN
-      INSERT INTO collection_health (last_collect_at, gap_min, stale_items, action, note)
-      VALUES (v_last, v_gap, v_stale, 'stale_items', v_stale || '종이 각 폴링 주기의 5배를 초과');
-    ELSE
-      INSERT INTO collection_health (last_collect_at, gap_min, stale_items, action)
-      VALUES (v_last, v_gap, 0, 'ok');
-    END IF;
+  IF v_gap <= v_threshold AND v_stale = 0 THEN
+    INSERT INTO collection_health (last_collect_at, gap_min, stale_items, action)
+    VALUES (v_last, v_gap, 0, 'ok');
     RETURN;
   END IF;
 
@@ -77,10 +77,11 @@ BEGIN
   -- ── ② 자가복구 ──────────────────────────────────────────────
   -- 쿨다운 10분. 없으면 워크플로가 계속 죽는 상황에서 5분마다 무한 dispatch를 쏜다.
   IF EXISTS (SELECT 1 FROM collection_health
-             WHERE action = 'recover' AND checked_at > now() - interval '10 minutes') THEN
+             WHERE (recovery_request_id IS NOT NULL OR action = 'recover')
+               AND checked_at > now() - interval '10 minutes') THEN
     v_action := 'recover_cooldown';
   ELSE
-    PERFORM net.http_post(
+    SELECT net.http_post(
       url := 'https://api.github.com/repos/kimtaehoon1107-gif/dnf-price-tracker/actions/workflows/collect.yml/dispatches',
       body := '{"ref":"main"}'::jsonb,
       headers := jsonb_build_object(
@@ -89,30 +90,33 @@ BEGIN
         'Content-Type', 'application/json',
         'User-Agent', 'dnf-price-tracker-watchdog'
       )
-    );
+    ) INTO v_recovery_id;
     v_action := 'recover';
-    v_note := '공백 ' || v_gap || '분 — 즉시 dispatch';
+    v_note := '전역 공백 ' || v_gap || '분 · 지연 ' || v_stale || '종 — dispatch 요청';
   END IF;
 
   -- ── ③ 알림 ─────────────────────────────────────────────────
   -- 40분 안에 두 번 복구를 시도했는데도 공백이면 일시적 문제가 아니다.
   SELECT COUNT(*) INTO v_recovers FROM collection_health
-  WHERE action = 'recover' AND checked_at > now() - interval '40 minutes';
+  WHERE (recovery_request_id IS NOT NULL OR action = 'recover')
+    AND checked_at > now() - interval '40 minutes';
 
   IF v_recovers >= 2 THEN
     IF EXISTS (SELECT 1 FROM collection_health
-               WHERE action = 'alert' AND checked_at > now() - interval '6 hours') THEN
+               WHERE (alert_request_id IS NOT NULL OR action = 'alert')
+                 AND checked_at > now() - interval '6 hours') THEN
       v_action := 'alert_cooldown';
     ELSE
-      PERFORM net.http_post(
+      SELECT net.http_post(
         url := 'https://api.github.com/repos/kimtaehoon1107-gif/dnf-price-tracker/issues',
         body := jsonb_build_object(
-          'title', '[감시견] 수집이 ' || v_gap || '분째 멈춰 있습니다',
+          'title', '[감시견] 수집 지연 — 전역 공백 ' || v_gap || '분 · 지연 ' || v_stale || '종',
           'body',
             '자동 복구를 ' || v_recovers || '회 시도했는데도 수집이 재개되지 않았습니다.' || E'\n' ||
             '일시적 문제가 아니라 사람이 손대야 하는 상황으로 보입니다.' || E'\n\n' ||
             '- 마지막 수집: ' || COALESCE(v_last::text, '없음') || E'\n' ||
             '- 공백: ' || v_gap || '분' || E'\n' ||
+            '- 폴링 주기의 5배를 넘긴 아이템: ' || v_stale || '종' || E'\n' ||
             '- 감지 시각: ' || now()::text || E'\n\n' ||
             '### 확인 순서' || E'\n' ||
             '1. PAT 만료 — `SELECT status_code FROM net._http_response ORDER BY id DESC LIMIT 5;` 가 401/403이면 토큰 문제' || E'\n' ||
@@ -128,14 +132,15 @@ BEGIN
           'Content-Type', 'application/json',
           'User-Agent', 'dnf-price-tracker-watchdog'
         )
-      );
+      ) INTO v_alert_id;
       v_action := 'alert';
-      v_note := COALESCE(v_note || ' · ', '') || '복구 ' || v_recovers || '회 실패 → 이슈 생성';
+      v_note := COALESCE(v_note || ' · ', '') || '복구 요청 ' || v_recovers || '회 후에도 지연 → 이슈 요청';
     END IF;
   END IF;
 
-  INSERT INTO collection_health (last_collect_at, gap_min, stale_items, action, note)
-  VALUES (v_last, v_gap, v_stale, v_action, v_note);
+  INSERT INTO collection_health (last_collect_at, gap_min, stale_items, action, note,
+                                 recovery_request_id, alert_request_id)
+  VALUES (v_last, v_gap, v_stale, v_action, v_note, v_recovery_id, v_alert_id);
 END;
 $fn$;
 

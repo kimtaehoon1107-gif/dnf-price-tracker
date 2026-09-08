@@ -7,10 +7,28 @@
 //   node --env-file=.env --no-warnings web/build.ts
 
 import { mkdirSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
-import { query, pool } from '../src/db.ts';
+import { pool } from '../src/db.ts';
+import type { QueryResultRow } from 'pg';
+import { checkCandles } from '../src/candle-check.ts';
 import { forecast, type Point, type Forecast } from '../src/forecast.ts';
 import { holmAdjusted, longestCompleteHours, varianceRatio } from '../src/market-logic.ts';
 
+const client = await pool.connect();
+const query = <T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => client.query<T>(text, params);
+try {
+await query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+const quality = await checkCandles(client);
+if (quality.mismatches) throw new Error(`시간봉 정합성 불일치 ${quality.mismatches}봉 — 새 분석 배포를 중단합니다.`);
+const collection = (await query<{ last_success: Date | null; stale: string[] }>(`
+  WITH last AS (
+    SELECT i.item_name, i.poll_interval_sec, MAX(r.finished_at) AS t
+    FROM items i LEFT JOIN collection_runs r ON r.item_id=i.item_id
+      AND r.error IS NULL AND r.finished_at IS NOT NULL
+    WHERE i.tracked GROUP BY i.item_id
+  ) SELECT MAX(t) AS last_success,
+      COALESCE(array_agg(item_name ORDER BY item_name) FILTER (
+        WHERE t IS NULL OR t < now()-make_interval(secs=>poll_interval_sec*5)), '{}') AS stale
+    FROM last`)).rows[0];
 const OUT = 'dist';
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(`${OUT}/data/series`, { recursive: true });
@@ -218,7 +236,7 @@ const depletion = (await query<{
            COALESCE(SUM(qty_sold) FILTER (WHERE reason = 'vanished_before_expiry'), 0)::float8 AS vanished
     FROM listing_deltas d JOIN items i USING (item_id)
     JOIN listings l ON l.auction_no = d.auction_no
-    WHERE observed_at > now() - interval '7 days'
+    WHERE observed_at > now() - interval '7 days' AND d.invalidated_at IS NULL
       AND (i.category <> '카드' OR l.upgrade = 0 OR l.upgrade = l.upgrade_max)
     GROUP BY d.item_id, l.upgrade, observed_at
   )
@@ -350,13 +368,14 @@ const weekdaySample = {
 // ── 아이템별 시계열 + 예측 ─────────────────────────────────────
 const forecasts = new Map<string, Forecast>();
 const todayKst = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+const completeDay = new Date(quality.through).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
 // 과거 평가일마다 당시 자격을 다시 판단한다. 현재 예측 가능한 종목만 추리면
 // 미래의 유동성·이력 정보가 공통 요일 계수에 들어가므로 전체 체결 종목을 넘긴다.
 const market = new Map(items.filter((it) => it.price_basis === 'trade').map((it) =>
-  [it.item_id, (dailyBy.get(it.item_id) ?? []).filter((p) => p.d < todayKst)]));
+  [it.item_id, (dailyBy.get(it.item_id) ?? []).filter((p) => p.d < todayKst && p.d < completeDay)]));
 for (const it of items) {
   const d = dailyBy.get(it.item_id) ?? [];
-  const complete = d.filter((x) => x.d < todayKst);
+  const complete = d.filter((x) => x.d < todayKst && x.d < completeDay);
   const tradesPerDay = it.span_days > 0.5 ? it.trades / it.span_days : it.trades * 2;
   const f = it.price_basis === 'trade' && tradesPerDay >= 5
     ? forecast(complete as Point[], market, 7, todayKst)
@@ -440,7 +459,8 @@ const meta = (await query<{
          (SELECT to_char(MIN(hour) AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') FROM candles_1h) lo,
          (SELECT to_char(MAX(hour) AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') FROM candles_1h) hi,
          (SELECT COALESCE(SUM(qty_sold),0)::int FROM listing_deltas
-          WHERE reason <> 'expired' AND observed_at > now() - interval '7 days') depletion_qty`)).rows[0];
+          WHERE reason <> 'expired' AND invalidated_at IS NULL
+            AND observed_at > now() - interval '7 days') depletion_qty`)).rows[0];
 
 const health = (await query<{
   checks24: number; global_uptime24: number | null;
@@ -449,7 +469,7 @@ const health = (await query<{
 }>(`
   SELECT COUNT(*) FILTER (WHERE checked_at > now() - interval '24 hours')::int AS checks24,
          (100.0 * COUNT(*) FILTER (WHERE checked_at > now() - interval '24 hours'
-                                    AND action IN ('ok','stale_items'))
+                                    AND gap_min <= 20)
            / NULLIF(COUNT(*) FILTER (WHERE checked_at > now() - interval '24 hours'), 0))::float8 AS global_uptime24,
          COUNT(stale_items) FILTER (WHERE checked_at > now() - interval '24 hours')::int AS item_checks24,
          (100.0 * (1 - SUM(stale_items) FILTER (WHERE checked_at > now() - interval '24 hours')::numeric
@@ -487,7 +507,7 @@ for (const row of rwRows) {
   rwBy.get(row.item_id)!.push(row);
 }
 
-const rwAsOf = Date.now();
+const rwAsOf = Math.min(Date.now(), Date.parse(quality.through));
 const rwCandidates = items.filter((it) => it.price_basis === 'trade');
 const rwExcluded: Array<{ item_name: string; bars: number; reason: string }> = [];
 const rwItems = rwCandidates.flatMap((it) => {
@@ -547,7 +567,7 @@ const randomWalk = {
 
 writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
   builtAt: new Date().toISOString(),
-  meta, health, weekday, weekdaySample, randomWalk, items: withMeta, legendary, marketRanking,
+  meta, health, quality, collection, weekday, weekdaySample, randomWalk, items: withMeta, legendary, marketRanking,
   margin: {
     pkg: pkg?.vwap ?? null, pkgN: pkg?.n ?? 0, parts, partsComplete,
     partsSum: parts.reduce((s, r) => s + r.vwap, 0), fee: 0.03,
@@ -559,4 +579,8 @@ for (const f of ['index.html', 'ranking.html', 'analysis.html', 'guide.html', 'a
 writeFileSync(`${OUT}/.nojekyll`, '');
 
 console.log(`빌드 완료 — ${items.length}종 · 체결 ${meta.trades.toLocaleString()}건 · 일봉 ${daily.length}행 · 예측 ${forecasts.size}종`);
-await pool.end();
+} finally {
+  await client.query('ROLLBACK');
+  client.release();
+  await pool.end();
+}

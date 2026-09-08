@@ -66,6 +66,7 @@ const stamp = () => new Date().toLocaleTimeString('ko-KR', { hour12: false });
 const pad = (s: string, n: number) => s.length > n ? s.slice(0, n) : s.padEnd(n);
 const pollSteps = [60, 120, 300, 900, 1800, 3600];
 const shorterPoll = (current: number) => pollSteps.filter((seconds) => seconds < current).at(-1) ?? current;
+const unresolvedFailures = new Set<string>();
 
 async function tick(item: Item, verbose = false): Promise<boolean> {
   try {
@@ -99,8 +100,10 @@ async function tick(item: Item, verbose = false): Promise<boolean> {
           ? saturationNote || (tooFast ? '  ⚠ 포화 — 이미 최소 60s 주기' : '  ⚠ 포화 — 수집 공백 영향, 주기 유지')
           : ''));
     }
+    unresolvedFailures.delete(item.item_id);
     return true;
   } catch (e) {
+    unresolvedFailures.add(item.item_id);
     console.error(`${stamp()}  ${item.item_name} 실패: ${e instanceof Error ? e.message : e}`);
     return false;
   }
@@ -110,7 +113,7 @@ async function tick(item: Item, verbose = false): Promise<boolean> {
 if (once) {
   for (const it of items) await tick(it, true);
   await pool.end();
-  process.exit(0);
+  process.exit(unresolvedFailures.size ? 1 : 0);
 }
 
 // ── 상주 / 시간제한 모드 ───────────────────────────────────────
@@ -135,7 +138,7 @@ const shutdown = async () => {
   stopping = true;
   console.log('\n수집 중지.');
   await pool.end().catch(() => {});
-  process.exit(0);
+  process.exit(unresolvedFailures.size ? 1 : 0);
 };
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
@@ -171,3 +174,7 @@ while (Date.now() < deadline && !stopping) {
 
 console.log(`수집 종료 (${runMinutes}분 경과).`);
 await pool.end();
+if (unresolvedFailures.size) {
+  console.error(`미회복 수집 실패 ${unresolvedFailures.size}종`);
+  process.exitCode = 1;
+}

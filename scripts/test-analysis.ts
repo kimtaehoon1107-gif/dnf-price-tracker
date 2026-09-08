@@ -11,7 +11,7 @@ const item = (vr: number, significant = false) => ({
   z: vr < 1 ? -3 : 3, p: 0.003, adjustedP: significant ? 0.03 : 0.1,
 });
 
-async function render(rows: ReturnType<typeof item>[], forecasts: unknown[] = []) {
+async function render(rows: ReturnType<typeof item>[], forecasts: unknown[] = [], extra = {}) {
   const nodes = new Map([...html.matchAll(/id="([^"]+)"/g)]
     .map((m) => [m[1], { textContent: '', innerHTML: '' }]));
   const data = {
@@ -28,6 +28,7 @@ async function render(rows: ReturnType<typeof item>[], forecasts: unknown[] = []
     items: forecasts,
     weekdaySample: { item_count: 4, minHistoryDays: 14, minTrades: 25, mde: 4 },
     health: { global_uptime24: null, checks24: 0, item_uptime24: null, item_checks24: 0 },
+    ...extra,
   };
   await vm.runInNewContext(script, {
     fetch: async () => ({ ok: true, json: async () => data }),
@@ -64,4 +65,15 @@ const scored = await render([], [
 assert.match(scored('fc-summary'), /18%/);
 assert.match(scored('fc-horizons'), /-80\.0%/);
 assert.match(scored('fc-summary'), /naive 오차가 더 작았습니다/);
+const pipeline = await render([], [], {
+  collection: { last_success: new Date().toISOString(), stale: ['지연 종목'] },
+  quality: { checkedAt: '2026-09-09T00:00:00Z', refreshedAt: '2026-09-08T23:02:00Z',
+    from: '2026-08-09T14:00:00Z', through: '2026-09-08T23:00:00Z', bars: 123, mismatches: 0 },
+});
+assert.match(pipeline('pipeline-status'), /원본 대조 통과/);
+assert.match(pipeline('pipeline-status'), /개별 지연 1종/);
+assert.match(pipeline('built'), /페이지 생성/);
+assert.doesNotMatch(pipeline('qty-limit'), /최근 7일|123개/);
+assert.match(pipeline('qty-limit'), /합계는 표시하지 않습니다/);
+assert.match(empty('pipeline-status'), /수집 상태 확인 필요/);
 console.log('분석 표시 테스트 통과');

@@ -19,7 +19,8 @@ const { rows } = await query<{
   SELECT i.item_name, i.poll_interval_sec,
          COALESCE(g.n, 0) AS n, g.span_min, g.max_gap_min,
          COALESCE((SELECT SUM(qty_sold) FROM listing_deltas d
-                   WHERE d.item_id = i.item_id AND d.reason <> 'expired'), 0)::int AS qty,
+                   WHERE d.item_id = i.item_id AND d.reason <> 'expired'
+                     AND d.invalidated_at IS NULL), 0)::int AS qty,
          COALESCE((SELECT COUNT(*) FROM collection_runs r
                    WHERE r.item_id = i.item_id AND r.saturated), 0)::int AS sat
   FROM items i LEFT JOIN gaps g ON g.item_id = i.item_id
