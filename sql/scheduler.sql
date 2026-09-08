@@ -77,6 +77,15 @@ SELECT cron.schedule('dnf-candles-refresh', '2 * * * *', $$
   SELECT refresh_candles_1h(now() - interval '48 hours');
 $$);
 
+-- 시간봉 전 구간을 원본과 대조한 뒤에만 켠 보존 정책이다. 최근 분석과
+-- askGap 계산에 필요한 30일은 원본으로 두고, 그 이전 가격 이력은 시간봉에 남긴다.
+SELECT cron.unschedule('dnf-trades-prune')
+WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'dnf-trades-prune');
+
+SELECT cron.schedule('dnf-trades-prune', '41 4 * * *', $$
+  DELETE FROM trades WHERE sold_date < now() - interval '30 days';
+$$);
+
 -- 수집 실행 이력은 재시작 스케줄 복원과 최근 상태 진단에만 쓴다.
 -- 원본 체결 이력은 건드리지 않고 7일이 지난 운영 로그만 정리한다.
 SELECT cron.unschedule('dnf-runs-prune')

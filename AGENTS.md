@@ -148,6 +148,7 @@ node --env-file=.env --no-warnings web/build.ts   # 사이트 빌드
 | `dnf-health-prune` | 매일 04:17 | `collection_health` 90일 초과분 정리 |
 | `dnf-runs-prune` | 매일 04:23 | `collection_runs` 7일 초과분 정리 |
 | `dnf-deltas-prune` | 매일 04:29 | `listing_deltas` 14일 초과분 정리 |
+| `dnf-trades-prune` | 매일 04:41 | 시간봉으로 집계된 30일 초과 원본 체결 정리 |
 
 감시견 동작:
 - **기록** — 매 점검마다 전역 공백과 각 아이템의 주기 대비 지연을 `collection_health`에 남긴다. 아이템은 자기 폴링 주기의 5배를 넘기면 stale이다
