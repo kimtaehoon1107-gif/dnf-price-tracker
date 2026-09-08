@@ -46,6 +46,25 @@ CREATE TABLE IF NOT EXISTS trades (
 );
 CREATE INDEX IF NOT EXISTS idx_trades_item_time ON trades (item_id, sold_date);
 
+-- 경매장 전체 후보를 하루 한 번 훑은 거래대금 순위. 연속수집 대상과 분리해
+-- 분석용 시계열을 불필요하게 늘리지 않는다.
+CREATE TABLE IF NOT EXISTS market_rankings (
+  captured_at      TIMESTAMPTZ NOT NULL,
+  rank             INTEGER     NOT NULL,
+  item_id          TEXT        NOT NULL,
+  item_name        TEXT        NOT NULL,
+  item_rarity      TEXT,
+  item_type_detail TEXT,
+  turnover_24h     BIGINT      NOT NULL,
+  observed_qty     BIGINT      NOT NULL,
+  trade_count      INTEGER     NOT NULL,
+  last_price       BIGINT      NOT NULL,
+  basis            TEXT        NOT NULL CHECK (basis IN ('collected', 'api_complete', 'estimated')),
+  span_minutes     DOUBLE PRECISION,
+  PRIMARY KEY (captured_at, item_id)
+);
+CREATE INDEX IF NOT EXISTS idx_market_rankings_latest ON market_rankings (captured_at DESC, rank);
+
 -- regCount는 스태커블 매물에만 온다. 아바타·장비 단품에는 없으므로
 -- 수집기에서 `regCount ?? count`로 채워 넣는다.
 CREATE TABLE IF NOT EXISTS listings (

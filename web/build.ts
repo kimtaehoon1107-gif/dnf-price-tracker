@@ -391,6 +391,27 @@ const legendary = (await query<{
       min_unit_price, min_item_name, p10, median, scanned, with_listings
     FROM legendary_card_floor WHERE upgrade = 0 ORDER BY captured_at DESC LIMIT 1`)).rows;
 
+// ── 스태커블 시장 거래대금 순위 ──────────────────────────────
+const marketRankingRows = (await query<{
+  captured_at: string; rank: number; item_id: string; item_name: string;
+  item_rarity: string; item_type_detail: string; turnover_24h: number;
+  observed_qty: number; trade_count: number; last_price: number;
+  basis: 'collected' | 'api_complete' | 'estimated'; span_minutes: number | null;
+}>(`
+  SELECT to_char(captured_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') captured_at,
+         rank, item_id, item_name, item_rarity, item_type_detail,
+         turnover_24h, observed_qty, trade_count, last_price, basis, span_minutes
+  FROM market_rankings
+  WHERE captured_at = (SELECT MAX(captured_at) FROM market_rankings)
+  ORDER BY rank`)).rows;
+const marketRanking = {
+  capturedAt: marketRankingRows[0]?.captured_at ?? null,
+  items: marketRankingRows.map((row) => ({
+    ...row,
+    img: `https://img-api.neople.co.kr/df/items/${row.item_id}`,
+  })),
+};
+
 // ── 수집 현황 ──────────────────────────────────────────────────
 const meta = (await query<{
   trades: number; items: number; lo: string; hi: string; runs: number; errors: number;
@@ -435,14 +456,14 @@ const withMeta = items.map((it) => {
 
 writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
   builtAt: new Date().toISOString(),
-  meta, health, weekday, weekdaySample, items: withMeta, legendary,
+  meta, health, weekday, weekdaySample, items: withMeta, legendary, marketRanking,
   margin: {
     pkg: pkg?.vwap ?? null, pkgN: pkg?.n ?? 0, parts, partsComplete,
     partsSum: parts.reduce((s, r) => s + r.vwap, 0), fee: 0.03,
   },
 }));
 
-for (const f of ['index.html', 'analysis.html', 'guide.html', 'app.js', 'style.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
+for (const f of ['index.html', 'ranking.html', 'analysis.html', 'guide.html', 'app.js', 'ranking.js', 'style.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
 writeFileSync(`${OUT}/.nojekyll`, '');
 
 console.log(`빌드 완료 — ${items.length}종 · 체결 ${meta.trades.toLocaleString()}건 · 일봉 ${daily.length}행 · 예측 ${forecasts.size}종`);

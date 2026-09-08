@@ -81,13 +81,14 @@ scripts/stats.ts          수집 현황 · 데이터 구멍 점검
 scripts/probe.ts          특정 아이템의 거래 빈도 측정 → 폴링 주기 산정
 scripts/discover.ts       아이템 카탈로그 눈덩이 크롤 → data/catalog.json
 scripts/scan.ts           거래가 활발한 아이템 순위
+scripts/scan-turnover.ts  스태커블 시장 24시간 거래대금 TOP100 (하루 1회)
 scripts/track.ts          카탈로그에서 패턴으로 일괄 등록
 scripts/legendary-floor.ts 레전더리 카드 165종 최저가 지수
 scripts/migrate-sqlite.ts  (1회성, 이미 완료)
 
 sql/schema.postgres.sql   정본 스키마
 web/build.ts              Supabase → dist/ 정적 사이트
-web/index.html app.js style.css analysis.html guide.html
+web/index.html app.js style.css ranking.html ranking.js analysis.html guide.html
 data/legendary-cards.json Actions용 레전더리 카드 165종 목록
 certs/supabase-prod-ca-2021.crt Supabase pooler 인증서 검증용 공개 CA
 ```
@@ -199,6 +200,14 @@ API 관측 거래량은 100건 상한 + 동일키 충돌로 과소집계될 수 
 ### 부수 발견
 
 종결 칭호의 최종 데미지가 갈린다 — 종이달 오르골 9.6% vs 나머지 3종 8%. **가격 순서가 스탯 순서와 정확히 일치**하며, 시장이 1.6%p를 약 870만 골드로 값매김하고 있다.
+
+### 거래대금 TOP100 시험 집계
+
+카탈로그에서 옵션 혼합이 없는 스태커블 11,061종을 하루 한 번 훑는다. 최근 100건이
+24시간을 모두 덮으면 그대로 합산하고, 덮지 못하면 관측 시간당 거래대금을 24시간으로
+환산해 `24h 환산`으로 표시한다. 기존 추적 종목은 DB의 최근 24시간 연속수집 합계로
+대체한다. 최신 100종만 `market_rankings`에 저장하며 7일이 지난 집계는 지운다.
+장비·아바타·카드는 옵션이나 업그레이드 단계가 섞이므로 전수 탐색에서 제외한다.
 
 ---
 

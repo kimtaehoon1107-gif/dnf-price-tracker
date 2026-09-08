@@ -19,6 +19,7 @@
     "stats": "node --env-file=.env --no-warnings scripts/stats.ts",
     "probe": "node --env-file=.env --no-warnings scripts/probe.ts",
     "scan": "node --env-file=.env --no-warnings scripts/scan.ts",
+    "scan:turnover": "node --env-file=.env --no-warnings scripts/scan-turnover.ts",
     "discover": "node --env-file=.env --no-warnings scripts/discover.ts",
     "track": "node --env-file=.env --no-warnings scripts/track.ts"
   },

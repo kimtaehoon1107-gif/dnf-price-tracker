@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>거래대금 TOP100 — 던파 경매장 시세 추적기</title>
+<meta name="description" content="던파 경매장 스태커블 아이템의 24시간 API 관측·추정 거래대금 TOP100입니다.">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="inner">
+    <a class="brand" href="index.html">던파 경매장</a>
+    <nav>
+      <a href="index.html">시세</a>
+      <a href="ranking.html" class="on">TOP100</a>
+      <a href="analysis.html">분석</a>
+      <a href="guide.html">지표</a>
+      <a href="https://github.com/kimtaehoon1107-gif/dnf-price-tracker" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+    <span class="spacer"></span>
+    <span class="built" id="built"></span>
+  </div>
+</header>
+<div class="wrap">
+  <main id="ranking-view"></main>
+  <footer>
+    본 서비스는 <b>네오플 오픈 API 서비스</b>를 이용합니다. (<a href="https://developers.neople.co.kr" target="_blank" rel="noopener">developers.neople.co.kr</a>)<br>
+    비상업적 개인 프로젝트이며 API 이용에 대한 어떠한 대가도 받지 않습니다.<br>
+    모든 가격은 <b>구매 지불가</b>(unitPrice) 기준입니다.
+  </footer>
+</div>
+<script src="ranking.js"></script>
+</body>
+</html>
