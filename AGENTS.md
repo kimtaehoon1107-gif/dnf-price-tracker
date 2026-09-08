@@ -90,6 +90,7 @@ sql/schema.postgres.sql   정본 스키마
 web/build.ts              Supabase → dist/ 정적 사이트
 web/index.html app.js style.css ranking.html ranking.js analysis.html guide.html
 data/legendary-cards.json Actions용 레전더리 카드 165종 목록
+data/market-items.json Actions용 스태커블 시장 후보 11,061종
 certs/supabase-prod-ca-2021.crt Supabase pooler 인증서 검증용 공개 CA
 ```
 

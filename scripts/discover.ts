@@ -79,11 +79,17 @@ while (queue.length > 0 && tried.size < MAX_QUERIES) {
 
 mkdirSync('data', { recursive: true });
 writeFileSync('data/catalog.json', JSON.stringify([...items.values()], null, 0));
+const marketItems = [...items.values()].filter((row) =>
+  (row as ItemRow & { itemType?: string }).itemType === '스태커블' &&
+  !/카드(?:\[.*\])?$/.test(row.itemName))
+  .map(({ itemId, itemName, itemRarity, itemTypeDetail }) => ({ itemId, itemName, itemRarity, itemTypeDetail }));
+writeFileSync('data/market-items.json', JSON.stringify(marketItems));
 
 const byType = new Map<string, number>();
 for (const r of items.values()) byType.set(r.itemTypeDetail, (byType.get(r.itemTypeDetail) ?? 0) + 1);
 
 console.log(`\n아이템 ${items.size}종 · 검색 ${tried.size}회 · data/catalog.json 저장`);
+console.log(`스태커블 시장 후보 ${marketItems.length}종 · data/market-items.json 저장`);
 console.log(`100건에서 잘린 검색어 ${capped}개, 아직 안 써본 검색어 ${queue.length}개`);
 if (queue.length > 0) {
   console.log('→ 대기가 남았다는 건 아직 도달 못 한 아이템이 있다는 뜻입니다. 최대 검색수를 늘려 다시 돌리세요.');

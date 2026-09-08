@@ -7,9 +7,7 @@ import { readFileSync } from 'node:fs';
 import { getSold, kstToIso, type ItemRow } from '../src/api.ts';
 import { pool, query, tx } from '../src/db.ts';
 
-interface CatalogRow extends ItemRow { itemType: string }
-
-const CATALOG = JSON.parse(readFileSync(new URL('../data/catalog.json', import.meta.url), 'utf8')) as CatalogRow[];
+const CATALOG = JSON.parse(readFileSync(new URL('../data/market-items.json', import.meta.url), 'utf8')) as ItemRow[];
 const CONCURRENCY = 4;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const now = Date.now();
@@ -86,7 +84,7 @@ if (!force && latest && now - new Date(latest).getTime() < 23 * 60 * 60 * 1000) 
   process.exit(0);
 }
 
-const candidates = CATALOG.filter((row) => row.itemType === '스태커블' && !/카드(?:\[.*\])?$/.test(row.itemName));
+const candidates = CATALOG;
 const rows: RankRow[] = [];
 let cursor = 0;
 let failures = 0;
