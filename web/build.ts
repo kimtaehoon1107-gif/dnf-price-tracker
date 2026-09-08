@@ -47,7 +47,7 @@ const items = (await query<{
            AVG(s.min_unit_price) FILTER (WHERE s.captured_at BETWEEN now()-interval '48 hours' AND now()-interval '24 hours')::float8 AS vwap_prev,
            0::int AS api_qty24
     FROM listing_snapshots s JOIN items i USING (item_id)
-    WHERE i.category = '카드' AND s.upgrade = 0 AND s.min_unit_price > 0
+    WHERE i.category = '카드' AND (s.upgrade = 0 OR s.upgrade IS NULL) AND s.min_unit_price > 0
     GROUP BY s.item_id
   ),
   agg AS (
@@ -129,7 +129,7 @@ const daily = (await query<{
            (array_agg(s.min_unit_price ORDER BY s.captured_at DESC, s.id DESC))[1]::float8 AS c,
            AVG(s.min_unit_price)::float8 AS vwap, 0::int AS qty, COUNT(*)::int AS n
     FROM listing_snapshots s JOIN items i USING (item_id)
-    WHERE i.category = '카드' AND s.upgrade = 0 AND s.min_unit_price > 0
+    WHERE i.category = '카드' AND (s.upgrade = 0 OR s.upgrade IS NULL) AND s.min_unit_price > 0
     GROUP BY 1,2
   )
   SELECT * FROM trade_daily UNION ALL SELECT * FROM card_daily ORDER BY 1,2`)).rows;
@@ -148,7 +148,7 @@ const hourly = (await query<{ item_id: string; t: string; vwap: number; qty: num
            AVG(s.min_unit_price)::float8 AS vwap, 0::int AS qty
     FROM listing_snapshots s JOIN items i USING (item_id)
     WHERE s.captured_at > now() - interval '7 days'
-      AND i.category = '카드' AND s.upgrade = 0 AND s.min_unit_price > 0
+      AND i.category = '카드' AND (s.upgrade = 0 OR s.upgrade IS NULL) AND s.min_unit_price > 0
     GROUP BY 1,2
   )
   SELECT * FROM trade_hourly UNION ALL SELECT * FROM card_hourly ORDER BY 1,2`)).rows;
