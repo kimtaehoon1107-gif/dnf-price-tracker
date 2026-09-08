@@ -290,10 +290,18 @@ for (const event of events) {
 }
 
 // ── 요일 효과 ──────────────────────────────────────────────────
+const WEEKDAY_MIN_HISTORY_DAYS = 14;
+const WEEKDAY_MIN_TRADES = 25;
+const weekdayEligibleSql = `
+  SELECT t.item_id, i.category
+  FROM trades t JOIN items i USING (item_id)
+  WHERE i.category <> '카드'
+  GROUP BY t.item_id, i.category
+  HAVING MAX(sold_date) - MIN(sold_date) > make_interval(days => $1::int)
+     AND COUNT(*) >= $2`;
+
 const weekday = (await query<{ dow: string; k: number; n: number; ret: number; se: number; vol: number }>(`
-  WITH span AS (SELECT t.item_id FROM trades t JOIN items i USING (item_id)
-    WHERE i.category <> '카드' GROUP BY t.item_id
-    HAVING MAX(sold_date)-MIN(sold_date) > interval '14 days' AND COUNT(*)>=25),
+  WITH span AS (${weekdayEligibleSql}),
   d AS (SELECT t.item_id,(t.sold_date AT TIME ZONE 'Asia/Seoul')::date dd,
     SUM(t.unit_price::numeric*t.count)/SUM(t.count) vwap, SUM(t.count)::int qty
     FROM trades t JOIN span s USING (item_id)
@@ -305,7 +313,34 @@ const weekday = (await query<{ dow: string; k: number; n: number; ret: number; s
     FROM d JOIN base b USING (item_id) WHERE b.m>0 AND d.vwap>0)
   SELECT to_char(dd,'Dy') dow, EXTRACT(isodow FROM dd)::int k, COUNT(*)::int n,
     (AVG(lr)*100)::float8 ret, (STDDEV(lr)/SQRT(COUNT(*))*100)::float8 se, AVG(rq)::float8 vol
-  FROM norm GROUP BY 1,2 ORDER BY 2`)).rows;
+  FROM norm GROUP BY 1,2 ORDER BY 2`, [WEEKDAY_MIN_HISTORY_DAYS, WEEKDAY_MIN_TRADES])).rows;
+
+const weekdaySampleDb = (await query<{
+  item_count: number; item_days: number; span_days: number;
+  first_day: string | null; last_day: string | null; categories: Record<string, number>;
+}>(`
+  WITH span AS (${weekdayEligibleSql}),
+  d AS (
+    SELECT t.item_id, (t.sold_date AT TIME ZONE 'Asia/Seoul')::date dd
+    FROM trades t JOIN span s USING (item_id)
+    WHERE (t.sold_date AT TIME ZONE 'Asia/Seoul')::date
+          < (now() AT TIME ZONE 'Asia/Seoul')::date
+    GROUP BY 1,2
+  ), category_counts AS (
+    SELECT category, COUNT(*)::int n FROM span GROUP BY category
+  )
+  SELECT (SELECT COUNT(*)::int FROM span) item_count,
+         (SELECT COUNT(*)::int FROM d) item_days,
+         COALESCE((SELECT MAX(dd) - MIN(dd) + 1 FROM d), 0)::int span_days,
+         (SELECT to_char(MIN(dd), 'YYYY-MM-DD') FROM d) first_day,
+         (SELECT to_char(MAX(dd), 'YYYY-MM-DD') FROM d) last_day,
+         COALESCE((SELECT jsonb_object_agg(category, n) FROM category_counts), '{}'::jsonb) categories`,
+  [WEEKDAY_MIN_HISTORY_DAYS, WEEKDAY_MIN_TRADES])).rows[0];
+const weekdaySample = {
+  ...weekdaySampleDb,
+  minHistoryDays: WEEKDAY_MIN_HISTORY_DAYS,
+  minTrades: WEEKDAY_MIN_TRADES,
+};
 
 // 예측에 쓸 공통 요일 계수 (주간 평균을 0으로 맞춘 로그 편차).
 // 아이템 하나하나는 표본이 얇아 자기 요일 효과를 못 추정하므로 전체에서 빌려 쓴다.
@@ -368,7 +403,7 @@ const meta = (await query<{
          (SELECT COUNT(*)::int FROM collection_runs) runs,
          (SELECT COUNT(error)::int FROM collection_runs) errors,
          (SELECT COALESCE(SUM(qty_sold),0)::int FROM listing_deltas
-          WHERE reason <> 'expired') depletion_qty`)).rows[0];
+          WHERE reason <> 'expired' AND observed_at > now() - interval '90 days') depletion_qty`)).rows[0];
 
 const health = (await query<{
   checks24: number; global_uptime24: number | null;
@@ -400,7 +435,7 @@ const withMeta = items.map((it) => {
 
 writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
   builtAt: new Date().toISOString(),
-  meta, health, weekday, items: withMeta, legendary,
+  meta, health, weekday, weekdaySample, items: withMeta, legendary,
   margin: {
     pkg: pkg?.vwap ?? null, pkgN: pkg?.n ?? 0, parts, partsComplete,
     partsSum: parts.reduce((s, r) => s + r.vwap, 0), fee: 0.03,

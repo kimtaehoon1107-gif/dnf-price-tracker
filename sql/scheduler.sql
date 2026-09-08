@@ -68,6 +68,24 @@ SELECT cron.schedule('dnf-pages-dispatch', '5 * * * *', $$
   );
 $$);
 
+-- 수집 실행 이력은 재시작 스케줄 복원과 최근 상태 진단에만 쓴다.
+-- 원본 체결 이력은 건드리지 않고 30일이 지난 운영 로그만 정리한다.
+SELECT cron.unschedule('dnf-runs-prune')
+WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'dnf-runs-prune');
+
+SELECT cron.schedule('dnf-runs-prune', '23 4 * * *', $$
+  DELETE FROM collection_runs WHERE started_at < now() - interval '30 days';
+$$);
+
+-- 매물 소진 화면은 최근 7일만 사용한다. 여유 있게 90일을 보존하되,
+-- 카드 호가 시계열 원본인 listing_snapshots는 정리하지 않는다.
+SELECT cron.unschedule('dnf-deltas-prune')
+WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'dnf-deltas-prune');
+
+SELECT cron.schedule('dnf-deltas-prune', '29 4 * * *', $$
+  DELETE FROM listing_deltas WHERE observed_at < now() - interval '90 days';
+$$);
+
 -- 점검용
 --   SELECT jobid, jobname, schedule, active FROM cron.job;
 --   SELECT status, return_message, start_time FROM cron.job_run_details

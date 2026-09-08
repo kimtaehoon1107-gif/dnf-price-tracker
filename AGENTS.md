@@ -141,6 +141,8 @@ node --env-file=.env --no-warnings web/build.ts   # 사이트 빌드
 | `dnf-events-dispatch` | 목요일 01:30 UTC | 공식 이벤트 동기화 |
 | `dnf-pages-dispatch` | 매시 5분 | 최신 DB로 정적 사이트 빌드·배포 |
 | `dnf-health-prune` | 매일 04:17 | `collection_health` 90일 초과분 정리 |
+| `dnf-runs-prune` | 매일 04:23 | `collection_runs` 30일 초과분 정리 |
+| `dnf-deltas-prune` | 매일 04:29 | `listing_deltas` 90일 초과분 정리 |
 
 감시견 동작:
 - **기록** — 매 점검마다 전역 공백과 각 아이템의 주기 대비 지연을 `collection_health`에 남긴다. 아이템은 자기 폴링 주기의 5배를 넘기면 stale이다
