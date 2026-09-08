@@ -1,6 +1,7 @@
-// 수집기 생존 확인. 마지막 성공 수집이 10분보다 오래됐으면 실패 코드로 끝낸다.
+// 전역·개별 수집과 시간봉 집계를 따로 확인하고 지연 시 실패 코드로 끝낸다.
 
 import { query, pool } from '../src/db.ts';
+import { candleFreshness } from '../src/candle-check.ts';
 
 const { rows } = await query<{
   finished_at: Date;
@@ -41,6 +42,15 @@ const stale = (await query<{ item_name: string }>(`
 if (stale.length) {
   console.error(`⚠ 개별 수집 지연 ${stale.length}종: ${stale.map((i) => i.item_name).join(', ')}`);
   unhealthy = true;
+}
+const aggregate = (await query<{ refreshed_at: Date | null }>(
+  'SELECT refreshed_at FROM candle_pipeline_state WHERE singleton')).rows[0];
+const freshness = candleFreshness(aggregate?.refreshed_at ?? null);
+if (freshness.stale) {
+  console.error(`⚠ 시간봉 집계 지연: ${freshness.ageMinutes?.toFixed(1) ?? '기록 없음'}분 (기준 ${freshness.maxAgeMinutes}분)`);
+  unhealthy = true;
+} else {
+  console.log(`시간봉 마지막 집계 ${freshness.ageMinutes!.toFixed(1)}분 전`);
 }
 await pool.end();
 if (unhealthy) process.exitCode = 1;

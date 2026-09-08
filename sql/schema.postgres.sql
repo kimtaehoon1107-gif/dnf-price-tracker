@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS candle_pipeline_state (
   raw_from TIMESTAMPTZ NOT NULL,
   refreshed_at TIMESTAMPTZ
 );
+ALTER TABLE candle_pipeline_state ADD COLUMN IF NOT EXISTS raw_max_id BIGINT;
 INSERT INTO candle_pipeline_state (raw_from)
 SELECT COALESCE(date_trunc('hour', MIN(sold_date)) + interval '1 hour',
                 date_trunc('hour', now() - interval '35 days')) FROM trades
@@ -86,8 +87,13 @@ AS $$
 DECLARE
   affected INTEGER;
   v_from TIMESTAMPTZ;
+  v_raw_max_id BIGINT;
 BEGIN
   PERFORM pg_advisory_xact_lock(73190421);
+  -- 진행 중인 INSERT의 커밋을 기다린 뒤 경계를 잡는다. 새 INSERT의 ID 발급도 잠시 막아
+  -- 집계 전에 ID만 받은 미커밋 체결이 이후 대조에 섞이지 않게 한다.
+  LOCK TABLE trades IN SHARE MODE;
+  SELECT COALESCE(MAX(id), 0) INTO v_raw_max_id FROM trades;
   SELECT GREATEST(raw_from, COALESCE(date_trunc('hour', p_from), raw_from))
     INTO v_from FROM candle_pipeline_state WHERE singleton;
   -- 최근 48시간 밖의 백필도 반영한다. 보존 중인 원본은 현재 수만 건 규모다.
@@ -121,7 +127,7 @@ BEGIN
 
   GET DIAGNOSTICS affected = ROW_COUNT;
   IF p_from IS NULL THEN
-    UPDATE candle_pipeline_state SET refreshed_at = transaction_timestamp() WHERE singleton;
+    UPDATE candle_pipeline_state SET refreshed_at = clock_timestamp(), raw_max_id = v_raw_max_id WHERE singleton;
   END IF;
   RETURN affected;
 END;

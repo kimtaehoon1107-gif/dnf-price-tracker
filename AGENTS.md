@@ -144,6 +144,7 @@ node --env-file=.env --no-warnings web/build.ts   # 사이트 빌드
 | `dnf-collect-watchdog` | `*/5` | 수집 공백 감시 · 자가복구 · 이슈 알림 |
 | `dnf-events-dispatch` | 목요일 01:30 UTC | 공식 이벤트 동기화 |
 | `dnf-candles-refresh` | 매시 2분 | 보존 중인 원본 전체를 시간봉으로 upsert (오래된 백필 포함) |
+| `dnf-candles-watchdog` | `*/5` | 마지막 전체 집계가 90분을 넘으면 별도 Issue 알림 (쿨다운 6시간) |
 | `dnf-pages-dispatch` | 매시 5분 | 최신 DB로 정적 사이트 빌드·배포 |
 | `dnf-health-prune` | 매일 04:17 | `collection_health` 90일 초과분 정리 |
 | `dnf-runs-prune` | 매일 04:23 | `collection_runs` 7일 초과분 정리 |
@@ -172,6 +173,17 @@ FROM collection_health WHERE checked_at > now() - interval '24 hours';
 빌드는 원본 대조에 실패하면 배포를 중단한다. 수집·집계·검사 시각은 분석 화면에서 구분한다.
 매물 400개 응답의 경계 가격은 소진 판정을 보류하며, 재관측된 매물의 과거 소진은
 `listing_deltas.invalidated_at`으로 원본을 보존한 채 집계에서 제외한다.
+
+2026-09-09 후속 수정: `withItemLock()`이 API 조회부터 결과·실패 기록까지 같은 아이템을
+Postgres 세션 advisory lock으로 직렬화한다. 잠금과 모든 조회·트랜잭션은 같은 연결을 쓴다.
+`npm run test:locks`는 운영 행을 변경하지 않고 실제 연결 간 대기·실패 후 해제를 검증한다.
+`sql/candle-watchdog.sql`은 수집과 별도로 집계 지연을 감시한다. 90분 초과 또는 집계 기록
+누락이면 `npm run health`가 실패하고, 빌드는 과거 정합성이 맞아도 새 분석 배포를 중단한다.
+분석 화면도 열어 둔 동안 매분 집계 시각의 경과를 다시 확인한다.
+집계는 원본 INSERT가 끝날 때까지 기다리는 짧은 SHARE 잠금 안에서 최대 체결 ID를
+`raw_max_id`에 기록한다. 체결 ID는 DB 기본 시퀀스(CACHE 1)로만 발급한다.
+대조는 이 ID까지의 원본을 쓰며, 이후에 들어온 과거 체결은 `pendingTrades`·`pendingBars`로
+공개한다. 수집 트랜잭션 시작 시각인 `ingested_at`만으로는 커밋 전후를 가를 수 없다.
 
 ### 데이터
 

@@ -279,14 +279,23 @@ fetch('data/summary.json').then(r => {
   const time = (value) => value ? new Date(value).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) + ' KST' : '기록 없음';
   const q = D.quality;
   const last = D.collection?.last_success;
-  const delayed = !last || Date.now() - Date.parse(last) > 20 * 60000;
   const stale = D.collection?.stale ?? [];
-  document.getElementById('pipeline-status').textContent =
-    `마지막 성공 수집: ${time(last)} · ${delayed ? '수집 상태 확인 필요' : '최근 성공 기록 있음'}` +
-    ` · 페이지 생성 당시 개별 지연 ${stale.length}종${stale.length ? ' (' + stale.join(', ') + ')' : ''}. ` +
-    `마지막 전체 집계: ${time(q?.refreshedAt)}. ` +
-    (q ? `원본 대조 ${q.mismatches === 0 ? '통과' : '불일치'}: ${fmt(q.bars)}봉, ${time(q.from)}부터 ${time(q.through)} 직전까지. ` +
-      `검사 시각: ${time(q.checkedAt)}. 원본이 일부 삭제된 이전 구간은 대조 대상이 아닙니다.` : '원본 대조 기록 없음.');
+  function renderPipelineStatus() {
+    const delayed = !last || Date.now() - Date.parse(last) > 20 * 60000;
+    const aggregateAge = q?.refreshedAt ? (Date.now() - Date.parse(q.refreshedAt)) / 60000 : NaN;
+    const aggregateStale = !Number.isFinite(aggregateAge) || aggregateAge > (q?.maxAgeMinutes ?? 90);
+    document.getElementById('pipeline-status').textContent =
+      (aggregateStale ? '오래된 분석 또는 집계 기록 없음 — 새로고침해 최신 상태를 확인하세요. ' : '') +
+      `마지막 성공 수집: ${time(last)} · ${delayed ? '수집 상태 확인 필요' : '최근 성공 기록 있음'}` +
+      ` · 페이지 생성 당시 개별 지연 ${stale.length}종${stale.length ? ' (' + stale.join(', ') + ')' : ''}. ` +
+      `마지막 전체 집계: ${time(q?.refreshedAt)} (지연 기준 ${q?.maxAgeMinutes ?? 90}분). ` +
+      (q?.pendingTrades ? `집계 이후 들어온 과거 체결 ${fmt(q.pendingTrades)}건·${fmt(q.pendingBars)}봉은 다음 집계 대기 중입니다. ` : '') +
+      (q ? `원본 대조 ${q.mismatches === 0 ? '통과' : '불일치'}: ${fmt(q.bars)}봉, ${time(q.from)}부터 ${time(q.through)} 직전까지. ` +
+        `검사 시각: ${time(q.checkedAt)}. 마지막 집계에 포함된 원본을 대조하며, 원본이 일부 삭제된 이전 구간은 대상이 아닙니다.` : '원본 대조 기록 없음.');
+  }
+  renderPipelineStatus();
+  // 페이지를 오래 열어 두어도 과거 검사 통과를 현재의 신선함으로 오해하지 않게 한다.
+  setInterval(renderPipelineStatus, 60000);
 
   // ── 01 분산비 ──
   const rw = D.randomWalk;

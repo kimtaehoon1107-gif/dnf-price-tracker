@@ -31,8 +31,8 @@ export const query = <T extends pg.QueryResultRow = pg.QueryResultRow>(
 ) => pool.query<T>(text, params);
 
 /** 트랜잭션. 실패하면 통째로 롤백한다 — 수집 도중 죽어도 반쪽 데이터가 남지 않는다. */
-export async function tx<T>(fn: (c: pg.PoolClient) => Promise<T>): Promise<T> {
-  const client = await pool.connect();
+export async function tx<T>(fn: (c: pg.PoolClient) => Promise<T>, borrowed?: pg.PoolClient): Promise<T> {
+  const client = borrowed ?? await pool.connect();
   try {
     await client.query('BEGIN');
     const out = await fn(client);
@@ -42,7 +42,31 @@ export async function tx<T>(fn: (c: pg.PoolClient) => Promise<T>): Promise<T> {
     await client.query('ROLLBACK').catch(() => {});
     throw e;
   } finally {
-    client.release();
+    if (!borrowed) client.release();
+  }
+}
+
+/** API 조회부터 저장까지 같은 아이템을 직렬화한다. 대기자도 연결 하나만 사용한다. */
+export async function withItemLock<T>(itemId: string, fn: (client: pg.PoolClient) => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  let locked = false, destroy = false;
+  try {
+    await client.query('SELECT pg_advisory_lock(731905, hashtext($1))', [itemId]);
+    locked = true;
+    return await fn(client);
+  } finally {
+    if (locked) {
+      try {
+        const result = await client.query('SELECT pg_advisory_unlock(731905, hashtext($1)) AS unlocked', [itemId]);
+        destroy = !result.rows[0].unlocked;
+      } catch {
+        // 잠금 해제를 확인하지 못한 세션을 풀에 돌려주면 다음 수집을 영구 차단할 수 있다.
+        destroy = true;
+      }
+    } else {
+      destroy = true;
+    }
+    client.release(destroy);
   }
 }
 

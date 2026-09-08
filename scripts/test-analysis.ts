@@ -37,6 +37,7 @@ async function render(rows: ReturnType<typeof item>[], forecasts: unknown[] = []
       return nodes.get(id);
     } },
     getComputedStyle: () => ({ getPropertyValue: () => '#123456' }),
+    setInterval: () => 0,
     console: { error: (error: unknown) => { throw error; } },
   });
   return (id: string) => nodes.get(id)!.textContent + nodes.get(id)!.innerHTML;
@@ -76,4 +77,12 @@ assert.match(pipeline('built'), /페이지 생성/);
 assert.doesNotMatch(pipeline('qty-limit'), /최근 7일|123개/);
 assert.match(pipeline('qty-limit'), /합계는 표시하지 않습니다/);
 assert.match(empty('pipeline-status'), /수집 상태 확인 필요/);
+assert.match(empty('pipeline-status'), /오래된 분석 또는 집계 기록 없음/);
+const old = await render([], [], { quality: { refreshedAt: new Date(Date.now()-91*60000).toISOString(),
+  maxAgeMinutes: 90, mismatches: 0, bars: 5 } });
+assert.match(old('pipeline-status'), /오래된 분석/);
+const fresh = await render([], [], { quality: { refreshedAt: new Date().toISOString(),
+  maxAgeMinutes: 90, mismatches: 0, bars: 5, pendingTrades: 7, pendingBars: 1 } });
+assert.doesNotMatch(fresh('pipeline-status'), /오래된 분석/);
+assert.match(fresh('pipeline-status'), /과거 체결 7건·1봉은 다음 집계 대기/);
 console.log('분석 표시 테스트 통과');

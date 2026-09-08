@@ -7,7 +7,8 @@
 // 쓰기는 전부 한 트랜잭션 안에서 한다. 중간에 죽어도 반쪽 데이터가 남지 않는다.
 
 import { getSold, getAuction, kstToIso } from './api.ts';
-import { query, tx, nowIso, quantile } from './db.ts';
+import { withItemLock, tx, nowIso, quantile } from './db.ts';
+import type { PoolClient, QueryResultRow } from 'pg';
 import { duplicateSequences, isSaturated, selectCardListings } from './market-logic.ts';
 
 export interface CollectResult {
@@ -28,6 +29,12 @@ export async function collectItem(
   soldLimit = 100,
   source: CollectionSource = 'local',
 ): Promise<CollectResult> {
+  return withItemLock(itemId, (client) => collectLocked(client, itemId, soldLimit, source));
+}
+
+async function collectLocked(client: PoolClient, itemId: string, soldLimit: number,
+  source: CollectionSource): Promise<CollectResult> {
+  const query = <T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => client.query<T>(text, params);
   const startedAt = nowIso();
   const context = await query<{ category: string | null; upgrade_max: number | null; t: Date | null }>(`
     SELECT i.category,
@@ -222,7 +229,7 @@ export async function collectItem(
       }
 
       return ins.rowCount ?? 0;
-    });
+    }, client);
 
     await query(`
       UPDATE collection_runs SET finished_at = $1, sold_rows = $2, sold_new = $3, sold_span_min = $4,

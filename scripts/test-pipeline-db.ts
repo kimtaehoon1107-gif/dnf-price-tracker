@@ -36,6 +36,20 @@ try {
     SELECT pg_temp.refresh_candles_1h();`);
   assert.equal((await client.query(`SELECT vwap::float8 AS vwap FROM pg_temp.candles_1h WHERE item_id='backfill'`)).rows[0].vwap, 400);
   assert.equal((await checkCandles(client)).mismatches, 0);
+  // 집계 뒤에 들어온 과거 체결은 다음 집계 대기다. 기존 봉의 손상은 여전히 잡아야 한다.
+  await client.query(`INSERT INTO pg_temp.trades VALUES
+    (10,'backfill',date_trunc('hour',now()-interval '29 days')+interval '20 minutes',900,1),
+    (11,'pending-new',date_trunc('hour',now()-interval '2 days'),250,1);`);
+  const pending = await checkCandles(client);
+  assert.equal(pending.mismatches, 0);
+  assert.equal(pending.pendingTrades, 2);
+  assert.equal(pending.pendingBars, 2);
+  await client.query(`UPDATE pg_temp.candles_1h SET n=1 WHERE item_id='backfill'`);
+  assert.equal((await checkCandles(client)).mismatches, 1);
+  await client.query('SELECT pg_temp.refresh_candles_1h()');
+  assert.equal((await checkCandles(client)).mismatches, 0);
+  assert.equal((await checkCandles(client)).pendingTrades, 0);
+  assert.equal((await client.query(`SELECT n FROM pg_temp.candles_1h WHERE item_id='backfill'`)).rows[0].n, 3);
   // 기존 불완전한 경계는 보호하고, 새 종목의 그 이전 백필은 따로 집계한다.
   await client.query(`INSERT INTO pg_temp.candles_1h
     (item_id,hour,o,h,l,c,vwap,qty,n) VALUES
@@ -64,7 +78,7 @@ try {
   await client.query(`INSERT INTO pg_temp.trades VALUES (7,'invalid',now()-interval '3 days',100,0)`);
   await assert.rejects(client.query('SELECT pg_temp.prune_aggregated_trades()'));
   await client.query('ROLLBACK TO SAVEPOINT failed_refresh');
-  assert.equal((await client.query(`SELECT COUNT(*)::int AS n FROM pg_temp.trades WHERE item_id='backfill'`)).rows[0].n, 2);
+  assert.equal((await client.query(`SELECT COUNT(*)::int AS n FROM pg_temp.trades WHERE item_id='backfill'`)).rows[0].n, 3);
 
   await client.query(`CREATE TEMP TABLE items(item_id text,tracked bool,poll_interval_sec int);
     CREATE TEMP TABLE collection_runs(item_id text,finished_at timestamptz,error text);
@@ -101,6 +115,31 @@ try {
   assert.deepEqual(requests, { recover: 1, alert: 1 });
   await client.query(`UPDATE pg_temp.collection_runs SET finished_at=now();SELECT pg_temp.audit_watchdog()`);
   assert.equal((await client.query(`SELECT COUNT(*)::int AS n FROM pg_temp.collection_health WHERE action='ok'`)).rows[0].n, 1);
+  await client.query('TRUNCATE pg_temp.audit_http');
+  let candleWatch = readFileSync('sql/candle-watchdog.sql', 'utf8').split('SELECT cron.unschedule')[0];
+  for (const name of ['candle_health', 'candle_pipeline_state', 'check_candle_health']) {
+    candleWatch = candleWatch.replace(new RegExp(`\\b${name}\\b`, 'g'), `pg_temp.${name}`);
+  }
+  candleWatch = candleWatch.replaceAll('net.http_post', 'pg_temp.audit_http_post')
+    .replace(/SELECT decrypted_secret INTO v_token\s+FROM vault\.decrypted_secrets WHERE name='gh_dispatch_token';/, "v_token := 'fixture';");
+  assert(!candleWatch.includes('vault.') && !candleWatch.includes('net.http_post'));
+  await client.query(candleWatch);
+  await client.query(`UPDATE pg_temp.candle_pipeline_state SET refreshed_at=now()-interval '90 minutes';
+    SELECT pg_temp.check_candle_health();`);
+  assert.equal((await client.query('SELECT COUNT(*)::int AS n FROM pg_temp.audit_http')).rows[0].n, 0);
+  await client.query(`UPDATE pg_temp.candle_pipeline_state SET refreshed_at=now()-interval '90 minutes 1 second';
+    SELECT pg_temp.check_candle_health();SELECT pg_temp.check_candle_health();`);
+  assert.equal((await client.query('SELECT COUNT(*)::int AS n FROM pg_temp.audit_http')).rows[0].n, 1);
+  const staleQuality = await checkCandles(client);
+  assert.equal(staleQuality.mismatches, 0);
+  assert.equal(staleQuality.stale, true, '과거 정합성이 통과해도 집계 지연을 감지해야 한다.');
+  await client.query(`UPDATE pg_temp.candle_health SET checked_at=checked_at-interval '6 hours';
+    UPDATE pg_temp.candle_pipeline_state SET refreshed_at=NULL;
+    SELECT pg_temp.check_candle_health();`);
+  assert.equal((await client.query('SELECT COUNT(*)::int AS n FROM pg_temp.audit_http')).rows[0].n, 2);
+  await client.query(`UPDATE pg_temp.candle_pipeline_state SET refreshed_at=now();SELECT pg_temp.check_candle_health()`);
+  assert.equal((await client.query('SELECT COUNT(*)::int AS n FROM pg_temp.candle_health WHERE NOT stale')).rows[0].n, 2);
+  assert.equal((await client.query('SELECT COUNT(*)::int AS n FROM pg_temp.audit_http')).rows[0].n, 2);
   console.log('집계 경계·백필·삭제 보호·읽기 전용 검사·부분 장애·쿨다운 테스트 통과 (운영 변경 없음)');
 } finally {
   await client.query('ROLLBACK');

@@ -28,7 +28,8 @@ for (const count of [399, 400]) {
     return { rows: [], rowCount: 0 };
   };
   const modules: Record<string, vm.Module> = {
-    './db.ts': synthetic({ query, tx: async (fn: any) => fn({ query }),
+    './db.ts': synthetic({ withItemLock: async (_id: string, fn: any) => fn({ query }),
+      tx: async (fn: any, borrowed: unknown) => { assert(borrowed); return fn({ query }); },
       nowIso: () => new Date().toISOString(), quantile: (a: number[]) => a[0] ?? null }, context),
     './api.ts': synthetic({ getSold: async () => [], getAuction: async () =>
       Array.from({ length: count }, (_, i) => ({ auctionNo: i + 1, unitPrice: 50000, count: 1,

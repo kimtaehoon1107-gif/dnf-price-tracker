@@ -19,6 +19,7 @@ try {
 await query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
 const quality = await checkCandles(client);
 if (quality.mismatches) throw new Error(`시간봉 정합성 불일치 ${quality.mismatches}봉 — 새 분석 배포를 중단합니다.`);
+if (quality.stale) throw new Error(`시간봉 집계가 ${quality.maxAgeMinutes}분을 초과해 지연됐습니다 — 새 분석 배포를 중단합니다.`);
 const collection = (await query<{ last_success: Date | null; stale: string[] }>(`
   WITH last AS (
     SELECT i.item_name, i.poll_interval_sec, MAX(r.finished_at) AS t
