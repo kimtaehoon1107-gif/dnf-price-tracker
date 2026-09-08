@@ -11,6 +11,7 @@
 
 import { collectItem, type CollectionSource } from './collect.ts';
 import { query, pool } from './db.ts';
+import { isTooFast } from './market-logic.ts';
 
 interface Item {
   item_id: string;
@@ -72,8 +73,7 @@ async function tick(item: Item, verbose = false): Promise<boolean> {
     let saturationNote = '';
     // 포화 자체는 수집 공백 뒤에도 켜진다. 100건이 현재 폴링 주기의 1.5배도
     // 덮지 못할 때만 정상 주기가 실제 거래 속도보다 느리다고 판단한다.
-    const tooFast = r.saturated && r.spanMin > 0
-      && r.spanMin < item.poll_interval_sec / 60 * 1.5;
+    const tooFast = isTooFast(r.saturated, r.spanMin, item.poll_interval_sec);
     if (tooFast) {
       const shorter = shorterPoll(item.poll_interval_sec);
       if (shorter < item.poll_interval_sec) {

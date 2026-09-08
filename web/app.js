@@ -1,5 +1,7 @@
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
+import { askGap } from './metrics.js';
+
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
   ? '-' : Number(n).toLocaleString('ko-KR', { maximumFractionDigits: d });
 const won = (n) => !isFinite(n) || n === null ? '-'
@@ -402,13 +404,6 @@ async function boot() {
   render();
   addEventListener('hashchange', render);
 }
-
-// 호가–체결 갭 — 지금 최저 호가가 최근 24시간 VWAP보다 얼마나 위/아래인가.
-// 분모는 상세 화면 askGap 차트와 같은 24h VWAP을 쓴다(정의를 갈라놓으면 두 화면이 어긋난다).
-// 카드는 현재가 자체가 호가라 갭이 정의되지 않는다.
-const askGap = (it) => it.price_basis === 'trade' && it.min_ask > 0 && it.vwap24 > 0
-  ? (it.min_ask / it.vwap24 - 1) * 100
-  : null;
 
 const enrich = (it) => ({
   ...it,

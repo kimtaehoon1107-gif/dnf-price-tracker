@@ -8,7 +8,8 @@
     "node": ">=24"
   },
   "scripts": {
-    "test": "node --no-warnings scripts/test-forecast.ts",
+    "test": "node --no-warnings scripts/test.ts",
+    "test:candles": "node --env-file=.env --no-warnings scripts/test-candles.ts",
     "db:check": "node --env-file=.env --no-warnings scripts/db-check.ts",
     "init": "node --env-file=.env --no-warnings scripts/init-db.ts",
     "migrate": "node --env-file=.env --experimental-sqlite --no-warnings scripts/migrate-sqlite.ts",

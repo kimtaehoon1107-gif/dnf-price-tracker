@@ -8,6 +8,7 @@
 
 import { getSold, getAuction, kstToIso } from './api.ts';
 import { query, tx, nowIso, quantile } from './db.ts';
+import { duplicateSequences, isSaturated, selectCardListings } from './market-logic.ts';
 
 export interface CollectResult {
   itemId: string;
@@ -56,24 +57,26 @@ export async function collectItem(
     // 포화 판정: 100건이 꽉 찼는데 가장 오래된 거래도 직전 폴링보다 최신이면
     // 응답이 이전 구간과 겹치지 않는다. 정확히 100건일 수도 있어 누락 확정은 아니지만,
     // 그보다 많았다면 초과분은 알 수 없으므로 다음 폴링부터 주기를 줄인다.
-    const saturated = sold.length >= soldLimit && prevRun !== null && soldTimes[0] > prevRun;
+    const saturated = isSaturated(sold.length, soldLimit, soldTimes[0], prevRun);
 
     // 응답 안의 동일키에 순번을 매긴다. 같은 초·같은 가격·같은 수량의 별개 체결이
     // 실제로 존재하므로(대량 매수), 순번 없이는 그만큼 통째로 유실된다.
-    const seqOf = new Map<string, number>();
+    const dupSequences = duplicateSequences(sold.map((row) => ({
+      soldDate: kstToIso(row.soldDate),
+      unitPrice: row.unitPrice,
+      count: row.count,
+      reinforce: row.reinforce,
+    })));
     const T = {
       soldDate: [] as string[], unitPrice: [] as number[], count: [] as number[],
       price: [] as number[], reinforce: [] as number[], refine: [] as number[],
       amp: [] as (string | null)[], dupSeq: [] as number[],
     };
-    for (const r of sold) {
+    for (const [index, r] of sold.entries()) {
       const soldDate = kstToIso(r.soldDate);
-      const key = `${soldDate}|${r.unitPrice}|${r.count}|${r.reinforce}`;
-      const seq = seqOf.get(key) ?? 0;
-      seqOf.set(key, seq + 1);
       T.soldDate.push(soldDate); T.unitPrice.push(r.unitPrice); T.count.push(r.count);
       T.price.push(r.price); T.reinforce.push(r.reinforce); T.refine.push(r.refine);
-      T.amp.push(r.amplificationName); T.dupSeq.push(seq);
+      T.amp.push(r.amplificationName); T.dupSeq.push(dupSequences[index]);
     }
 
     // ── 2. 현재 매물 ────────────────────────────────────────────
@@ -85,9 +88,7 @@ export async function collectItem(
       throw new Error(`카드 최대 업그레이드 단계 불일치: ${observedUpgradeMaxes.join(', ')}`);
     }
     const cardUpgradeMax = isCard ? (observedUpgradeMaxes[0] ?? context.rows[0]?.upgrade_max ?? null) : null;
-    const listings = isCard
-      ? auction.filter((r) => r.upgrade === 0 || (cardUpgradeMax !== null && r.upgrade === cardUpgradeMax))
-      : auction;
+    const listings = isCard ? selectCardListings(auction, cardUpgradeMax) : auction;
     const capped = auction.length >= 400;
     const observedAt = nowIso();
 
