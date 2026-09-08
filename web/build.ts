@@ -18,12 +18,13 @@ const items = (await query<{
   item_id: string; item_name: string; item_rarity: string; item_type_detail: string;
   role: string; category: string; slot: string | null; job_role: string | null;
   is_final: boolean; final_since: string | null; key_stat: string | null;
+  price_basis: 'trade' | 'ask0';
   trades: number; span_days: number; last_price: number;
   vwap24: number | null; vwap_prev: number | null; api_qty24: number;
   listings: number; min_ask: number | null; median_ask: number | null;
 }>(`
-  WITH agg AS (
-    SELECT item_id,
+  WITH trade_agg AS (
+    SELECT t.item_id,
            COUNT(*)::int AS trades,
            (EXTRACT(EPOCH FROM MAX(sold_date)-MIN(sold_date))/86400)::float8 AS span_days,
            (SUM(unit_price::numeric*count) FILTER (WHERE sold_date > now()-interval '24 hours')
@@ -31,20 +32,42 @@ const items = (await query<{
            (SUM(unit_price::numeric*count) FILTER (WHERE sold_date BETWEEN now()-interval '48 hours' AND now()-interval '24 hours')
              / NULLIF(SUM(count) FILTER (WHERE sold_date BETWEEN now()-interval '48 hours' AND now()-interval '24 hours'),0))::float8 AS vwap_prev,
            COALESCE(SUM(count) FILTER (WHERE sold_date > now()-interval '24 hours'),0)::int AS api_qty24
-    FROM trades GROUP BY item_id
+    FROM trades t JOIN items i USING (item_id)
+    WHERE i.category <> '카드'
+    GROUP BY t.item_id
+  ),
+  card_agg AS (
+    SELECT s.item_id,
+           COUNT(*)::int AS trades,
+           (EXTRACT(EPOCH FROM MAX(s.captured_at)-MIN(s.captured_at))/86400)::float8 AS span_days,
+           AVG(s.min_unit_price) FILTER (WHERE s.captured_at > now()-interval '24 hours')::float8 AS vwap24,
+           AVG(s.min_unit_price) FILTER (WHERE s.captured_at BETWEEN now()-interval '48 hours' AND now()-interval '24 hours')::float8 AS vwap_prev,
+           0::int AS api_qty24
+    FROM listing_snapshots s JOIN items i USING (item_id)
+    WHERE i.category = '카드' AND s.upgrade = 0 AND s.min_unit_price > 0
+    GROUP BY s.item_id
+  ),
+  agg AS (
+    SELECT * FROM trade_agg UNION ALL SELECT * FROM card_agg
   ),
   last_snap AS (
-    SELECT DISTINCT ON (item_id) item_id, listing_count, min_unit_price, median
-    FROM listing_snapshots ORDER BY item_id, captured_at DESC
+    SELECT DISTINCT ON (s.item_id) s.item_id, s.listing_count, s.min_unit_price, s.median
+    FROM listing_snapshots s JOIN items i USING (item_id)
+    WHERE i.category <> '카드' OR s.upgrade = 0
+    ORDER BY s.item_id, s.captured_at DESC
   ),
   last_trade AS (
-    SELECT DISTINCT ON (item_id) item_id, unit_price FROM trades ORDER BY item_id, sold_date DESC, id DESC
+    SELECT DISTINCT ON (t.item_id) t.item_id, t.unit_price
+    FROM trades t JOIN items i USING (item_id)
+    WHERE i.category <> '카드'
+    ORDER BY t.item_id, t.sold_date DESC, t.id DESC
   )
   SELECT i.item_id, i.item_name, i.item_rarity, i.item_type_detail, i.role,
          COALESCE(i.category,'기타') AS category, i.slot, i.job_role,
          i.is_final, to_char(i.final_since,'YYYY-MM-DD') AS final_since, i.key_stat,
+         CASE WHEN i.category = '카드' THEN 'ask0' ELSE 'trade' END AS price_basis,
          COALESCE(a.trades,0) AS trades, COALESCE(a.span_days,0) AS span_days,
-         COALESCE(lt.unit_price,0)::float8 AS last_price,
+         COALESCE(CASE WHEN i.category = '카드' THEN ls.min_unit_price ELSE lt.unit_price END,0)::float8 AS last_price,
          a.vwap24, a.vwap_prev, COALESCE(a.api_qty24,0) AS api_qty24,
          COALESCE(ls.listing_count,0) AS listings,
          ls.min_unit_price::float8 AS min_ask, ls.median::float8 AS median_ask
@@ -58,21 +81,48 @@ const items = (await query<{
 const daily = (await query<{
   item_id: string; d: string; o: number; h: number; l: number; c: number; vwap: number; qty: number; n: number;
 }>(`
-  SELECT item_id,
+  WITH trade_daily AS (
+    SELECT t.item_id,
          to_char((sold_date AT TIME ZONE 'Asia/Seoul')::date,'YYYY-MM-DD') AS d,
          (array_agg(unit_price ORDER BY sold_date, id))[1]::float8 AS o,
          MAX(unit_price)::float8 AS h, MIN(unit_price)::float8 AS l,
          (array_agg(unit_price ORDER BY sold_date DESC, id DESC))[1]::float8 AS c,
          (SUM(unit_price::numeric*count)/SUM(count))::float8 AS vwap,
          SUM(count)::int AS qty, COUNT(*)::int AS n
-  FROM trades GROUP BY 1,2 ORDER BY 1,2`)).rows;
+    FROM trades t JOIN items i USING (item_id)
+    WHERE i.category <> '카드'
+    GROUP BY 1,2
+  ), card_daily AS (
+    SELECT s.item_id,
+           to_char((s.captured_at AT TIME ZONE 'Asia/Seoul')::date,'YYYY-MM-DD') AS d,
+           (array_agg(s.min_unit_price ORDER BY s.captured_at, s.id))[1]::float8 AS o,
+           MAX(s.min_unit_price)::float8 AS h, MIN(s.min_unit_price)::float8 AS l,
+           (array_agg(s.min_unit_price ORDER BY s.captured_at DESC, s.id DESC))[1]::float8 AS c,
+           AVG(s.min_unit_price)::float8 AS vwap, 0::int AS qty, COUNT(*)::int AS n
+    FROM listing_snapshots s JOIN items i USING (item_id)
+    WHERE i.category = '카드' AND s.upgrade = 0 AND s.min_unit_price > 0
+    GROUP BY 1,2
+  )
+  SELECT * FROM trade_daily UNION ALL SELECT * FROM card_daily ORDER BY 1,2`)).rows;
 
 const hourly = (await query<{ item_id: string; t: string; vwap: number; qty: number }>(`
-  SELECT item_id,
+  WITH trade_hourly AS (
+    SELECT t.item_id,
          to_char(date_trunc('hour', sold_date AT TIME ZONE 'UTC'),'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS t,
          (SUM(unit_price::numeric*count)/SUM(count))::float8 AS vwap, SUM(count)::int AS qty
-  FROM trades WHERE sold_date > now() - interval '7 days'
-  GROUP BY 1,2 ORDER BY 1,2`)).rows;
+    FROM trades t JOIN items i USING (item_id)
+    WHERE sold_date > now() - interval '7 days' AND i.category <> '카드'
+    GROUP BY 1,2
+  ), card_hourly AS (
+    SELECT s.item_id,
+           to_char(date_trunc('hour', s.captured_at AT TIME ZONE 'UTC'),'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS t,
+           AVG(s.min_unit_price)::float8 AS vwap, 0::int AS qty
+    FROM listing_snapshots s JOIN items i USING (item_id)
+    WHERE s.captured_at > now() - interval '7 days'
+      AND i.category = '카드' AND s.upgrade = 0 AND s.min_unit_price > 0
+    GROUP BY 1,2
+  )
+  SELECT * FROM trade_hourly UNION ALL SELECT * FROM card_hourly ORDER BY 1,2`)).rows;
 
 const askGap = (await query<{
   item_id: string; t: string; min_ask: number; vwap: number; gap: number;
@@ -82,7 +132,7 @@ const askGap = (await query<{
          s.min_unit_price::float8 AS min_ask,
          v.vwap::float8 AS vwap,
          ((s.min_unit_price::numeric / v.vwap - 1) * 100)::float8 AS gap
-  FROM listing_snapshots s
+  FROM listing_snapshots s JOIN items i USING (item_id)
   CROSS JOIN LATERAL (
     SELECT SUM(t.unit_price::numeric*t.count) / NULLIF(SUM(t.count),0) AS vwap
     FROM trades t
@@ -91,6 +141,7 @@ const askGap = (await query<{
       AND t.sold_date > s.captured_at - interval '24 hours'
   ) v
   WHERE s.captured_at > now() - interval '7 days'
+    AND i.category <> '카드'
     AND s.min_unit_price > 0 AND v.vwap > 0
   ORDER BY s.item_id, date_trunc('second', s.captured_at), s.captured_at DESC`)).rows;
 
@@ -102,17 +153,20 @@ const depletion = (await query<{
   observed_min: number; rate: number;
 }>(`
   WITH observations AS (
-    SELECT item_id, captured_at,
+    SELECT s.item_id, captured_at,
            LAG(captured_at) OVER (PARTITION BY item_id ORDER BY captured_at) AS prev_at
-    FROM listing_snapshots
+    FROM listing_snapshots s JOIN items i USING (item_id)
     WHERE captured_at > now() - interval '8 days'
+      AND (i.category <> '카드' OR s.upgrade = 0)
   ), deltas AS (
-    SELECT item_id, observed_at,
+    SELECT d.item_id, observed_at,
            COALESCE(SUM(qty_sold) FILTER (WHERE reason = 'partial'), 0)::float8 AS partial,
            COALESCE(SUM(qty_sold) FILTER (WHERE reason = 'vanished_before_expiry'), 0)::float8 AS vanished
-    FROM listing_deltas
+    FROM listing_deltas d JOIN items i USING (item_id)
+    JOIN listings l ON l.auction_no = d.auction_no
     WHERE observed_at > now() - interval '7 days'
-    GROUP BY item_id, observed_at
+      AND (i.category <> '카드' OR l.upgrade = 0)
+    GROUP BY d.item_id, observed_at
   )
   SELECT o.item_id,
          to_char(date_trunc('hour', o.captured_at AT TIME ZONE 'UTC'),
@@ -179,7 +233,8 @@ for (const event of events) {
 
 // ── 요일 효과 ──────────────────────────────────────────────────
 const weekday = (await query<{ dow: string; k: number; n: number; ret: number; se: number; vol: number }>(`
-  WITH span AS (SELECT item_id FROM trades GROUP BY item_id
+  WITH span AS (SELECT t.item_id FROM trades t JOIN items i USING (item_id)
+    WHERE i.category <> '카드' GROUP BY t.item_id
     HAVING MAX(sold_date)-MIN(sold_date) > interval '14 days' AND COUNT(*)>=25),
   d AS (SELECT t.item_id,(t.sold_date AT TIME ZONE 'Asia/Seoul')::date dd,
     SUM(t.unit_price::numeric*t.count)/SUM(t.count) vwap, SUM(t.count)::int qty
@@ -206,12 +261,12 @@ for (const it of items) {
   const d = dailyBy.get(it.item_id) ?? [];
   const complete = d.filter((x) => x.d < todayKst);
   const tradesPerDay = it.span_days > 0.5 ? it.trades / it.span_days : it.trades * 2;
-  const f = tradesPerDay >= 5
+  const f = it.price_basis === 'trade' && tradesPerDay >= 5
     ? forecast(complete.map((x) => ({ d: x.d, vwap: x.vwap })) as Point[], dowCoef, 7, todayKst)
     : null;
   if (f) forecasts.set(it.item_id, f);
   writeFileSync(`${OUT}/data/series/${it.item_id}.json`, JSON.stringify({
-    daily: d, hourly: hourlyBy.get(it.item_id) ?? [],
+    priceBasis: it.price_basis, daily: d, hourly: hourlyBy.get(it.item_id) ?? [],
     askGap: askGapBy.get(it.item_id) ?? [], depletion: depletionBy.get(it.item_id) ?? [],
     depth: depthBy.get(it.item_id) ?? [], events: eventsBy.get(it.item_id) ?? [], forecast: f,
   }));
@@ -236,7 +291,7 @@ const legendary = (await query<{
   p10: number; median: number; scanned: number; with_listings: number;
 }>(`SELECT to_char(captured_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') captured_at,
       min_unit_price, min_item_name, p10, median, scanned, with_listings
-    FROM legendary_card_floor ORDER BY captured_at DESC LIMIT 200`)).rows;
+    FROM legendary_card_floor WHERE upgrade = 0 ORDER BY captured_at DESC LIMIT 200`)).rows;
 
 // ── 수집 현황 ──────────────────────────────────────────────────
 const meta = (await query<{

@@ -39,6 +39,11 @@ export interface AuctionRow {
   unitPrice: number;
   currentPrice: number;
   averagePrice: number;
+  // 카드 매물은 같은 itemId 안에서 업그레이드 단계가 갈린다.
+  // 정확한 0업 가격만 보려면 reinforce가 아니라 이 값을 사용해야 한다.
+  upgrade?: number;
+  upgradeMax?: number;
+  fame?: number;
   // 아바타 전용. 같은 itemId라도 엠블렘 슬롯과 능력치가 달라 가격이 흩어진다.
   avatar?: { emblems?: Array<{ slotNo: number; slotColor: string }>; ability?: string };
   jobs?: Array<{ jobId: string; jobName: string }>;

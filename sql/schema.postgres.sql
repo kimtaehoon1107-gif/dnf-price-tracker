@@ -57,10 +57,16 @@ CREATE TABLE IF NOT EXISTS listings (
   reg_count     INTEGER     NOT NULL,
   cur_count     INTEGER     NOT NULL,
   reinforce     INTEGER     NOT NULL DEFAULT 0,
+  fame          INTEGER,
+  upgrade       INTEGER,
+  upgrade_max   INTEGER,
   first_seen_at TIMESTAMPTZ NOT NULL,
   last_seen_at  TIMESTAMPTZ NOT NULL,
   closed_at     TIMESTAMPTZ
 );
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS fame INTEGER;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS upgrade INTEGER;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS upgrade_max INTEGER;
 CREATE INDEX IF NOT EXISTS idx_listings_open ON listings (item_id) WHERE closed_at IS NULL;
 
 -- 매물 소진 관측 — auction-sold와 별개인 보조 활동량 신호다.
@@ -88,8 +94,12 @@ CREATE TABLE IF NOT EXISTS listing_snapshots (
   median         BIGINT,
   listing_count  INTEGER     NOT NULL,
   total_qty      INTEGER     NOT NULL,
+  upgrade        INTEGER,
   UNIQUE (item_id, captured_at)
 );
+ALTER TABLE listing_snapshots ADD COLUMN IF NOT EXISTS upgrade INTEGER;
+CREATE INDEX IF NOT EXISTS idx_snapshots_item_upgrade_time
+  ON listing_snapshots (item_id, upgrade, captured_at DESC);
 
 -- 시계열의 구멍을 찾는 유일한 수단
 CREATE TABLE IF NOT EXISTS collection_runs (
@@ -146,6 +156,15 @@ CREATE TABLE IF NOT EXISTS legendary_card_floor (
   median         BIGINT,
   scanned        INTEGER     NOT NULL,
   with_listings  INTEGER     NOT NULL,
-  total_listings INTEGER     NOT NULL
+  total_listings INTEGER     NOT NULL,
+  upgrade        INTEGER
 );
+ALTER TABLE legendary_card_floor ADD COLUMN IF NOT EXISTS upgrade INTEGER;
 CREATE INDEX IF NOT EXISTS idx_lcf_time ON legendary_card_floor (captured_at);
+
+-- 이 컬럼이 생기기 전에 수집한 카드 매물은 업그레이드 단계를 알 수 없다.
+-- 새 0업 수집과 섞이지 않도록 열린 상태만 닫고, 과거 행 자체는 보존한다.
+UPDATE listings l SET closed_at = COALESCE(l.closed_at, now())
+FROM items i
+WHERE l.item_id = i.item_id AND i.category = '카드'
+  AND l.closed_at IS NULL AND l.upgrade IS NULL;

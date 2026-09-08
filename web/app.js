@@ -17,6 +17,7 @@ const sinceDays = (d) => d ? Math.floor((Date.now() - Date.parse(d + 'T00:00:00+
 // 유동성 등급 — "이 아이템의 지표를 믿어도 되는가"를 한 글자로.
 // 표본이 얇으면 어떤 가격 지표도 신뢰할 수 없으므로 등급을 먼저 보여준다.
 function grade(it) {
+  if (it.price_basis === 'ask0') return null;
   const perDay = it.span_days > 0.5 ? it.trades / it.span_days : it.trades * 2;
   return perDay >= 60 ? 'A' : perDay >= 20 ? 'B' : perDay >= 5 ? 'C' : 'D';
 }
@@ -230,10 +231,10 @@ function isoDow(d) {
   return day || 7;
 }
 
-function eventStageStudy(stage, days) {
+function eventStageStudy(stage, days, priceBasis) {
   if (!stage.date) return { state: 'missing' };
   const today = new Date(DATA.builtAt).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
-  const complete = days.filter((x) => x.d < today && x.vwap > 0 && x.qty > 0);
+  const complete = days.filter((x) => x.d < today && x.vwap > 0 && (priceBasis === 'ask0' || x.qty > 0));
   if (!complete.length || stage.date < complete[0].d) return { state: 'before' };
   if (stage.date > today) return { state: 'scheduled' };
 
@@ -252,7 +253,7 @@ function eventStageStudy(stage, days) {
   return {
     state: 'ready',
     price: (mean(after, adjustedPrice) / mean(before, adjustedPrice) - 1) * 100,
-    qty: (mean(after, adjustedQty) / mean(before, adjustedQty) - 1) * 100,
+    qty: priceBasis === 'ask0' ? null : (mean(after, adjustedQty) / mean(before, adjustedQty) - 1) * 100,
   };
 }
 
@@ -322,7 +323,7 @@ function renderEventRail(chart, groups) {
   });
 }
 
-function eventStudyHTML(events, days) {
+function eventStudyHTML(events, days, priceBasis) {
   if (!events.length) return '<p class="event-empty">연결된 이벤트가 아직 없습니다.</p>';
   const stateText = {
     missing: '날짜 미확인', before: '수집 시작 전', scheduled: '예정', waiting: '전후 3일 대기 중',
@@ -335,9 +336,11 @@ function eventStudyHTML(events, days) {
     return `<div class="event-row" id="event-${event.id}">
       <div class="event-name"><span class="tag">${esc(eventTypeLabel(event.type))}</span>${event.related_item_ids?.length ? '' : '<span class="tag g">전체</span>'}<b>${esc(event.name)}</b>${href}</div>
       <div class="event-stages">${eventStages(event).map((stage) => {
-        const result = eventStageStudy({ date: event[stage.key] }, days);
+        const result = eventStageStudy({ date: event[stage.key] }, days, priceBasis);
         const effect = result.state === 'ready'
-          ? `요일 보정 VWAP <b class="${cls(result.price)}">${pct(result.price)}</b> · API 관측 수량 <b class="${cls(result.qty)}">${pct(result.qty)}</b>`
+          ? priceBasis === 'ask0'
+            ? `요일 보정 0업 최저호가 <b class="${cls(result.price)}">${pct(result.price)}</b>`
+            : `요일 보정 VWAP <b class="${cls(result.price)}">${pct(result.price)}</b> · API 관측 수량 <b class="${cls(result.qty)}">${pct(result.qty)}</b>`
           : stateText[result.state];
         return `<div><span>${stage.label}</span><b>${eventDate(event[stage.key])}</b><small>${effect}</small></div>`;
       }).join('')}</div>
@@ -383,7 +386,7 @@ async function boot() {
 const enrich = (it) => ({
   ...it,
   chg: it.vwap24 && it.vwap_prev ? (it.vwap24 / it.vwap_prev - 1) * 100 : null,
-  turnover: (it.vwap24 ?? it.last_price) * it.api_qty24,
+  turnover: it.price_basis === 'ask0' ? 0 : (it.vwap24 ?? it.last_price) * it.api_qty24,
   g: grade(it),
 });
 
@@ -429,7 +432,7 @@ function summaryCards() {
       <div class="sub">체결 ${fmt(m.trades)}건 · ${m.lo}~${m.hi}</div>
     </div>
     ${lg ? `<div class="card hl">
-      <div class="k">레전더리 카드 최저가</div>
+      <div class="k">레전더리 0업 카드 최저가</div>
       <div class="v">${fmt(lg.min_unit_price)}</div>
       <div class="sub">${esc(lg.min_item_name)} · ${lg.with_listings}/${lg.scanned}종 매물</div>
     </div>` : ''}
@@ -490,14 +493,14 @@ function renderList() {
       </div>
       ${rows.map((r, i) => {
         const color = css(r.chg > 0 ? '--up' : r.chg < 0 ? '--down' : '--ink-4');
-        const thin = r.api_qty24 < 5 && r.chg !== null;
+        const thin = r.price_basis === 'trade' && r.api_qty24 < 5 && r.chg !== null;
         return `<a class="row" href="#${r.item_id}">
           <div class="rank r">${i + 1}</div>
           <div class="nm">
             <img src="${r.img}" alt="" loading="lazy" width="32" height="32">
             <div class="t">
-              <b>${esc(r.item_name)}${r.is_final ? '<span class="tag fin">종결</span>' : ''}${r.slot ? `<span class="tag">${esc(r.slot)}</span>` : ''}</b>
-              <span>${esc(r.item_rarity)}${r.job_role ? ' · ' + esc(r.job_role) : ''}${r.key_stat ? ' · ' + esc(r.key_stat) : ''} · 표본 ${fmt(r.trades)} · ${r.g}등급${r.final_since ? ` · 종결 D+${sinceDays(r.final_since)}` : ''}</span>
+              <b>${esc(r.item_name)}${r.is_final ? '<span class="tag fin">종결</span>' : ''}${r.price_basis === 'ask0' ? '<span class="tag">0업</span>' : ''}${r.slot ? `<span class="tag">${esc(r.slot)}</span>` : ''}</b>
+              <span>${esc(r.item_rarity)}${r.job_role ? ' · ' + esc(r.job_role) : ''}${r.key_stat ? ' · ' + esc(r.key_stat) : ''}${r.price_basis === 'ask0' ? ` · 0업 호가 관측 ${fmt(r.trades)}` : ` · 표본 ${fmt(r.trades)} · ${r.g}등급`}${r.final_since ? ` · 종결 D+${sinceDays(r.final_since)}` : ''}</span>
             </div>
           </div>
           <div class="px">${fmt(r.last_price)}</div>
@@ -513,6 +516,7 @@ function renderList() {
       기본 정렬은 <b>24h 거래대금</b>입니다. 변동률로 정렬하면 하루 한두 건 거래된 아이템의 의미 없는 ±40%가 맨 위를 차지합니다.
       같은 이유로 24h 표본이 5개 미만인 변동률에는 <b>?</b>를 붙였습니다.<br>
       <b>등급</b>은 일평균 체결 건수입니다 — A ≥ 60건, B ≥ 20건, C ≥ 5건, D는 그 미만.
+      <b>카드</b>는 0업 최저호가만 표시하며 체결 등급을 매기지 않습니다.
       <b>종결</b>은 현재 기준 최상위 아이템이며, 패치로 교체되면 갱신됩니다.
     </p>`;
 
@@ -562,7 +566,7 @@ function renderInventory(all, cats) {
     <div class="card" style="margin-bottom:20px">
       <div class="k">${job} 종결 인챈트 풀세트</div>
       <div class="v">${fmt(total)}<small>골드</small></div>
-      <div class="sub">부위별 최저 호가 합계 · ${cards.length}종</div>
+      <div class="sub">0업 기준 부위별 최저 호가 합계 · ${cards.length}종</div>
     </div>
 
     ${SLOT_GROUPS.map(([g, slots]) => `
@@ -578,10 +582,10 @@ function renderInventory(all, cats) {
                 <div class="card-row">
                   <img src="${c.img}" alt="" loading="lazy" width="30" height="30">
                   <div class="cn">
-                    <b>${esc(c.item_name.replace(/ 카드$/, ''))}</b>
+                    <b>${esc(c.item_name.replace(/ 카드$/, ''))}<span class="tag">0업</span></b>
                     ${c.key_stat ? `<div class="ks">${esc(c.key_stat)}</div>` : ''}
-                    <div class="p">${fmt(c.min_ask || c.last_price)}
-                      <i class="${c.api_qty24 < 5 ? 'flat' : cls(c.chg)}">${pct(c.chg)}</i></div>
+                     <div class="p">${fmt(c.min_ask)}
+                       <i class="${cls(c.chg)}">${pct(c.chg)}</i></div>
                   </div>
                 </div>
               </a>`).join('');
@@ -589,7 +593,7 @@ function renderInventory(all, cats) {
         </div>
       </div>`).join('')}
 
-    <p class="hint">표시 가격은 <b>최저 호가</b>이고, 없으면 최근 체결가입니다.</p>`;
+    <p class="hint">카드 능력치와 가격은 모두 <b>0업 기준</b>입니다. 업그레이드된 매물과 단계가 확인되지 않는 체결가는 섞지 않습니다.</p>`;
 
   document.querySelectorAll('.job-sw button').forEach((el) => {
     el.onclick = () => { job = el.dataset.j; renderList(); };
@@ -602,12 +606,13 @@ function renderInventory(all, cats) {
 // ── 상세 ───────────────────────────────────────────────────────
 async function renderDetail(it) {
   const hasDepth = ['재료·소모품', '소울 결정'].includes(it.category);
+  const isZeroCard = it.price_basis === 'ask0';
   document.getElementById('view').innerHTML = `
     <a class="back" href="#">← 전체 목록</a>
     <div class="dh">
       <img src="${it.img}" alt="" width="48" height="48">
       <div>
-        <h2>${esc(it.item_name)}${it.is_final ? '<span class="tag fin">종결</span>' : ''}</h2>
+        <h2>${esc(it.item_name)}${it.is_final ? '<span class="tag fin">종결</span>' : ''}${isZeroCard ? '<span class="tag">0업</span>' : ''}</h2>
         <div class="meta">${esc(it.item_rarity)} · ${esc(it.item_type_detail)}${it.slot ? ' · ' + esc(it.slot) : ''}${it.job_role ? ' · ' + esc(it.job_role) : ''}${it.key_stat ? ' · ' + esc(it.key_stat) : ''}</div>
         ${it.final_since ? `<div class="meta">종결 지정 ${it.final_since} · <b style="color:var(--ink-2)">D+${sinceDays(it.final_since)}일차</b></div>` : ''}
       </div>
@@ -617,18 +622,24 @@ async function renderDetail(it) {
       ? '데이터 없음'
       : `${pct(it.chg)} <span style="color:var(--ink-3);font-weight:500">24시간</span>`}</div>
 
-    <div class="panel"><div class="kv">
+    <div class="panel"><div class="kv">${isZeroCard ? `
+      <div><div class="k">24h 평균 0업 최저호가</div><div class="v">${fmt(it.vwap24)}</div></div>
+      <div><div class="k">현재 0업 최저호가</div><div class="v">${fmt(it.min_ask)}</div></div>
+      <div><div class="k">0업 등록 매물</div><div class="v">${fmt(it.listings)}</div></div>
+      <div><div class="k">0업 가격 관측</div><div class="v">${fmt(it.trades)}</div></div>
+      <div><div class="k">가격 기준</div><div class="v">0업만</div></div>
+      <div><div class="k">이력</div><div class="v">${it.span_days >= 1 ? it.span_days.toFixed(1) + '일' : (it.span_days * 24).toFixed(0) + '시간'}</div></div>` : `
       <div><div class="k">24h VWAP</div><div class="v">${fmt(it.vwap24)}</div></div>
       <div><div class="k">24h API 관측 수량</div><div class="v">${fmt(it.api_qty24)}</div></div>
       <div><div class="k">최저 호가</div><div class="v">${fmt(it.min_ask)}</div></div>
       <div><div class="k">등록 매물</div><div class="v">${fmt(it.listings)}</div></div>
       <div><div class="k">표본</div><div class="v">${fmt(it.trades)} <span style="font-size:12px;color:var(--ink-3);font-weight:500">${it.g}등급</span></div></div>
-      <div><div class="k">이력</div><div class="v">${it.span_days >= 1 ? it.span_days.toFixed(1) + '일' : (it.span_days * 24).toFixed(0) + '시간'}</div></div>
+      <div><div class="k">이력</div><div class="v">${it.span_days >= 1 ? it.span_days.toFixed(1) + '일' : (it.span_days * 24).toFixed(0) + '시간'}</div></div>`}
     </div></div>
 
     <div class="panel">
       <div class="panel-head">
-        <h3>가격 · 예측</h3>
+        <h3>${isZeroCard ? '0업 최저호가' : '가격 · 예측'}</h3>
         <button class="chart-toggle" id="candle-toggle" type="button" aria-pressed="true">캔들 켜짐</button>
       </div>
       <p class="desc" id="fc-desc">불러오는 중…</p>
@@ -637,12 +648,12 @@ async function renderDetail(it) {
       <details class="event-study" id="event-details">
         <summary><span>가격 영향 이벤트 · 이벤트 스터디</span><small id="event-count"></small><i aria-hidden="true">⌄</i></summary>
         <div class="event-body">
-          <p class="desc">실제 시장 충격일인 패치·적용·출시일을 기준으로 봅니다. 패키지는 종료일도 별도로 계산합니다. 전후 수치는 요일효과를 보정한 3일 평균 비교이며, 동시 발생이 인과관계를 뜻하지는 않습니다.</p>
+          <p class="desc">실제 시장 충격일인 패치·적용·출시일을 기준으로 봅니다. 패키지는 종료일도 별도로 계산합니다. 전후 수치는 요일효과를 보정한 3일 평균 비교이며, 동시 발생이 인과관계를 뜻하지는 않습니다.${isZeroCard ? ' 카드 가격은 0업 최저호가만 사용합니다.' : ''}</p>
           <div id="event-list"></div>
         </div>
       </details>
     </div>
-    <div class="panel" id="weekday-panel">
+    ${isZeroCard ? '' : `<div class="panel" id="weekday-panel">
       <h3>아이템별 요일 프로파일</h3>
       <p class="desc" id="weekday-desc">완료된 일봉을 분석하는 중…</p>
       <div id="weekday-profile"></div>
@@ -656,20 +667,20 @@ async function renderDetail(it) {
       <h3>가격 × API 관측 거래량 4분면</h3>
       <p class="desc" id="shock-desc">완료된 일봉을 분석하는 중… API 100건 상한에 걸린 급증 구간은 실제보다 작게 보일 수 있습니다.</p>
       <div id="c5"></div>
-    </div>
+    </div>`}
     ${hasDepth ? `<div class="panel">
       <h3>매물 사다리</h3>
       <p class="desc">현재 매물을 낮은 호가부터 누적합니다. 최저가 한 건이 아니라 원하는 수량을 실제로 살 때의 평균 단가를 보여줍니다.</p>
       <div id="depth">불러오는 중…</div>
     </div>` : ''}
     <div class="panel">
-      <h3>매물 소진 속도</h3>
+      <h3>${isZeroCard ? '0업 매물 소진 속도' : '매물 소진 속도'}</h3>
       <p class="desc">최근 7일의 관측 소진량을 실제 수집 간격으로 나눠 시간당 환산합니다. 수량 감소는 직접 확인한 값이지만, 만료 전에 사라진 매물은 판매와 취소를 구분할 수 없는 추정치입니다. 빈 구간은 수집되지 않은 시간입니다.</p>
       <div class="kv depth-kv" id="depletion-kv"></div>
       <div class="chart" id="c6"></div>
     </div>
-    <div class="panel"><h3>최근 7일 · 시간별 VWAP</h3><div class="chart" id="c3"></div></div>
-    <div class="panel"><h3>일별 API 관측 체결 수량</h3><div class="chart sm" id="c2"></div></div>`;
+    <div class="panel"><h3>${isZeroCard ? '최근 7일 · 시간별 0업 최저호가' : '최근 7일 · 시간별 VWAP'}</h3><div class="chart" id="c3"></div></div>
+    ${isZeroCard ? '' : '<div class="panel"><h3>일별 API 관측 체결 수량</h3><div class="chart sm" id="c2"></div></div>'}`;
 
   const response = await fetch(`data/series/${it.item_id}.json`);
   if (!response.ok) throw new Error(`시계열 데이터 HTTP ${response.status}`);
@@ -715,8 +726,9 @@ async function renderDetail(it) {
     return firstDay && lastDay && event.starts >= firstDay && event.starts <= lastDay;
   });
   document.getElementById('event-count').textContent = `${events.length}건`;
-  document.getElementById('event-list').innerHTML = eventStudyHTML(events, d);
+  document.getElementById('event-list').innerHTML = eventStudyHTML(events, d, s.priceBasis);
 
+  if (!isZeroCard) {
   const weekday = weekdayProfile(d, events);
   const weekdayDesc = document.getElementById('weekday-desc');
   const weekdayEl = document.getElementById('weekday-profile');
@@ -741,6 +753,7 @@ async function renderDetail(it) {
     weekdayEl.innerHTML = `<p class="weekday-empty">사용 가능 ${weekday.used}일 · 이벤트 전후 제외 ${weekday.excluded}일</p>`;
   }
   if (weekday.state !== 'ready') document.getElementById('view').append(document.getElementById('weekday-panel'));
+  }
 
   if (depletion.length) {
     const cutoff = Date.parse(DATA.builtAt) - 24 * 3600000;
@@ -768,14 +781,14 @@ async function renderDetail(it) {
     document.getElementById('c6').innerHTML = '<p style="color:var(--ink-3);margin:0">소진 속도를 계산할 연속 매물 관측이 아직 없습니다.</p>';
   }
 
-  if (shock) {
+  if (!isZeroCard && shock) {
     const latest = shock.latest;
     document.getElementById('shock-desc').innerHTML =
       `최근 ${shock.points.length}개 완료 일봉의 평균을 기준으로 봅니다. 마지막 완료일 <b>${latest.d}</b>은 ` +
       `<b>${shockName(latest)}</b> 구역입니다 · API 관측 거래량 ${pct(latest.qty)}, 가격 ${pct(latest.price)}. ` +
       '100건 상한에 걸린 날의 실제 거래량은 더 클 수 있습니다.';
     document.getElementById('c5').innerHTML = shockSVG(shock.points);
-  } else {
+  } else if (!isZeroCard) {
     document.getElementById('shock-desc').textContent =
       '당일을 제외한 완료 일봉이 3일 이상 쌓이면 분류합니다. API 100건 상한에 걸린 급증 구간은 실제보다 작게 보일 수 있습니다.';
     document.getElementById('c5').innerHTML = '<p style="color:var(--ink-3);margin:0">아직 비교할 완료 일봉이 부족합니다.</p>';
@@ -831,16 +844,20 @@ async function renderDetail(it) {
           : '표본이 얇아 백테스트는 생략했습니다.') +
         `<br><span style="color:var(--ink-4)">모델 — ${esc(f.method)}</span>`;
     } else {
-      desc.textContent = it.g === 'D'
+      desc.textContent = isZeroCard
+        ? '캔들은 수집 시점별 0업 최저호가의 일별 시가·고가·저가·종가이며, 검은 실선은 일평균 0업 최저호가입니다. 정확한 0업 체결가를 구분할 수 없어 예측은 표시하지 않습니다.'
+        : it.g === 'D'
         ? '캔들은 일별 시가·고가·저가·종가이며 오늘 봉은 수집 중입니다. 검은 실선은 일별 VWAP입니다. D등급은 일평균 체결이 5건 미만이라 예측을 표시하지 않습니다.'
         : '캔들은 일별 시가·고가·저가·종가이며 오늘 봉은 수집 중입니다. 검은 실선은 일별 VWAP입니다. 예측에는 일봉이 최소 10일 필요합니다.';
     }
     c1.timeScale().fitContent();
     renderEventRail(c1, timeline);
 
-    const c2 = LightweightCharts.createChart(document.getElementById('c2'), { ...opts, height: 130 });
-    c2.addHistogramSeries({ color: css('--blue') }).setData(d.map((x) => ({ time: x.d, value: x.qty })));
-    c2.timeScale().fitContent();
+    if (!isZeroCard) {
+      const c2 = LightweightCharts.createChart(document.getElementById('c2'), { ...opts, height: 130 });
+      c2.addHistogramSeries({ color: css('--blue') }).setData(d.map((x) => ({ time: x.d, value: x.qty })));
+      c2.timeScale().fitContent();
+    }
   } else {
     document.getElementById('c1').innerHTML = '<p style="color:var(--ink-3);margin:0">일봉을 그릴 만큼 데이터가 모이지 않았습니다.</p>';
     document.getElementById('candle-toggle').hidden = true;
@@ -855,7 +872,7 @@ async function renderDetail(it) {
     c3.timeScale().fitContent();
   }
 
-  if (s.askGap?.length) {
+  if (!isZeroCard && s.askGap?.length) {
     const c4 = LightweightCharts.createChart(document.getElementById('c4'), {
       ...opts, height: 300, rightPriceScale: { borderVisible: false },
       localization: { locale: 'ko-KR', priceFormatter: (v) => pct(v) },
@@ -868,7 +885,7 @@ async function renderDetail(it) {
       priceFormat: { type: 'custom', formatter: (v) => pct(v) },
     }).setData(s.askGap.map((x) => ({ time: Math.floor(Date.parse(x.t) / 1000), value: x.gap })));
     c4.timeScale().fitContent();
-  } else {
+  } else if (!isZeroCard) {
     document.getElementById('c4').innerHTML = '<p style="color:var(--ink-3);margin:0">비교할 호가와 직전 24시간 체결 데이터가 아직 없습니다.</p>';
   }
 }

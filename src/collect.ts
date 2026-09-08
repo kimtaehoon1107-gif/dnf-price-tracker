@@ -28,9 +28,13 @@ export async function collectItem(
   source: CollectionSource = 'local',
 ): Promise<CollectResult> {
   const startedAt = nowIso();
-  const prev = await query<{ t: Date | null }>(
-    'SELECT MAX(started_at) AS t FROM collection_runs WHERE item_id = $1 AND error IS NULL AND finished_at IS NOT NULL', [itemId]);
-  const prevRun = prev.rows[0]?.t ? prev.rows[0].t.toISOString() : null;
+  const context = await query<{ category: string | null; t: Date | null }>(`
+    SELECT i.category,
+      (SELECT MAX(started_at) FROM collection_runs
+       WHERE item_id = i.item_id AND error IS NULL AND finished_at IS NOT NULL) AS t
+    FROM items i WHERE i.item_id = $1`, [itemId]);
+  const isCard = context.rows[0]?.category === '카드';
+  const prevRun = context.rows[0]?.t ? context.rows[0].t.toISOString() : null;
 
   const run = await query<{ id: string }>(
     'INSERT INTO collection_runs (item_id, source, started_at) VALUES ($1, $2, $3) RETURNING id',
@@ -39,7 +43,10 @@ export async function collectItem(
 
   try {
     // ── 1. 체결 내역 ────────────────────────────────────────────
-    const sold = await getSold(itemId, soldLimit);
+    // 체결 API에는 카드 upgrade가 없다. fame도 0업과 1업이 같을 수 있으므로
+    // 정확한 0업만 고를 수 없다. 섞인 가격을 만들지 않도록 카드는 체결을 저장하지 않고
+    // upgrade가 명시된 현재 매물만 시계열로 쌓는다.
+    const sold = isCard ? [] : await getSold(itemId, soldLimit);
     const soldTimes = sold.map((r) => kstToIso(r.soldDate)).sort();
     const spanMin = soldTimes.length > 1
       ? (Date.parse(soldTimes.at(-1)!) - Date.parse(soldTimes[0])) / 60_000
@@ -69,13 +76,20 @@ export async function collectItem(
     }
 
     // ── 2. 현재 매물 ────────────────────────────────────────────
-    const listings = await getAuction(itemId, 400);
-    const capped = listings.length >= 400;
+    const auction = await getAuction(itemId, 400);
+    const listings = isCard ? auction.filter((r) => r.upgrade === 0) : auction;
+    const capped = auction.length >= 400;
     const observedAt = nowIso();
 
+    if (isCard) {
+      // 구버전 수집기가 단계 정보 없이 남긴 열린 매물은 0업과 섞지 않는다.
+      await query(`UPDATE listings SET closed_at = $2
+        WHERE item_id = $1 AND closed_at IS NULL AND upgrade IS NULL`, [itemId, observedAt]);
+    }
     const open = await query<{ auction_no: string; unit_price: number; cur_count: number; expire_date: Date }>(
-      'SELECT auction_no, unit_price, cur_count, expire_date FROM listings WHERE item_id = $1 AND closed_at IS NULL',
-      [itemId]);
+      `SELECT auction_no, unit_price, cur_count, expire_date FROM listings
+       WHERE item_id = $1 AND closed_at IS NULL AND ($2::boolean = false OR upgrade = 0)`,
+      [itemId, isCard]);
     const prevByNo = new Map(open.rows.map((p) => [Number(p.auction_no), p]));
     const seen = new Set(listings.map((r) => r.auctionNo));
 
@@ -92,7 +106,8 @@ export async function collectItem(
     const L = {
       auctionNo: [] as number[], regDate: [] as string[], expireDate: [] as string[],
       unitPrice: [] as number[], regCount: [] as number[], curCount: [] as number[],
-      reinforce: [] as number[],
+      reinforce: [] as number[], fame: [] as (number | null)[],
+      upgrade: [] as (number | null)[], upgradeMax: [] as (number | null)[],
     };
     for (const r of listings) {
       const before = prevByNo.get(r.auctionNo);
@@ -110,11 +125,14 @@ export async function collectItem(
       L.regCount.push(r.regCount ?? r.count);
       L.curCount.push(r.count);
       L.reinforce.push(r.reinforce);
+      L.fame.push(r.fame ?? null);
+      L.upgrade.push(r.upgrade ?? null);
+      L.upgradeMax.push(r.upgradeMax ?? null);
     }
 
     // 사라진 매물: 완판이거나 만료. 단 응답이 400건으로 잘렸다면
     // 잘려나간 고가 매물을 "사라졌다"고 오판하지 않도록 가격 상한 안쪽만 본다.
-    const priceCeiling = capped ? Math.max(...listings.map((r) => r.unitPrice)) : Infinity;
+    const priceCeiling = capped ? Math.max(...auction.map((r) => r.unitPrice)) : Infinity;
     const toClose: number[] = [];
     for (const [no, p] of prevByNo) {
       if (seen.has(no) || p.unit_price > priceCeiling) continue;
@@ -141,16 +159,24 @@ export async function collectItem(
         [itemId, T.soldDate, T.unitPrice, T.count, T.price, T.reinforce, T.refine, T.amp, T.dupSeq]);
 
       await c.query(`
-        INSERT INTO listings (auction_no, item_id, reg_date, expire_date, unit_price, reg_count, cur_count, reinforce, first_seen_at, last_seen_at)
-        SELECT u.auction_no, $1, u.reg_date, u.expire_date, u.unit_price, u.reg_count, u.cur_count, u.reinforce, $9, $9
+        INSERT INTO listings (auction_no, item_id, reg_date, expire_date, unit_price, reg_count, cur_count,
+                              reinforce, fame, upgrade, upgrade_max, first_seen_at, last_seen_at)
+        SELECT u.auction_no, $1, u.reg_date, u.expire_date, u.unit_price, u.reg_count, u.cur_count,
+               u.reinforce, u.fame, u.upgrade, u.upgrade_max, $12, $12
         FROM UNNEST(
-          $2::bigint[], $3::timestamptz[], $4::timestamptz[], $5::bigint[], $6::int[], $7::int[], $8::int[]
-        ) AS u(auction_no, reg_date, expire_date, unit_price, reg_count, cur_count, reinforce)
+          $2::bigint[], $3::timestamptz[], $4::timestamptz[], $5::bigint[], $6::int[], $7::int[],
+          $8::int[], $9::int[], $10::int[], $11::int[]
+        ) AS u(auction_no, reg_date, expire_date, unit_price, reg_count, cur_count, reinforce, fame, upgrade, upgrade_max)
         ON CONFLICT (auction_no) DO UPDATE SET
           cur_count = EXCLUDED.cur_count,
           unit_price = EXCLUDED.unit_price,
-          last_seen_at = EXCLUDED.last_seen_at`,
-        [itemId, L.auctionNo, L.regDate, L.expireDate, L.unitPrice, L.regCount, L.curCount, L.reinforce, observedAt]);
+          fame = EXCLUDED.fame,
+          upgrade = EXCLUDED.upgrade,
+          upgrade_max = EXCLUDED.upgrade_max,
+          last_seen_at = EXCLUDED.last_seen_at,
+          closed_at = NULL`,
+        [itemId, L.auctionNo, L.regDate, L.expireDate, L.unitPrice, L.regCount, L.curCount,
+         L.reinforce, L.fame, L.upgrade, L.upgradeMax, observedAt]);
 
       await c.query(`
         INSERT INTO listing_deltas (auction_no, item_id, unit_price, qty_sold, prev_count, new_count, observed_at, reason)
@@ -165,10 +191,11 @@ export async function collectItem(
       }
 
       await c.query(`
-        INSERT INTO listing_snapshots (item_id, captured_at, min_unit_price, p10, p25, median, listing_count, total_qty)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING`,
+        INSERT INTO listing_snapshots
+          (item_id, captured_at, min_unit_price, p10, p25, median, listing_count, total_qty, upgrade)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING`,
         [itemId, observedAt, prices[0] ?? null, quantile(prices, 0.1), quantile(prices, 0.25),
-          quantile(prices, 0.5), listings.length, listings.reduce((s, r) => s + r.count, 0)]);
+          quantile(prices, 0.5), listings.length, listings.reduce((s, r) => s + r.count, 0), isCard ? 0 : null]);
 
       return ins.rowCount ?? 0;
     });

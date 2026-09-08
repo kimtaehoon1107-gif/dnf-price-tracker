@@ -24,8 +24,10 @@ await query(`
     median         BIGINT,
     scanned        INTEGER     NOT NULL,   -- 스캔한 카드 종수
     with_listings  INTEGER     NOT NULL,   -- 그중 매물이 있던 종수
-    total_listings INTEGER     NOT NULL
+    total_listings INTEGER     NOT NULL,
+    upgrade        INTEGER
   );
+  ALTER TABLE legendary_card_floor ADD COLUMN IF NOT EXISTS upgrade INTEGER;
   CREATE INDEX IF NOT EXISTS idx_lcf_time ON legendary_card_floor (captured_at);`);
 
 const cards = (JSON.parse(readFileSync('data/catalog.json', 'utf8')) as Array<{
@@ -36,8 +38,9 @@ const found: Array<{ id: string; name: string; price: number; listings: number }
 for (let i = 0; i < cards.length; i += 10) {
   await Promise.all(cards.slice(i, i + 10).map(async (c) => {
     try {
-      // 최저가만 필요하므로 가격 오름차순 1건이면 충분하다
-      const a = await getAuction(c.itemId, 1);
+      // 카드 itemId 하나에 0~최대 업그레이드 매물이 함께 온다.
+      // API가 명시한 upgrade=0만 남긴 뒤 최저가를 고른다.
+      const a = (await getAuction(c.itemId, 400)).filter((row) => row.upgrade === 0);
       if (a.length) found.push({ id: c.itemId, name: c.itemName, price: a[0].unitPrice, listings: a.length });
     } catch { /* 개별 실패는 무시 */ }
   }));
@@ -54,8 +57,8 @@ const q = (f: number) => found[Math.min(found.length - 1, Math.floor(found.lengt
 const now = new Date().toISOString();
 
 await query(`INSERT INTO legendary_card_floor
-  (captured_at, min_unit_price, min_item_id, min_item_name, p10, median, scanned, with_listings, total_listings)
-  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+  (captured_at, min_unit_price, min_item_id, min_item_name, p10, median, scanned, with_listings, total_listings, upgrade)
+  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,0)`,
   [now, found[0].price, found[0].id, found[0].name, q(0.1), q(0.5),
    cards.length, found.length, found.reduce((s, f) => s + f.listings, 0)]);
 
