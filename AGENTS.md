@@ -39,7 +39,8 @@
 | 크리쳐 | 2 | 2 | 900~3600s |
 | 오라 | 1 | 1 | 3600s |
 
-표의 주기는 시드 기본값이며, 100건 포화가 확인되면 운영 DB에서는 최소 60초까지 자동 단축된다.
+표의 주기는 시드 기본값이다. 100건 포화이면서 그 100건이 현재 주기의 1.5배도
+덮지 못할 때만 운영 DB에서 최소 60초까지 자동 단축한다. 수집 공백 때문에 생긴 포화는 기록만 남긴다.
 
 **"종결"** = 현재 기준 최상위 아이템. 패치로 교체되므로 `is_final` / `final_since`로 관리한다.
 종결 갱신일: 카드는 최초 등장 콘텐츠별 2022-10-27~2026-08-06,
@@ -87,6 +88,8 @@ scripts/migrate-sqlite.ts  (1회성, 이미 완료)
 sql/schema.postgres.sql   정본 스키마
 web/build.ts              Supabase → dist/ 정적 사이트
 web/index.html app.js style.css analysis.html guide.html
+data/legendary-cards.json Actions용 레전더리 카드 165종 목록
+certs/supabase-prod-ca-2021.crt Supabase pooler 인증서 검증용 공개 CA
 ```
 
 ### 명령
@@ -121,7 +124,7 @@ node --env-file=.env --no-warnings web/build.ts   # 사이트 빌드
 
 ### 인프라
 
-- **Supabase는 Session pooler로 붙는다.** Direct connection은 IPv6 전용인데 GitHub Actions 러너는 IPv4다. 비밀번호 특수문자는 percent-encode (`@`→`%40`, `!`→`%21`).
+- **Supabase는 Session pooler로 붙는다.** Direct connection은 IPv6 전용인데 GitHub Actions 러너는 IPv4다. 비밀번호 특수문자는 percent-encode (`@`→`%40`, `!`→`%21`). Pooler의 사설 인증서 체인은 리포에 둔 Supabase Root 2021 CA로 검증한다.
 - **Vercel Hobby의 Cron은 하루 1회만 된다.** 그래서 수집 스케줄러가 GitHub Actions다.
 - **Actions 크론은 지연되거나 누락될 수 있다.** 15분 오프셋 크론으로 시작을 시도하고, 실행되면 55분간 내부 루프를 돌아 공백을 줄인다.
 - **Postgres `numeric`은 pg가 문자열로 준다.** `EXTRACT(EPOCH ...)` 같은 건 `::float8`로 캐스팅해야 JS에서 숫자로 받는다.
@@ -140,7 +143,7 @@ node --env-file=.env --no-warnings web/build.ts   # 사이트 빌드
 | `dnf-health-prune` | 매일 04:17 | `collection_health` 90일 초과분 정리 |
 
 감시견 동작:
-- **기록** — 매 점검마다 `collection_health`에 공백을 남긴다. 가동률 계산의 근거다
+- **기록** — 매 점검마다 전역 공백과 각 아이템의 주기 대비 지연을 `collection_health`에 남긴다. 아이템은 자기 폴링 주기의 5배를 넘기면 stale이다
 - **자가복구** — 공백 20분 초과 시 즉시 dispatch. 쿨다운 10분(없으면 워크플로가 계속 죽을 때 무한 재시도한다)
 - **알림** — 40분 안에 복구 2회가 실패하면 GitHub Issue 생성. 쿨다운 6시간
 
@@ -150,7 +153,7 @@ node --env-file=.env --no-warnings web/build.ts   # 사이트 빌드
 
 가동률 확인:
 ```sql
-SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE action='ok') / COUNT(*), 2) AS uptime_pct
+SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE action IN ('ok','stale_items')) / COUNT(*), 2) AS global_uptime_pct
 FROM collection_health WHERE checked_at > now() - interval '24 hours';
 ```
 
@@ -206,10 +209,10 @@ API 관측 거래량은 100건 상한 + 동일키 충돌로 과소집계될 수 
 
 - **55분 연속 수집** — 완료. pg_cron이 Actions를 15분마다 호출하고, 작업은 55분·타임아웃 65분이다.
 - **재시작 스케줄 복원** — 완료. DB의 마지막 성공 시각에서 `nextAt`을 복원하고 매 건마다 가장 급한 아이템을 다시 고른다. 실패는 60초 뒤 재시도한다.
-- **고빈도 분리** — 완료. Actions matrix에서 120초 이하 `hot` 1종과 `rest` 67종을 별도 작업으로 실행한다.
+- **고빈도 분리** — 완료. Actions matrix에서 300초 이하 `hot` 8종과 `rest` 60종을 별도 작업으로 실행한다. 현재 예상 호출량은 각각 시간당 114회·112회다.
 - **10분 공백 경고** — 완료. `npm run health`가 마지막 성공 수집을 확인하며, Codex의 `던파 수집 10분 감시`가 이상일 때만 알린다.
 - **수집 출처 기록** — 완료. 새 실행은 `local` / `manual` / `actions`로 기록한다. 과거 행은 추측하지 않고 `NULL`로 보존한다.
-- **포화 시 자동 단축** — 완료. 100건 응답이 이전 수집과 겹치지 않으면 다음 단계 주기까지 자동으로 줄이고 최소 60초에서 멈춘다.
+- **포화 시 자동 단축** — 완료. 100건 응답이 이전 수집과 겹치지 않고 그 시간 범위가 현재 주기의 1.5배보다 짧을 때만 다음 단계로 줄이며 최소 60초에서 멈춘다.
 - **상시 실행 환경** — 미완료. GitHub 크론과 독립적인 호스트가 필요하며 비용·계정이 걸리므로 배포 대상을 먼저 정해야 한다.
 
 ### P1. 거래량 표현 ← 완료, 배포 필요

@@ -6,8 +6,8 @@
 //
 //   node --env-file=.env --no-warnings scripts/legendary-floor.ts
 //
-// 카탈로그(discover.ts 산출물)에 있는 레전더리 카드 전종을 스캔한다.
-// 카탈로그가 완전하지 않으므로 이 값은 "우리가 아는 범위의 최저가"다.
+// 리포에 고정한 레전더리 카드 목록을 전부 스캔한다. 전체 카탈로그는 27MB라
+// Actions 러너에 싣지 않고, 필요한 itemId와 이름만 별도 파일로 관리한다.
 
 import { readFileSync } from 'node:fs';
 import { getAuction } from '../src/api.ts';
@@ -30,9 +30,9 @@ await query(`
   ALTER TABLE legendary_card_floor ADD COLUMN IF NOT EXISTS upgrade INTEGER;
   CREATE INDEX IF NOT EXISTS idx_lcf_time ON legendary_card_floor (captured_at);`);
 
-const cards = (JSON.parse(readFileSync('data/catalog.json', 'utf8')) as Array<{
-  itemId: string; itemName: string; itemRarity: string;
-}>).filter((r) => r.itemRarity === '레전더리' && /카드$/.test(r.itemName));
+const cards = JSON.parse(readFileSync('data/legendary-cards.json', 'utf8')) as Array<{
+  itemId: string; itemName: string;
+}>;
 
 const found: Array<{ id: string; name: string; price: number; listings: number }> = [];
 for (let i = 0; i < cards.length; i += 10) {
@@ -52,7 +52,8 @@ if (found.length === 0) {
   process.exit(1);
 }
 
-found.sort((a, b) => a.price - b.price);
+// 동률이면 Promise.all 완료 순서가 아니라 itemId로 고정해 결과를 재현 가능하게 한다.
+found.sort((a, b) => a.price - b.price || a.id.localeCompare(b.id));
 const q = (f: number) => found[Math.min(found.length - 1, Math.floor(found.length * f))].price;
 const now = new Date().toISOString();
 

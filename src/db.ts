@@ -4,6 +4,7 @@
 // 관리 지점이 늘고 무엇보다 데이터가 갈라지기 때문이다.
 
 import pg from 'pg';
+import { readFileSync } from 'node:fs';
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -16,8 +17,12 @@ pg.types.setTypeParser(pg.types.builtins.INT8, (v) => Number(v));
 
 export const pool = new pg.Pool({
   connectionString,
-  // Supabase는 TLS를 요구하지만 인증서 체인이 Node 기본 신뢰 저장소와 맞지 않는다.
-  ssl: { rejectUnauthorized: false },
+  // Supabase pooler의 사설 루트는 Node 기본 신뢰 저장소에 없다. 공개된
+  // Supabase Root 2021 CA를 명시해 인증서와 호스트 이름을 모두 검증한다.
+  ssl: {
+    ca: readFileSync(new URL('../certs/supabase-prod-ca-2021.crt', import.meta.url), 'utf8'),
+    rejectUnauthorized: true,
+  },
   max: 4,
 });
 

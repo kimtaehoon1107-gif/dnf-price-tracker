@@ -3,7 +3,7 @@
 //   node src/run.ts               상주 (로컬에서 켜두는 용도)
 //   node src/run.ts --once        전체 1회 (백필 겸용)
 //   node src/run.ts --minutes 55  지정 시간만큼 (GitHub Actions용)
-//   node src/run.ts --group hot   2분 이하 고빈도 아이템만
+//   node src/run.ts --group hot   5분 이하 고빈도 아이템만
 //   node src/run.ts --group rest  나머지 아이템만
 //
 // Actions는 15분마다 실행을 시도하고, 각 실행이 55분간 내부 루프를 돈다.
@@ -52,8 +52,8 @@ const { rows: items } = await query<Item>(`
   FROM items i
   WHERE i.tracked = TRUE
     AND ($1 = 'all'
-      OR ($1 = 'hot' AND i.poll_interval_sec <= 120)
-      OR ($1 = 'rest' AND i.poll_interval_sec > 120))
+      OR ($1 = 'hot' AND i.poll_interval_sec <= 300)
+      OR ($1 = 'rest' AND i.poll_interval_sec > 300))
   ORDER BY i.poll_interval_sec`, [group]);
 
 if (items.length === 0) {
@@ -70,7 +70,11 @@ async function tick(item: Item, verbose = false): Promise<boolean> {
   try {
     const r = await collectItem(item.item_id, 100, source);
     let saturationNote = '';
-    if (r.saturated) {
+    // 포화 자체는 수집 공백 뒤에도 켜진다. 100건이 현재 폴링 주기의 1.5배도
+    // 덮지 못할 때만 정상 주기가 실제 거래 속도보다 느리다고 판단한다.
+    const tooFast = r.saturated && r.spanMin > 0
+      && r.spanMin < item.poll_interval_sec / 60 * 1.5;
+    if (tooFast) {
       const shorter = shorterPoll(item.poll_interval_sec);
       if (shorter < item.poll_interval_sec) {
         try {
@@ -91,7 +95,9 @@ async function tick(item: Item, verbose = false): Promise<boolean> {
       console.log(
         `${stamp()}  ${pad(item.item_name, 24)} 체결 ${String(r.soldRows).padStart(3)}건` +
         `(신규 ${String(r.soldNew).padStart(3)})  소진 ${String(r.qtyObserved).padStart(4)}개` +
-        (r.saturated ? saturationNote || '  ⚠ 포화 — 이미 최소 60s 주기' : ''));
+        (r.saturated
+          ? saturationNote || (tooFast ? '  ⚠ 포화 — 이미 최소 60s 주기' : '  ⚠ 포화 — 수집 공백 영향, 주기 유지')
+          : ''));
     }
     return true;
   } catch (e) {

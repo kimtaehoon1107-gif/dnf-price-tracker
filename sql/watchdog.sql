@@ -18,10 +18,12 @@ CREATE TABLE IF NOT EXISTS collection_health (
   checked_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_collect_at TIMESTAMPTZ,
   gap_min         NUMERIC,
-  -- ok | recover | recover_cooldown | alert | alert_cooldown
+  stale_items     INTEGER,
+  -- ok | stale_items | recover | recover_cooldown | alert | alert_cooldown
   action          TEXT NOT NULL,
   note            TEXT
 );
+ALTER TABLE collection_health ADD COLUMN IF NOT EXISTS stale_items INTEGER;
 CREATE INDEX IF NOT EXISTS idx_health_time ON collection_health (checked_at DESC);
 CREATE INDEX IF NOT EXISTS idx_health_action ON collection_health (action, checked_at DESC);
 
@@ -33,6 +35,7 @@ DECLARE
   v_gap         NUMERIC;
   v_token       TEXT;
   v_recovers    INT;
+  v_stale       INT;
   v_action      TEXT := 'ok';
   v_note        TEXT := NULL;
   v_threshold   CONSTANT NUMERIC := 20;   -- 분. 이보다 벌어지면 비정상
@@ -44,8 +47,27 @@ BEGIN
   WHERE error IS NULL AND finished_at IS NOT NULL;
   v_gap := ROUND(EXTRACT(EPOCH FROM (now() - COALESCE(v_last, now() - interval '1 day'))) / 60, 1);
 
+  -- 전역 최신 시각만 보면 한 종목이 계속 굶어도 다른 종목의 성공으로 가려진다.
+  -- 각 아이템은 자기 폴링 주기의 5배 안에 성공한 기록이 있어야 신선하다고 본다.
+  SELECT COUNT(*)::INT INTO v_stale
+  FROM items i
+  WHERE i.tracked
+    AND COALESCE((
+      SELECT MAX(r.finished_at)
+      FROM collection_runs r
+      WHERE r.item_id = i.item_id
+        AND r.error IS NULL
+        AND r.finished_at IS NOT NULL
+    ), '-infinity'::timestamptz) < now() - make_interval(secs => i.poll_interval_sec * 5);
+
   IF v_gap <= v_threshold THEN
-    INSERT INTO collection_health (last_collect_at, gap_min, action) VALUES (v_last, v_gap, 'ok');
+    IF v_stale > 0 THEN
+      INSERT INTO collection_health (last_collect_at, gap_min, stale_items, action, note)
+      VALUES (v_last, v_gap, v_stale, 'stale_items', v_stale || '종이 각 폴링 주기의 5배를 초과');
+    ELSE
+      INSERT INTO collection_health (last_collect_at, gap_min, stale_items, action)
+      VALUES (v_last, v_gap, 0, 'ok');
+    END IF;
     RETURN;
   END IF;
 
@@ -112,8 +134,8 @@ BEGIN
     END IF;
   END IF;
 
-  INSERT INTO collection_health (last_collect_at, gap_min, action, note)
-  VALUES (v_last, v_gap, v_action, v_note);
+  INSERT INTO collection_health (last_collect_at, gap_min, stale_items, action, note)
+  VALUES (v_last, v_gap, v_stale, v_action, v_note);
 END;
 $fn$;
 
@@ -132,5 +154,5 @@ SELECT cron.schedule('dnf-health-prune', '17 4 * * *',
 -- 점검용
 --   SELECT action, COUNT(*) FROM collection_health
 --     WHERE checked_at > now() - interval '24 hours' GROUP BY 1;
---   SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE action='ok') / COUNT(*), 2) AS uptime_pct
+--   SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE action IN ('ok','stale_items')) / COUNT(*), 2) AS global_uptime_pct
 --     FROM collection_health WHERE checked_at > now() - interval '24 hours';

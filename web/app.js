@@ -476,9 +476,9 @@ function summaryCards() {
       <div class="sub">체결 ${fmt(m.trades)}건 · ${m.lo}~${m.hi}</div>
     </div>
     ${lg ? `<div class="card hl">
-      <div class="k">레전더리 0업 카드 최저가</div>
-      <div class="v">${fmt(lg.min_unit_price)}</div>
-      <div class="sub">${esc(lg.min_item_name)} · ${lg.with_listings}/${lg.scanned}종 매물</div>
+      <div class="k">레전더리 0업 카드</div>
+      <div class="v">${fmt(lg.p10)}</div>
+      <div class="sub">최저 ${fmt(lg.min_unit_price)} · 중앙 ${fmt(lg.median)} · 매물 ${lg.with_listings}/${lg.scanned}종</div>
     </div>` : ''}
     ${netMargin !== null ? `<div class="card">
       <div class="k">패키지 해체 차익</div>

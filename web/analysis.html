@@ -304,15 +304,19 @@ fetch('data/summary.json').then(r => {
     `지금까지 관측한 매물 소진량은 <b>${fmt(D.meta.depletion_qty)}개</b>입니다.
      이 값은 API 관측 거래량과 별개이며, 판매·취소 및 중복 가능성 때문에 서로 더하지 않습니다.`;
 
-  const rate = (pct, count) => count
+  const rate = (pct, count) => count && pct !== null
     ? `<b>${pct.toFixed(1)}%</b> (${fmt(count)}회 점검)`
     : '<b>관측 기록 없음</b>';
+  const latestStale = D.health.latest_stale_items === null
+    ? '아직 아이템별 점검 기록이 없습니다'
+    : `최근 점검에서 지연 아이템은 <b>${fmt(D.health.latest_stale_items)}종</b>입니다`;
   document.getElementById('uptime-limit').innerHTML =
     `<b>수집 공백이 일봉과 백테스트를 왜곡할 수 있습니다.</b> 2026-09-07 실측 6시간에는 37개 구간 중
      21개(57%)가 공백이어서, 그날의 VWAP은 하루 전체가 아니라 수집된 시간대의 평균일 수 있습니다.
-     감시견이 기록한 최근 24시간 가동률은 ${rate(D.health.uptime24, D.health.checks24)}입니다.
-     pg_cron 전환 시점(2026-09-08 00:15 KST) 전은 ${rate(D.health.uptime_before, D.health.before_checks)},
-     이후는 ${rate(D.health.uptime_after, D.health.after_checks)}입니다.`;
+     최근 24시간 전역 수집 가동률은 ${rate(D.health.global_uptime24, D.health.checks24)}입니다.
+     각 아이템이 자기 폴링 주기의 5배 안에 수집됐는지 따로 본 아이템별 신선도는
+     ${rate(D.health.item_uptime24, D.health.item_checks24)}이며, 아이템 지연이 한 종 이상 있었던 점검은
+     <b>${fmt(D.health.stale_checks24)}회</b>입니다. ${latestStale}.`;
 }).catch(error => {
   console.error(error);
   document.querySelector('main').innerHTML = '<section><h2>분석 데이터를 불러오지 못했습니다</h2><p>잠시 뒤 새로고침해 주세요.</p></section>';

@@ -6,11 +6,12 @@
 //
 //   node --env-file=.env --no-warnings web/build.ts
 
-import { mkdirSync, writeFileSync, copyFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
 import { query, pool } from '../src/db.ts';
 import { forecast, type Point, type Forecast } from '../src/forecast.ts';
 
 const OUT = 'dist';
+rmSync(OUT, { recursive: true, force: true });
 mkdirSync(`${OUT}/data/series`, { recursive: true });
 
 // ── 아이템 요약 ────────────────────────────────────────────────
@@ -353,7 +354,7 @@ const legendary = (await query<{
   p10: number; median: number; scanned: number; with_listings: number;
 }>(`SELECT to_char(captured_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') captured_at,
       min_unit_price, min_item_name, p10, median, scanned, with_listings
-    FROM legendary_card_floor WHERE upgrade = 0 ORDER BY captured_at DESC LIMIT 200`)).rows;
+    FROM legendary_card_floor WHERE upgrade = 0 ORDER BY captured_at DESC LIMIT 1`)).rows;
 
 // ── 수집 현황 ──────────────────────────────────────────────────
 const meta = (await query<{
@@ -370,19 +371,20 @@ const meta = (await query<{
           WHERE reason <> 'expired') depletion_qty`)).rows[0];
 
 const health = (await query<{
-  checks24: number; uptime24: number | null;
-  before_checks: number; uptime_before: number | null;
-  after_checks: number; uptime_after: number | null;
+  checks24: number; global_uptime24: number | null;
+  item_checks24: number; item_uptime24: number | null;
+  stale_checks24: number; latest_stale_items: number | null;
 }>(`
   SELECT COUNT(*) FILTER (WHERE checked_at > now() - interval '24 hours')::int AS checks24,
-         (100.0 * COUNT(*) FILTER (WHERE checked_at > now() - interval '24 hours' AND action = 'ok')
-           / NULLIF(COUNT(*) FILTER (WHERE checked_at > now() - interval '24 hours'), 0))::float8 AS uptime24,
-         COUNT(*) FILTER (WHERE checked_at < timestamptz '2026-09-07 15:15:00+00')::int AS before_checks,
-         (100.0 * COUNT(*) FILTER (WHERE checked_at < timestamptz '2026-09-07 15:15:00+00' AND action = 'ok')
-           / NULLIF(COUNT(*) FILTER (WHERE checked_at < timestamptz '2026-09-07 15:15:00+00'), 0))::float8 AS uptime_before,
-         COUNT(*) FILTER (WHERE checked_at >= timestamptz '2026-09-07 15:15:00+00')::int AS after_checks,
-         (100.0 * COUNT(*) FILTER (WHERE checked_at >= timestamptz '2026-09-07 15:15:00+00' AND action = 'ok')
-           / NULLIF(COUNT(*) FILTER (WHERE checked_at >= timestamptz '2026-09-07 15:15:00+00'), 0))::float8 AS uptime_after
+         (100.0 * COUNT(*) FILTER (WHERE checked_at > now() - interval '24 hours'
+                                    AND action IN ('ok','stale_items'))
+           / NULLIF(COUNT(*) FILTER (WHERE checked_at > now() - interval '24 hours'), 0))::float8 AS global_uptime24,
+         COUNT(stale_items) FILTER (WHERE checked_at > now() - interval '24 hours')::int AS item_checks24,
+         (100.0 * (1 - SUM(stale_items) FILTER (WHERE checked_at > now() - interval '24 hours')::numeric
+           / NULLIF(COUNT(stale_items) FILTER (WHERE checked_at > now() - interval '24 hours')
+             * (SELECT COUNT(*) FROM items WHERE tracked), 0)))::float8 AS item_uptime24,
+         COUNT(*) FILTER (WHERE checked_at > now() - interval '24 hours' AND stale_items > 0)::int AS stale_checks24,
+         (SELECT stale_items FROM collection_health ORDER BY checked_at DESC LIMIT 1) AS latest_stale_items
   FROM collection_health`)).rows[0];
 
 const withMeta = items.map((it) => {

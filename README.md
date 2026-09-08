@@ -12,7 +12,7 @@
 
 ## 지금 상태
 
-**68종을 아이템별 기본 2~60분 주기로 수집**하며, 100건 포화가 확인되면 최소 1분까지 자동 단축합니다. GitHub Actions 안에서 고빈도 종목과 나머지를 분리해 실행합니다.
+**68종을 아이템별 기본 2~60분 주기로 수집**합니다. 100건 포화이면서 그 100건이 현재 폴링 주기의 1.5배도 덮지 못할 때만 최소 1분까지 자동 단축하고, 수집 공백 때문에 생긴 포화는 기록만 남깁니다. GitHub Actions 안에서는 5분 이하 고빈도 종목과 나머지를 분리해 실행합니다.
 
 | 분류 | 종 | 예 |
 |---|---|---|
@@ -31,7 +31,8 @@
 - **요일 효과가 있습니다.** 완료 일봉만 사용해 목요일·토요일을 포함한 최신 가격·거래량 차이와 유의성을 분석 페이지에서 다시 계산합니다.
 - **API 관측 거래량은 실제 거래량의 하한입니다.** 동일키 충돌은 `dup_seq`로 막았지만, 100건 상한을 넘은 초과 거래 수는 알 수 없습니다. 매물 소진량은 별도 보조 신호로만 표시합니다.
 
-자세한 내용은 [분석 페이지](https://kimtaehoon1107-gif.github.io/dnf-price-tracker/analysis.html)에 있습니다.
+자세한 결론은 [분석 페이지](https://kimtaehoon1107-gif.github.io/dnf-price-tracker/analysis.html),
+각 숫자를 읽는 방법은 [지표 설명 페이지](https://kimtaehoon1107-gif.github.io/dnf-price-tracker/guide.html)에 있습니다.
 
 ## 수집하는 것
 
@@ -45,7 +46,7 @@
 Node 24 이상이 필요하고, 런타임 의존성은 PostgreSQL 클라이언트인 **`pg` 하나**입니다.
 
 ```bash
-cp .env.example .env     # NEOPLE_API_KEY 입력
+cp .env.example .env     # NEOPLE_API_KEY와 DATABASE_URL 입력
 npm run init             # 스키마 + 화이트리스트
 npm run collect          # 수집 시작 (켜둔 채로)
 npm run stats            # 다른 창에서 현황 확인
