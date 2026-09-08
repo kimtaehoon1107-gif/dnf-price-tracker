@@ -521,6 +521,30 @@ h3.sub {
   font-size: 22px; font-weight: 600; color: var(--ink-3); margin-left: 8px; letter-spacing: -0.02em;
 }
 .verdict .cap { margin-top: 10px; font-size: 13.5px; color: var(--ink-3); }
+
+/* 큰 숫자 밑의 눈금. 값 하나만 놓으면 그게 큰지 작은지 알 수 없다. */
+.scale { margin: 18px 0 4px; max-width: 420px; }
+.scale-track {
+  position: relative; height: 6px; border-radius: 3px;
+  background: linear-gradient(90deg, var(--down-bg), var(--line), var(--up-bg));
+}
+.scale-ref {
+  position: absolute; top: -5px; bottom: -5px; width: 2px;
+  background: var(--ink-4); transform: translateX(-1px);
+}
+.scale-dot {
+  position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--blue); border: 2px solid var(--bg);
+  transform: translate(-50%, -50%);
+}
+.scale-labels {
+  position: relative; margin-top: 9px; height: 16px;
+  font-size: 11.5px; color: var(--ink-4);
+}
+.scale-labels > span:first-child { position: absolute; left: 0; }
+.scale-labels > span:last-child { position: absolute; right: 0; }
+.scale-labels .mid { position: absolute; transform: translateX(-50%); white-space: nowrap; color: var(--ink-3); }
+.scale-labels .mid b { color: var(--ink-2); font-weight: 700; }
 .verdict .say {
   margin-top: 16px; font-size: 19px; line-height: 1.6; font-weight: 600;
   letter-spacing: -0.025em; color: var(--ink);
@@ -548,12 +572,14 @@ h3.sub {
 .method-steps { font-size: 14.5px; color: var(--ink-2); padding-left: 18px; margin: 0; }
 .method-steps li { margin-bottom: 8px; }
 .method-steps li:last-child { margin-bottom: 0; }
-.vr-legend { list-style: none; padding: 0; margin: 14px 0; font-size: 14.5px; }
-.vr-legend li { padding: 4px 0; color: var(--ink-2); }
-.vr-legend b {
-  display: inline-block; min-width: 96px; color: var(--ink);
-  font-family: var(--mono); font-size: 13px;
-}
+/* VR 세 경우를 나란히 놓는 표. 세 줄 목록보다 대조가 눈에 들어온다. */
+.vr-cases { font-size: 13.5px; }
+.vr-cases td:first-child { font-family: var(--mono); color: var(--ink); white-space: nowrap; }
+.vr-cases td small { color: var(--ink-3); font-size: 11.5px; margin-left: 4px; font-weight: 500; }
+.vr-cases tbody tr:nth-child(1) td { color: var(--down); }
+.vr-cases tbody tr:nth-child(3) td { color: var(--up); }
+.vr-cases tbody tr:nth-child(1) td:first-child,
+.vr-cases tbody tr:nth-child(3) td:first-child { color: inherit; }
 
 /* 접히는 상세 표 */
 .detail-table { margin: 20px 0; }
@@ -605,7 +631,6 @@ h3.sub {
 
 @media (max-width: 780px) {
   .formula { font-size: 12px; }
-  .vr-legend b { min-width: 78px; }
   .limit-grid { gap: 10px; }
 }
 

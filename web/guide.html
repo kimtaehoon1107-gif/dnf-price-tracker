@@ -141,6 +141,12 @@
       <div><b>naive 대비 MAPE</b><span>naive 대비 MAPE는 “내일도 마지막 가격”이라는 단순 예측보다 오차가 얼마나 줄거나 늘었는지를 나타냅니다. 개선값이 양수일수록 모델이 더 나았습니다.</span></div>
     </div>
     <p class="guide-foot">예측은 완료 일봉이 10일 이상이면서 D등급이 아닌 일반 아이템에만 표시됩니다. 예상 구간은 보장이 아니며 멀어질수록 넓어집니다.</p>
+    <p class="guide-foot">
+      <b>이 예측선은 현재 기준선(naive)을 넘지 못하고 있습니다.</b> 추세를 직선으로 이어 그리는 모형인데,
+      분산비 검정에서 이 시장은 추세가 아니라 <b>평균회귀</b>로 나왔기 때문입니다.
+      점 예측을 그대로 믿기보다 <b>구간의 폭</b>과 <b>naive 대비 개선율</b>을 함께 보시기를 권합니다.
+      자세한 검증은 <a href="analysis.html">분석 페이지</a>에 있습니다.
+    </p>
   </section>
 
   <section class="panel guide-panel" id="event">
