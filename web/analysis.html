@@ -40,43 +40,46 @@
 </p>
 
 <div class="note quiet" id="scope-line">데이터 범위를 불러오는 중입니다.</div>
+<div class="note" id="analysis-status" aria-live="polite">검증 상태를 불러오는 중입니다.</div>
 
 
 <!-- 01 -->
 <h2 class="sec"><span class="n">01</span>가격은 랜덤워크인가?</h2>
 
 <p>
-  이 질문을 가장 먼저 검토합니다. 가격이 <b>완전한 랜덤워크</b>라면 다음 값의 최선 추정은 언제나 현재 값이며,
-  추세나 패턴을 탐색하는 작업이 모두 무의미해지기 때문입니다.
-  <b>해석 가능한 시장인지</b>를 먼저 확인해야 합니다.
+  관측된 가격 변화에 단기적인 반전 또는 지속 신호가 있는지 살펴봅니다.
+  분산비 검정은 이 질문의 출발점입니다. 이 결과만으로 장기 평균회귀나 실제 매수 전략의 수익성을 판단하지 않습니다.
 </p>
 
 <div class="method">
   <h4>방법 — 분산비 검정 (Lo–MacKinlay)</h4>
   <p>
-    랜덤워크에서는 <b>2시간 수익률의 분산이 1시간 분산의 정확히 2배</b>가 됩니다. 인접한 움직임이 서로
-    상쇄되지도 누적되지도 않기 때문입니다. 이 비율을 측정한 값이 분산비입니다.
+    서로 상관없는 수익률의 분산은 기간에 비례해 더해집니다.
+    이 관계에서 벗어나는지 1시간과 2시간 로그수익률의 분산비로 점검합니다.
   </p>
   <div class="formula">VR(2) = Var(2시간 수익률) &divide; (2 &times; Var(1시간 수익률))</div>
   <p>
-    측정 대상은 하나입니다 — <b>직전 움직임이 다음 움직임에 영향을 주는가.</b>
-    1시간 동안 <b>+2%</b> 상승한 경우를 가정하면 다음 1시간은 아래와 같이 갈립니다.
+    <b>종목별 가장 긴 연속 완료 시간봉 구간 하나</b>를 사용합니다. 같은 길이면 최신 구간을 고릅니다.
+    30개 이상이어야 검정하며, 빈 시간을 채우거나 공백 양쪽의 가격을 이어 붙이지 않습니다.
+    현재 수집 중인 시간봉도 제외합니다.
   </p>
   <div class="table-scroll"><table class="vr-cases">
-    <thead><tr><th>VR</th><th>성질</th><th>다음 1시간</th><th class="num">2시간 누적</th></tr></thead>
+    <thead><tr><th>VR</th><th>관측된 방향</th><th>해석 범위</th></tr></thead>
     <tbody>
-      <tr><td><b>&lt; 1</b></td><td>평균회귀</td><td>하락 확률이 높다 — 되돌아온다</td><td class="num">+1.3%<small> 깎임</small></td></tr>
-      <tr><td><b>= 1</b></td><td>랜덤워크</td><td>예측 불가 — 직전과 무관하다</td><td class="num">+2.0%</td></tr>
-      <tr><td><b>&gt; 1</b></td><td>모멘텀</td><td>추가 상승 확률이 높다 — 이어간다</td><td class="num">+2.7%<small> 쌓임</small></td></tr>
+      <tr><td><b>&lt; 1</b></td><td>단기 반전 방향</td><td>인접 수익률이 상쇄되는 경향을 시사</td></tr>
+      <tr><td><b>≈ 1</b></td><td>뚜렷한 방향 없음</td><td>이 값만으로 랜덤워크를 입증할 수 없음</td></tr>
+      <tr><td><b>&gt; 1</b></td><td>단기 지속 방향</td><td>인접 수익률이 누적되는 경향을 시사</td></tr>
     </tbody>
   </table></div>
   <p class="method-note">
-    <b>되돌아오면 두 시간을 합친 움직임이 축소되고, 이어가면 확대됩니다.</b>
-    분산비는 이 확대 정도를 측정합니다. 랜덤워크에서는 정확히 2배가 됩니다.
+    겹치는 수익률의 <b>편향을 보정</b>하고, 시간에 따른 변동성 차이를 허용하는 표준오차를 씁니다.
+    양측 p값은 점근 정규근사로 계산하고, 같은 빌드에서 검정 가능한 모든 종목에
+    <b>Holm 다중 검정 보정</b>을 적용합니다. 보정 p값 0.05 미만에만 유의 표시를 붙입니다.
   </p>
   <p class="method-note">
-    <b>표본 빈도는 1시간</b>입니다. 일간 빈도에서는 종목당 관측이 2~27개에 그쳐 검정이 성립하지 않아,
-    하루를 분할한 <b>일중(intraday) 관측</b>을 사용합니다.
+    <b>30개는 계산을 위한 최소 조건</b>이며 충분한 검정력을 보장하지 않습니다.
+    종목마다 관측 기간이 다르고, 연속 거래가 가능한 구간에 표본이 치우칠 수 있습니다.
+    <a href="https://bashtage.github.io/arch/doc/unitroot/generated/arch.unitroot.VarianceRatio.html" target="_blank" rel="noopener">검정 방식 참고</a>
   </p>
 </div>
 
@@ -84,15 +87,14 @@
 
 <figure class="figure" id="vr-strip"></figure>
 
-<h3 class="sub">이게 진짜인가, 얇은 표본이 만든 착시인가</h3>
+<h3 class="sub">보조 점검 — 체결 수에 따른 차이</h3>
 <p>
-  VR이 1보다 작게 관측되면 <b>반드시 한 번 의심해야 합니다.</b> 한 관측 구간의 체결이 한두 건에 불과하면,
-  매수와 매도가 번갈아 체결되는 것만으로도 가격이 진동해 <b>허위 평균회귀</b>가 발생합니다.
-  금융 데이터에서 오래전부터 지적되어 온 함정입니다.
+  체결가에는 거래 구성과 관측 잡음이 섞입니다. 봉당 체결이 적으면 소수 거래의 가격이 VWAP을 크게 바꿀 수 있습니다.
+  아래는 선택된 연속 구간의 봉당 체결 수로 종목을 세 그룹으로 나눈 비교입니다.
 </p>
 <p>
-  판별 방법은 단순합니다. 허위 신호라면 <b>관측당 체결이 많은 종목일수록 VR이 1에 근접해야</b> 합니다.
-  이에 종목을 관측당 체결 수 기준 3분위로 나누어 비교했습니다.
+  종목의 유형·가격대·거래 구성이 함께 달라지므로, 그룹의 VR이 비슷해도
+  <b>관측 잡음을 배제하거나 실제 평균회귀를 입증하는 검정은 아닙니다.</b>
 </p>
 
 <div class="table-scroll" style="margin:18px 0"><table id="vr-thickness"></table></div>
@@ -102,27 +104,26 @@
   <summary><span>종목별 분산비 전체</span><small id="vr-count"></small><i aria-hidden="true">⌄</i></summary>
   <div class="table-scroll"><table id="vr-table"></table></div>
 </details>
+<details class="detail-table">
+  <summary><span>검정에서 제외된 종목</span><small id="vr-excluded-count"></small><i aria-hidden="true">⌄</i></summary>
+  <div class="table-scroll"><table id="vr-excluded"></table></div>
+</details>
 
 <h3 class="sub">결과의 함의</h3>
 <p>
-  이 절의 결론은 한 문장으로 요약됩니다 — <b>이 시장은 해석할 수 있습니다. 다만 해석의 방향이 정해져 있습니다.</b>
-</p>
-<p>
-  랜덤워크였다면 이 문서는 여기서 끝났을 겁니다. 무엇을 측정하든 다음 값의 최선 추정이 현재 값이므로
-  이후 절이 모두 의미를 잃기 때문입니다. 그러나 <b>구조가 존재하였고, 그 구조의 성격까지 확인됐습니다.</b>
+  유의한 신호가 있다면 후속 모형을 검토할 근거가 됩니다. 신호가 없으면 이 표본에서는 방향을 판단하기 어렵다는 뜻입니다.
+  어느 경우든 가격이 특정 평균으로 돌아오는 속도나 다음 시간의 예상 등락률을 VR에서 바로 계산하지 않습니다.
 </p>
 <ul>
-  <li><b>추세 추종은 불리합니다.</b> 상승 이후 추가 상승을 전제한 판단은 되돌아오는 힘과 정면으로 충돌합니다.</li>
-  <li><b>평균으로부터의 이탈 정도가 신호가 됩니다.</b> 되돌아오는 성질이 있다면 이탈 폭이 다음 움직임의 단서입니다.</li>
-  <li><b>회귀의 강도도 이미 측정했습니다.</b> 추가 데이터 없이 후속 모형의 계수로 곧바로 활용할 수 있습니다.</li>
+  <li><b>장기 평균회귀</b>는 가격 수준에 대한 별도 모형과 검증이 필요합니다.</li>
+  <li><b>매수 판단의 유용성</b>은 수수료와 실제 체결 가능 가격을 반영한 별도 평가가 필요합니다.</li>
 </ul>
 <p>
-  다음 절에서 다루는 예측 모형은 이 결과를 얻기 <b>이전에</b> 설계한 것입니다. 추세를 직선으로 외삽하는 방식이고,
-  <b>검증 결과에서 그 방향이 왜 부적절했는지가 드러납니다.</b>
+  다음 절에서는 현재 예측 모형을 naive와 직접 비교합니다. 분산비 결과가 그 모형의 성공이나 실패 원인을 설명한다고 가정하지 않습니다.
 </p>
 
 <div class="note quiet">
-  <b>이 절의 한계</b> — 1시간 빈도 관측이 종목당 30~85개로 표본이 얇습니다. q=2 한 가지만 검정했고,
+  <b>이 절의 한계</b> — q=2 한 가지만 검정했고,
   복수의 q에서 일관된 결과가 나오는지는 아직 확인하지 못했습니다. 관측이 축적되면 q=4·8로 확장해 검증할 수 있습니다.
 </div>
 
@@ -135,16 +136,23 @@
   <p>가격에 로그를 취한 뒤 세 성분으로 분해합니다.</p>
   <div class="formula">log(가격) = 추세 + 요일효과 + 잔차</div>
   <ol class="method-steps">
-    <li><b>요일효과를 먼저 제거합니다.</b> 전 종목에서 추정한 공통 계수를 씁니다. 순서를 바꾸면 요일 성분이 추세에 흡수됩니다.</li>
-    <li><b>잔여 계열에 최소제곱 직선</b>을 적합합니다. 설명변수는 관측 순번이 아니라 <b>실제 달력 일수</b>이므로, 무거래일이 있어도 기울기가 왜곡되지 않습니다.</li>
+    <li><b>요일효과를 먼저 제거합니다.</b> 각 학습 시점에 이력 14일 초과·체결 25건 이상인 종목에서 공통 계수를 추정합니다. 해당 종목이 없으면 요일 계수는 0으로 둡니다.</li>
+    <li><b>잔여 계열에 최소제곱 직선</b>을 적합합니다. 설명변수는 <b>실제 달력 일수</b>이며, 무거래일이 있어도 시간 간격을 임의로 줄이지 않습니다.</li>
     <li><b>예측구간은 잔차의 10·90 분위수</b>로 구성합니다. 정규성을 가정하지 않고 관측된 오차 분포를 그대로 씁니다.</li>
-    <li>예측 시계가 길어질수록 구간을 확대하되 <b>√h가 아니라 완만한 비율</b>을 적용합니다. 잔차가 이미 추세 대비 편차이므로 랜덤워크 공식을 그대로 쓰면 분산이 이중으로 반영됩니다.</li>
+    <li>구간 폭은 기존 경험적 규칙 <code>1 + 0.45 × (마지막 관측 이후 일수 − 1)</code>을 유지합니다. <b>80%를 포함하도록 보장된 공식은 아니며</b> 실제 커버리지를 따로 평가합니다.</li>
   </ol>
   <h4>검증 — 롤링 오리진 백테스트</h4>
   <p>
-    후반 30%를 홀드아웃으로 두고 전반부만으로 학습해 예측합니다. 기준선은 <b>naive</b> —
-    다음 값을 현재 값으로 두는 가장 단순한 예측입니다. <b>naive를 상회하지 못하는 모형은 채택할 이유가 없습니다.</b>
-    예측구간이 실제로 80%를 포함하는지(커버리지)는 별도로 확인합니다.
+    완료 일봉 10개 이상을 확보한 뒤 평가 날짜를 하루씩 이동합니다. 실제 빌드와 같이
+    <b>평가 당일을 제외한 자료</b>로 요일 계수·추세·잔차를 모두 다시 추정합니다.
+    다른 종목에도 같은 날짜 제한을 적용하며, 유동성 자격도 당시 자료로 판단합니다.
+  </p>
+  <p>
+    <b>평가일로부터 정확히 1일·7일 뒤</b>의 일봉이 있을 때만 모델과 naive를 비교합니다.
+    naive는 평가 시점에 알려진 마지막 완료 일봉 가격입니다. 무거래일은 다른 날짜로 대신하지 않습니다.
+    당일을 제외하므로 1일 뒤 예측도 마지막 관측일에서는 최소 2일 뒤입니다.
+    아래는 현재 예측 제공 종목의 과거 평가이며, MAPE와 커버리지는 <b>평가 건수로 가중</b>해 합칩니다.
+    백필을 포함한 체결 시각 기준의 과거 재구성이며, 당시 수집기가 이미 보유했던 데이터까지 재현한 평가는 아닙니다.
   </p>
   <p class="method-note">
     일평균 체결 5건 미만(D등급)이거나 완료된 일간 관측이 10개 미만인 종목에는 <b>예측을 표시하지 않습니다.</b>
@@ -155,16 +163,18 @@
 <div class="verdict" id="fc-summary">결과를 불러오는 중입니다.</div>
 
 <div class="note" id="fc-explain"></div>
+<div class="table-scroll"><table id="fc-horizons"></table></div>
+<p class="method-note">평가 건수는 종목·평가일·예측 거리의 조합 수입니다. 겹치는 학습 구간과 종목 간 상관 때문에 독립 표본 수를 뜻하지 않습니다. 평가 건수가 적을수록 수치는 잠정적입니다.</p>
 
 <h3 class="sub">해상도를 올려보면 나아지는가</h3>
 <p>
-  일간 빈도의 관측이 부족하므로 <b>1시간 빈도로 올리면 관측 수가 5배</b>가 됩니다. 두 모형을 병렬로 구성해 동일한 백테스트로 비교했습니다.
+  시간봉 모형을 시험한 기록입니다. 아래 수치는 <b>2026-09-08 당시의 단일 홀드아웃 실험</b>이며 매시간 갱신하지 않습니다.
 </p>
 <div class="note quiet" id="hourly-experiment">
   <b>기준선을 넘지 못했습니다.</b> 1시간 빈도의 MAPE가 3.20%, naive가 2.81%였고 34종 중 10종만 우위였습니다.
-  구간 폭을 네 가지로 재보정해도 커버리지는 77.7%가 최선이었습니다.
-  <b>그래서 운영 모형은 일간 빈도를 유지했습니다.</b>
-  관측 수는 5배가 되었으나 관측당 체결이 1~5건에 불과해, 증가한 것은 정보가 아니라 잡음이었습니다.
+  같은 평가 구간에서 구간 폭 네 후보를 비교했을 때 목표 80%에 가장 가까웠던 커버리지는 77.7%였습니다.
+  후보 선택 뒤의 독립 검증은 하지 않았습니다. 운영 모형은 일봉을 유지합니다.
+  <b>현재의 롤링 평가와 조건이 달라 직접 비교할 수 없으며</b>, 실패 원인이 해상도나 잡음이라고 확정하지 않습니다.
 </div>
 
 
@@ -181,10 +191,8 @@
       <li><b>수집 개시 이전 구간은 존재하지 않습니다.</b> 백필로 최대 1개월을 확보하지만,
         체결이 빈번한 아이템일수록 100건이 수 시간분에 그쳐 과거를 거의 확보하지 못합니다.</li>
       <li id="qty-limit"><b>관측 거래량은 하한값입니다.</b> 불러오는 중입니다.</li>
-      <li><b>미체결 매물은 관측되지 않습니다.</b> 다만 본 프로젝트는 거래가 활발한 종목을 선정했고,
-        체결이 발생했다는 것은 해당 가격에 실제 거래가 성립했다는 의미이므로 대부분의 종목에서는
-        문제가 되지 않습니다. <b>거래가 희소한 종목</b>(칭호·크리쳐는 시간당 2건 내외)에 한해
-        실제 균형가보다 낮게 추정될 수 있습니다.</li>
+      <li><b>체결가 분석에는 실제 거래된 가격만 들어갑니다.</b> 열린 매물은 별도로 수집하지만,
+        호가와 체결가는 구분합니다. 거래된 가격의 평균이 전체 매물의 가치나 균형가를 대표한다고 보장할 수 없습니다.</li>
     </ul>
   </div>
 
@@ -203,8 +211,7 @@
     <ul>
       <li>가격은 <b>구매 지불가</b> 기준입니다. 판매 수수료 때문에 판매자 실수령액은 이보다 낮습니다.</li>
       <li>동시에 관측되었다고 해서 <b>인과관계가 성립하는 것은 아닙니다.</b> 다른 사건이 함께 발생했을 수 있습니다.</li>
-      <li>모든 수치는 <b>매시간 재계산</b>됩니다. 본문에 고정한 값이 아니므로
-        표본이 늘면 결론도 달라집니다.</li>
+      <li>현재 검정과 일봉 예측 평가는 <b>매시간 재계산</b>됩니다. 기준일을 붙인 과거 실험·실측값은 고정 기록입니다.</li>
     </ul>
   </div>
 
@@ -212,8 +219,8 @@
 
 <div class="note quiet">
   <b>카드가 이 문서에서 제외된 이유</b> — 체결 API가 업그레이드 단계를 제공하지 않아 체결가만으로는
-  0업과 맥스업을 구분할 수 없습니다. 실측 결과 <b>2업이 0업의 1.2~3.9배</b>이므로 혼합하면 의미를 잃습니다.
-  <b>그래서 카드는 단계가 명시된 호가로 따로 추적합니다.</b> 현재 열린 카드 매물은
+  0업과 맥스업을 구분할 수 없습니다. <b>2026-09-08 실측</b>에서 2업 호가는 0업의 1.2~3.9배였습니다.
+  <b>그래서 카드는 단계가 명시된 호가로 따로 추적합니다.</b> 당시 열린 카드 매물은
   <b>0업 59%, 맥스업(2업) 41%</b>로 사실상 두 단계이고, 시세 화면에서 나눠 보여줍니다.
   본 문서의 분석이 <b>체결가 기반</b>이라 제외된 것이지, 카드를 관측하지 못하는 것은 아닙니다.
 </div>
@@ -234,14 +241,6 @@ const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;
 const signed = (n, d = 2) => (n >= 0 ? '+' : '') + n.toFixed(d) + '%';
 const css = (v) => getComputedStyle(document.body).getPropertyValue(v).trim();
 
-/**
- * 숫자 뒤 조사. 읽는 소리의 마지막 글자에 받침이 있는지로 갈린다.
- * 0 영 · 1 일 · 3 삼 · 6 육 · 7 칠 · 8 팔 → 받침 있음
- * 2 이 · 4 사 · 5 오 · 9 구             → 받침 없음
- */
-const numJosa = (text, withFinal, withoutFinal) =>
-  '013678'.includes(String(text).replace(/[^0-9]/g, '').slice(-1)) ? withFinal : withoutFinal;
-
 /** 값 하나를 가로축에 뿌리는 스트립 차트. 분포가 어디에 몰렸는지만 보면 되는 경우에 쓴다. */
 function stripChart(points, { min, max, ref, refLabel, ticks }) {
   const W = 900, H = 132, L = 20, R = 20, T = 26, B = 34;
@@ -255,7 +254,7 @@ function stripChart(points, { min, max, ref, refLabel, ticks }) {
     <text class="ax-ref-label" x="${x(ref)}" y="${T - 18}" text-anchor="middle">${refLabel}</text>
     ${points.map((p, i) => `<circle class="dot ${p.strong ? '' : 'weak'}"
       cx="${x(p.value).toFixed(1)}" cy="${(T + band * (i % rows) + band / 2).toFixed(1)}" r="5"
-      fill="${p.strong ? css('--blue') : css('--ink-4')}"><title>${esc(p.label)} · ${p.value.toFixed(2)}</title></circle>`).join('')}
+      fill="${p.strong ? css(p.value < 1 ? '--blue' : '--red') : css('--ink-4')}"><title>${esc(p.label)} · ${p.value.toFixed(2)}</title></circle>`).join('')}
   </svg>`;
 }
 
@@ -264,52 +263,49 @@ fetch('data/summary.json').then(r => {
   return r.json();
 }).then(D => {
   const built = new Date(D.builtAt);
-  const today = built.toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
   document.getElementById('built').textContent =
     `갱신 ${built.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })} KST`;
 
   document.getElementById('scope-line').innerHTML =
     `<b>${D.meta.lo}</b>부터 현재까지 <b>수집 중</b>입니다 —
      추적 <b>${fmt(D.meta.items)}종</b>, 누적 체결 <b>${fmt(D.meta.trades)}건</b>.
-     이 가운데 체결가로 분석 가능한 것은 카드를 제외한 <b>${fmt(D.randomWalk.total)}종</b>입니다.<br>
-     <span style="color:var(--ink-3)">이하 모든 수치는 매시간 재계산되며,
+     카드를 제외한 체결가 분석 후보는 <b>${fmt(D.randomWalk.candidates)}종</b>입니다.<br>
+     <span style="color:var(--ink-3)">현재 검정과 일봉 예측 평가는 매시간 재계산되며,
      최종 갱신 시각은 오른쪽 위에 표시됩니다.</span>`;
 
   // ── 01 분산비 ──
   const rw = D.randomWalk;
+  const headline = !rw.total ? '연속 관측이 부족해 검정 결과를 제시할 수 없습니다.'
+    : rw.negative && rw.positive ? '일부 종목에서 반전과 지속 신호가 함께 관측됩니다.'
+    : rw.negative ? '일부 종목에서 단기 반전 신호가 관측됩니다.'
+    : rw.positive ? '일부 종목에서 단기 지속 신호가 관측됩니다.'
+    : '다중 검정 보정 후 유의한 단기 신호를 확인하지 못했습니다.';
   // 큰 숫자만 놓으면 그 값이 어디쯤인지 알 수 없다. 눈금을 숫자 바로 밑에 붙인다.
   const SCALE_MIN = 0.2, SCALE_MAX = 1.5;
   const at = (v) => ((Math.min(SCALE_MAX, Math.max(SCALE_MIN, v)) - SCALE_MIN) / (SCALE_MAX - SCALE_MIN) * 100).toFixed(1);
   document.getElementById('vr-verdict').innerHTML =
-    `<span class="num">${rw.medianVr.toFixed(2)}<small>VR(2) 중앙값</small></span>
+    rw.total ? `<span class="num">${rw.medianVr.toFixed(2)}<small>VR(2) 중앙값 · 연속 구간</small></span>
      <div class="scale">
        <div class="scale-track">
          <i class="scale-ref" style="left:${at(1)}%"></i>
          <i class="scale-dot" style="left:${at(rw.medianVr)}%"></i>
        </div>
        <div class="scale-labels">
-         <span>되돌아옴</span>
-         <span class="mid" style="left:${at(1)}%"><b>1.0</b> 랜덤워크</span>
-         <span>추세를 탐</span>
+         <span>반전 방향</span>
+         <span class="mid" style="left:${at(1)}%"><b>1.0</b> 기준선</span>
+         <span>지속 방향</span>
        </div>
      </div>
-     <div class="cap">분석 대상 ${fmt(rw.total)}종 · 이 중 <b>${fmt(rw.significant)}종</b>이 유의하게 1보다 작음</div>
-     <div class="say">랜덤워크가 아니라 평균회귀합니다.</div>
-     <p>랜덤워크라면 2시간 분산이 1시간 분산의 <b>2배</b>가 되어야 하는데 실측값은
-     <b>${(rw.medianVr * rw.q).toFixed(1)}배</b>에 그쳤습니다.
-     <b>움직임이 누적되지 않고 상쇄됐다</b>는 뜻입니다.</p>
-     <p>이 값은 회귀의 <b>강도</b>까지 알려줍니다. 가장 단순한 평균회귀 모형에서
-     <code>VR(2) = 1 + φ</code>이므로 <b>φ ≈ ${(rw.medianVr - 1).toFixed(2)}</b>입니다.
-     이를 해석하면 — <b>직전 1시간에 +2% 상승한 경우 다음 1시간에는 평균적으로
-     ${(2 * (1 - rw.medianVr)).toFixed(1)}%p가 되돌려집니다.</b>
-     급등 직후의 매수는 불리하고 급락 직후의 매수는 유리하다는 뜻입니다.</p>`;
+     <div class="cap">검정 ${fmt(rw.total)}종 / 후보 ${fmt(rw.candidates)}종 · Holm 보정 후 반전 <b>${fmt(rw.negative)}종</b>, 지속 <b>${fmt(rw.positive)}종</b></div>
+     <div class="say">${headline}</div>
+     <p>관측된 시간별 VWAP에 대한 탐색적 결과입니다. 장기 평균회귀와 실제 매수 판단의 유용성은 아직 검증하지 않았습니다.</p>`
+    : `<div class="say">${headline}</div><p>완료 시간봉 ${rw.minBars}개가 연속으로 있는 구간이 필요하며, 분산과 표준오차도 추정 가능해야 합니다.</p>`;
 
   document.getElementById('vr-strip').innerHTML =
-    stripChart(rw.items.map(x => ({ value: x.vr, label: x.item_name, strong: x.significant })),
-      { min: 0.2, max: 1.5, ref: 1, refLabel: '1.0 = 랜덤워크', ticks: [0.25, 0.5, 0.75, 1.0, 1.25, 1.5] }) +
-    `<figcaption>종목 ${fmt(rw.total)}개의 VR(2). 진한 점은 통계적으로 유의한
-     ${fmt(rw.significant)}종입니다. <b>기준선 1.0의 왼쪽에 몰려 있고,</b>
-     오른쪽(모멘텀)에 놓인 종목은 사실상 없습니다.</figcaption>`;
+    rw.total ? stripChart(rw.items.map(x => ({ value: x.vr, label: x.item_name, strong: x.significant })),
+      { min: 0.2, max: 1.5, ref: 1, refLabel: '1.0 기준선', ticks: [0.25, 0.5, 0.75, 1.0, 1.25, 1.5] }) +
+    `<figcaption>종목 ${fmt(rw.total)}개의 VR(2). 진한 점은 Holm 보정 후 유의한 ${fmt(rw.significant)}종입니다.
+     파랑은 반전, 빨강은 지속 방향이며 회색은 유의하지 않은 결과입니다. 축 밖의 값은 양 끝에 표시하며 실제 값은 아래 표에서 확인할 수 있습니다.</figcaption>` : '';
 
   const th = rw.thickness;
   document.getElementById('vr-thickness').innerHTML = `
@@ -317,54 +313,62 @@ fetch('data/summary.json').then(r => {
     <tbody>${th.map(t => `<tr><td><b>${esc(t.label)}</b></td><td class="num">${t.items}</td>
       <td class="num">${fmt(t.perBar, 1)}건</td><td class="num"><b>${t.vr.toFixed(2)}</b></td></tr>`).join('')}</tbody>`;
 
-  const thin = th[0], thick = th[th.length - 1];
-  const drift = Math.abs(thick.vr - thin.vr);
-  document.getElementById('vr-artifact').innerHTML = drift < 0.15
-    ? `관측당 체결이 <b>${fmt(thin.perBar, 1)}건</b>인 구간과 <b>${fmt(thick.perBar, 1)}건</b>인 구간의 VR이
-       <b>${thin.vr.toFixed(2)}</b>${numJosa(thin.vr.toFixed(2), '과', '와')} <b>${thick.vr.toFixed(2)}</b>${numJosa(thick.vr.toFixed(2), '으로', '로')} 거의 같습니다.
-       표본이 두꺼워져도 1로 수렴하지 않으므로 <b>허위 신호가 아니라 실제 평균회귀</b>로 봅니다.`
-    : `관측당 체결이 늘수록 VR이 <b>${thin.vr.toFixed(2)}</b>에서 <b>${thick.vr.toFixed(2)}</b>${numJosa(thick.vr.toFixed(2), '으로', '로')} 움직였습니다.
-       얇은 표본의 영향을 배제할 수 없어 결론을 보류합니다.`;
+  document.getElementById('vr-artifact').textContent = th.length
+    ? '그룹 간 차이는 관측 잡음의 가능성을 살펴보는 보조 자료입니다. 평균값이 비슷하다는 이유만으로 잡음이 없다고 판정하지 않습니다.'
+    : '검정 조건을 충족한 종목이 없어 그룹 비교를 표시하지 않습니다.';
 
   document.getElementById('vr-count').textContent = `${fmt(rw.total)}종`;
+  const period = (t) => new Date(t).toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).slice(0, 16);
+  const probability = (p) => p < 0.001 ? '&lt;0.001' : p.toFixed(3);
   document.getElementById('vr-table').innerHTML = `
-    <thead><tr><th>아이템</th><th class="num">관측 수</th><th class="num">관측당 체결</th><th class="num">VR</th><th class="num">z</th></tr></thead>
+    <thead><tr><th>아이템 / 선택 구간 KST</th><th class="num">완료 봉</th><th class="num">봉당 체결</th><th class="num">VR</th><th class="num">z</th><th class="num">p</th><th class="num">Holm p</th></tr></thead>
     <tbody>${rw.items.map(x => `<tr>
-      <td>${esc(x.item_name)}</td><td class="num">${x.bars}</td>
+      <td>${esc(x.item_name)}<br><small>${period(x.from)} ~ ${period(x.to)}</small></td><td class="num">${x.bars}</td>
       <td class="num">${fmt(x.per_bar, 1)}</td>
       <td class="num"><b>${x.vr.toFixed(2)}</b>${x.significant ? ' *' : ''}</td>
-      <td class="num">${x.z.toFixed(2)}</td></tr>`).join('')}</tbody>`;
+      <td class="num">${x.z.toFixed(2)}</td><td class="num">${probability(x.p)}</td><td class="num">${probability(x.adjustedP)}</td></tr>`).join('')}</tbody>`;
+  document.getElementById('vr-excluded-count').textContent = `${rw.excluded.length}종`;
+  document.getElementById('vr-excluded').innerHTML = `
+    <thead><tr><th>아이템</th><th class="num">최장 연속 완료 봉</th><th>제외 사유</th></tr></thead>
+    <tbody>${rw.excluded.map(x => `<tr><td>${esc(x.item_name)}</td><td class="num">${x.bars}</td><td>${esc(x.reason)}</td></tr>`).join('')}
+    ${rw.excluded.length ? '' : '<tr><td colspan="3">제외된 종목이 없습니다.</td></tr>'}</tbody>`;
 
 
   // ── 02 예측 ──
-  const withFc = D.items.filter(x => x.fc && x.fc.vsNaive !== null);
+  const horizons = [1, 7].map(h => {
+    const scores = D.items.map(x => x.fc?.backtest.find(b => b.horizonDays === h)).filter(x => x?.count > 0);
+    const count = scores.reduce((sum, x) => sum + x.count, 0);
+    const average = (key) => count ? scores.reduce((sum, x) => sum + x[key] * x.count, 0) / count : null;
+    const mape = average('mape'), naive = average('naiveMape');
+    return { h, items: scores.length, count, mape, naive, coverage: average('coverage'),
+      wins: scores.filter(x => x.mape < x.naiveMape).length,
+      improvement: naive > 0 ? (naive - mape) / naive * 100 : null };
+  });
+  const one = horizons[0];
   const fcEl = document.getElementById('fc-summary');
-  if (!withFc.length) {
-    fcEl.textContent = '예측 산출 요건(완료된 일간 관측 10개)을 충족한 아이템이 아직 없습니다.';
-    document.getElementById('fc-explain').textContent = '';
+  if (!one.count) {
+    fcEl.textContent = '1일 뒤 예측을 평가할 관측이 아직 없습니다.';
+    document.getElementById('fc-explain').textContent = '학습 자격을 갖춘 뒤 예측 대상 날짜의 완료 일봉이 쌓여야 평가할 수 있습니다.';
   } else {
-    const win = withFc.filter(x => x.fc.vsNaive > 0);
-    const avg = withFc.reduce((a, x) => a + x.fc.vsNaive, 0) / withFc.length;
-    const cov = withFc.filter(x => x.fc.coverage !== null);
-    const avgCov = cov.length ? cov.reduce((a, x) => a + x.fc.coverage, 0) / cov.length : null;
     fcEl.innerHTML =
-      `<span class="num">${win.length} / ${withFc.length}<small>종만 기준선을 이김</small></span>
-       <div class="cap">기준선은 <b>naive</b> — 다음 값을 현재 값으로 두는, 모형을 사용하지 않은 예측입니다.</div>
-       <div class="say">${avg > 0
-         ? '모형이 기준선을 넘었습니다.'
-         : '기준선을 넘지 못했습니다.'}</div>
-       <p>평균 오차(MAPE)가 naive 대비 <b class="${avg > 0 ? 'up' : 'down'}">${signed(avg, 1)}</b>` +
-      (avgCov !== null ? `, 80% 예측구간의 실제 커버리지는 평균 <b>${avgCov.toFixed(0)}%</b>였습니다.` : '였습니다.') +
-      ` 개선율이 음수라는 것은 <b>오차가 그만큼 더 컸다</b>는 뜻입니다.</p>`;
-
-    document.getElementById('fc-explain').innerHTML = avg > 0
-      ? `모형이 naive를 넘었습니다. 다만 표본이 얇아 종목별 편차가 큽니다.`
-      : `<b>모형이 기준선을 넘지 못했습니다. 그 원인은 앞 절의 결과가 설명합니다.</b><br>
-         이 모형은 <b>추세를 직선으로 외삽하는</b> 방식인데, 분산비가 가리키는 시장의 성질은
-         추세가 아니라 <b>평균회귀</b>입니다. 상승 이후 추가 상승을 전제로 외삽하면 되돌아오는 힘과 정면으로 충돌합니다.
-         <b>"예측이 불가능하다"가 아니라 "이 모형이 시장의 성질과 부합하지 않는다"</b>가 정확한 진단이고,
-         평균회귀를 전제한 모형이 다음 과제입니다.`;
+      `<span class="num">${one.wins} / ${one.items}<small>종에서 naive보다 작은 오차 · 1일 뒤</small></span>
+       <div class="cap">${fmt(one.count)}건 평가 · 현재 예측 제공 종목의 과거 롤링 평가</div>
+       <div class="say">${one.mape < one.naive ? '현재 평가에서 모델 오차가 더 작았습니다.'
+         : one.mape > one.naive ? '현재 평가에서 naive 오차가 더 작았습니다.' : '현재 평가에서 두 오차가 같았습니다.'}</div>
+       <p>모델 MAPE <b>${fmt(one.mape, 2)}%</b> · naive <b>${fmt(one.naive, 2)}%</b>.
+       목표 80% 구간의 실제 커버리지는 <b>${fmt(one.coverage, 1)}%</b>입니다.</p>`;
+    document.getElementById('fc-explain').textContent =
+      '이 결과는 현재 모델의 예측 성능을 보여줍니다. 성능 차이의 원인이 평균회귀, 추세, 표본 부족 중 무엇인지는 별도로 검증해야 합니다.';
   }
+  document.getElementById('fc-horizons').innerHTML = `
+    <thead><tr><th>예측 거리</th><th class="num">종목</th><th class="num">평가 건수</th><th class="num">모델 MAPE</th><th class="num">naive MAPE</th><th class="num">개선율</th><th class="num">커버리지</th></tr></thead>
+    <tbody>${horizons.map(x => `<tr><td>${x.h}일 뒤</td><td class="num">${x.items}</td><td class="num">${fmt(x.count)}</td>
+      <td class="num">${x.count ? fmt(x.mape, 2) + '%' : '-'}</td><td class="num">${x.count ? fmt(x.naive, 2) + '%' : '-'}</td>
+      <td class="num">${x.improvement === null ? '-' : signed(x.improvement, 1)}</td><td class="num">${x.count ? fmt(x.coverage, 1) + '%' : '-'}</td></tr>`).join('')}</tbody>`;
+  document.getElementById('analysis-status').innerHTML =
+    `<b>현재 관측</b> — ${headline}<br>
+     <b>검증 상태</b> — 연속 구간 ${rw.total}/${rw.candidates}종 검정 · 1일 뒤 예측 ${fmt(one.count)}건 평가.<br>
+     <b>아직 모르는 것</b> — 장기 평균회귀, 다음 시간의 등락률, 실제 매수 전략의 수익성.`;
 
   // ── 03 한계 ──
   document.getElementById('qty-limit').innerHTML =
@@ -378,11 +382,9 @@ fetch('data/summary.json').then(r => {
   document.getElementById('pending-line').innerHTML =
     `<b>표본 부족으로 보류한 분석이 있습니다.</b>
      <b>요일 효과</b>는 조건(이력 ${fmt(s?.minHistoryDays ?? 14)}일 초과·체결 ${fmt(s?.minTrades ?? 25)}건 이상)을
-     충족한 종목이 현재 <b>${fmt(s?.item_count ?? 0)}종</b>뿐이고, 그 표본의 최소 탐지 가능 효과가
-     <b>±${s?.mde ? s.mde.toFixed(1) : '-'}%</b>여서 사실상 어떤 것도 판별할 수 없습니다.
-     <b>아이템 유형 군집</b> 역시 ${fmt(D.randomWalk.total)}종으로는 안정적이지 않습니다.
-     두 분석 모두 종목이 늘면 다시 제시합니다 — 제약 요인은 기간이 아니라 종목 수이고,
-     100건 상한으로 인해 체결이 빈번한 아이템일수록 이력이 늦게 축적됩니다.`;
+     충족한 종목은 현재 <b>${fmt(s?.item_count ?? 0)}종</b>이고, 그 표본의 최소 탐지 가능 효과 근삿값은
+     <b>±${s?.mde ? s.mde.toFixed(1) : '-'}%</b>입니다. 이 탐색적 지표는 종목·날짜 간 상관을 반영하지 않습니다.
+     독립적인 표본과 반복 주기가 더 필요합니다. <b>아이템 유형 군집</b>은 안정성을 검증하기 전까지 보류합니다.`;
 
   const rate = (p, n) => n && p !== null ? `<b>${p.toFixed(1)}%</b> (${fmt(n)}회 점검)` : '<b>관측 기록 없음</b>';
   document.getElementById('uptime-limit').innerHTML =

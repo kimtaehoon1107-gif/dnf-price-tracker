@@ -9,7 +9,7 @@
 import { mkdirSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
 import { query, pool } from '../src/db.ts';
 import { forecast, type Point, type Forecast } from '../src/forecast.ts';
-import { varianceRatio } from '../src/market-logic.ts';
+import { holmAdjusted, longestCompleteHours, varianceRatio } from '../src/market-logic.ts';
 
 const OUT = 'dist';
 rmSync(OUT, { recursive: true, force: true });
@@ -347,20 +347,19 @@ const weekdaySample = {
     : null,
 };
 
-// 예측에 쓸 공통 요일 계수 (주간 평균을 0으로 맞춘 로그 편차).
-// 아이템 하나하나는 표본이 얇아 자기 요일 효과를 못 추정하므로 전체에서 빌려 쓴다.
-const wkMean = weekday.reduce((a, x) => a + x.ret, 0) / (weekday.length || 1);
-const dowCoef = new Map(weekday.map((w) => [w.k, (w.ret - wkMean) / 100]));
-
 // ── 아이템별 시계열 + 예측 ─────────────────────────────────────
 const forecasts = new Map<string, Forecast>();
 const todayKst = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+// 과거 평가일마다 당시 자격을 다시 판단한다. 현재 예측 가능한 종목만 추리면
+// 미래의 유동성·이력 정보가 공통 요일 계수에 들어가므로 전체 체결 종목을 넘긴다.
+const market = new Map(items.filter((it) => it.price_basis === 'trade').map((it) =>
+  [it.item_id, (dailyBy.get(it.item_id) ?? []).filter((p) => p.d < todayKst)]));
 for (const it of items) {
   const d = dailyBy.get(it.item_id) ?? [];
   const complete = d.filter((x) => x.d < todayKst);
   const tradesPerDay = it.span_days > 0.5 ? it.trades / it.span_days : it.trades * 2;
   const f = it.price_basis === 'trade' && tradesPerDay >= 5
-    ? forecast(complete.map((x) => ({ d: x.d, vwap: x.vwap })) as Point[], dowCoef, 7, todayKst)
+    ? forecast(complete as Point[], market, 7, todayKst)
     : null;
   if (f) forecasts.set(it.item_id, f);
   writeFileSync(`${OUT}/data/series/${it.item_id}.json`, JSON.stringify({
@@ -467,56 +466,56 @@ const withMeta = items.map((it) => {
     // 아이콘은 Neople이 공식 제공한다. 이미지를 굽지 않고 URL만 넘겨 CDN 캐시에 맡긴다.
     img: `https://img-api.neople.co.kr/df/items/${it.item_id}`,
     spark: (dailyBy.get(it.item_id) ?? []).slice(-14).map((d) => d.vwap),
-    fc: f ? { next: f.points[0], vsNaive: f.vsNaive, coverage: f.coverage } : null,
+    fc: f ? { next: f.points[0], vsNaive: f.vsNaive, coverage: f.coverage, backtest: f.backtest } : null,
   };
 });
 
 // ── 랜덤워크 검정 ──────────────────────────────────────────────
-// 시간봉 로그수익률로 분산비를 구한다. 일봉은 종목당 2~27개뿐이라 검정이 안 된다.
-//
-// VR < 1이 나오면 "정말 평균회귀인가, 표본이 얇아서 생긴 인공물인가"를 반드시 가려야 한다.
-// 봉 하나에 체결이 한두 건뿐이면 매수·매도 호가를 오가는 것만으로도 음의 자기상관이 생긴다.
-// 그래서 봉당 체결 수로 3분위를 나눠 VR이 두꺼운 쪽에서 1로 돌아가는지 함께 내보낸다.
+// 봉의 시각을 보존해야 공백을 1시간 수익률로 잘못 계산하지 않는다.
 const rwRows = (await query<{
-  item_id: string; item_name: string; category: string; vwap: number; n: number;
+  item_id: string; t: string; vwap: number; n: number;
 }>(`
-  SELECT c.item_id, i.item_name, COALESCE(i.category,'기타') category, c.vwap::float8 vwap, c.n
+  SELECT c.item_id, to_char(c.hour AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') t,
+         c.vwap::float8 vwap, c.n
   FROM candles_1h c JOIN items i USING (item_id)
-  WHERE i.category <> '카드' AND c.vwap > 0
+  WHERE i.tracked AND i.category <> '카드' AND c.vwap > 0
   ORDER BY c.item_id, c.hour`)).rows;
 
-const rwBy = new Map<string, { name: string; category: string; prices: number[]; trades: number[] }>();
+const rwBy = new Map<string, typeof rwRows>();
 for (const row of rwRows) {
-  if (!rwBy.has(row.item_id)) {
-    rwBy.set(row.item_id, { name: row.item_name, category: row.category, prices: [], trades: [] });
-  }
-  const bucket = rwBy.get(row.item_id)!;
-  bucket.prices.push(row.vwap);
-  bucket.trades.push(row.n);
+  if (!rwBy.has(row.item_id)) rwBy.set(row.item_id, []);
+  rwBy.get(row.item_id)!.push(row);
 }
 
-const rwItems = [...rwBy.entries()].flatMap(([itemId, b]) => {
-  const result = varianceRatio(b.prices);
-  if (!result) return [];
-  // 시간당 로그수익률의 표준편차. 아이템 유형을 가르는 두 축 중 하나다(나머지는 유동성).
-  const logReturns = b.prices.slice(1).map((p, i) => Math.log(p / b.prices[i]));
-  const mean = logReturns.reduce((a, x) => a + x, 0) / logReturns.length;
-  const volatility = Math.sqrt(
-    logReturns.reduce((a, x) => a + (x - mean) ** 2, 0) / (logReturns.length - 1),
-  ) * 100;
+const rwAsOf = Date.now();
+const rwCandidates = items.filter((it) => it.price_basis === 'trade');
+const rwExcluded: Array<{ item_name: string; bars: number; reason: string }> = [];
+const rwItems = rwCandidates.flatMap((it) => {
+  const segment = longestCompleteHours(rwBy.get(it.item_id) ?? [], rwAsOf);
+  const prices = segment.map((p) => p.vwap);
+  const result = varianceRatio(prices);
+  if (!result) {
+    rwExcluded.push({ item_name: it.item_name, bars: segment.length,
+      reason: segment.length < 30 ? '연속 관측 부족' : '수익률 분산 또는 표준오차 추정 불가' });
+    return [];
+  }
+  const logReturns = prices.slice(1).map((p, i) => Math.log(p / prices[i]));
+  const mean = logReturns.reduce((sum, x) => sum + x, 0) / logReturns.length;
+  const volatility = Math.sqrt(logReturns.reduce((sum, x) => sum + (x - mean) ** 2, 0)
+    / (logReturns.length - 1)) * 100;
   return [{
-    item_id: itemId,
-    item_name: b.name,
-    category: b.category,
-    bars: b.prices.length,
-    per_bar: b.trades.reduce((a, x) => a + x, 0) / b.trades.length,
-    price: b.prices.reduce((a, x) => a + x, 0) / b.prices.length,
-    volatility,
-    vr: result.vr,
-    z: result.z,
-    significant: Math.abs(result.z) > 1.96,
+    item_id: it.item_id, item_name: it.item_name, category: it.category,
+    bars: segment.length, from: segment[0].t, to: segment.at(-1)!.t,
+    per_bar: segment.reduce((sum, p) => sum + p.n, 0) / segment.length,
+    price: prices.reduce((sum, p) => sum + p, 0) / prices.length, volatility,
+    ...result, adjustedP: 1, significant: false,
   }];
 }).sort((a, b) => a.vr - b.vr);
+const adjusted = holmAdjusted(rwItems.map((it) => it.p));
+rwItems.forEach((it, i) => {
+  it.adjustedP = adjusted[i];
+  it.significant = it.adjustedP < 0.05;
+});
 
 const byThickness = [...rwItems].sort((a, b) => a.per_bar - b.per_bar);
 const third = Math.ceil(byThickness.length / 3) || 1;
@@ -528,12 +527,16 @@ const thickness = [
 const vrSorted = rwItems.map((x) => x.vr).sort((a, b) => a - b);
 
 const randomWalk = {
-  q: 2,
+  q: 2, minBars: 30, asOf: new Date(rwAsOf).toISOString(),
+  candidates: rwCandidates.length, excluded: rwExcluded,
   items: rwItems,
   total: rwItems.length,
   significant: rwItems.filter((x) => x.significant).length,
-  medianVr: vrSorted.length ? vrSorted[Math.floor(vrSorted.length / 2)] : null,
-  // 인공물이라면 아래 세 구간의 vr이 두꺼워질수록 1에 가까워져야 한다.
+  negative: rwItems.filter((x) => x.significant && x.vr < 1).length,
+  positive: rwItems.filter((x) => x.significant && x.vr > 1).length,
+  medianVr: vrSorted.length
+    ? (vrSorted[Math.floor((vrSorted.length - 1) / 2)] + vrSorted[Math.floor(vrSorted.length / 2)]) / 2 : null,
+  // 종목별 거래 빈도 비교는 관측 잡음을 배제하는 검정이 아닌 보조 설명이다.
   thickness: thickness.filter(([, g]) => g.length).map(([label, group]) => ({
     label,
     items: group.length,

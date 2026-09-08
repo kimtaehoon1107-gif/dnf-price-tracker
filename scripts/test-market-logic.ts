@@ -3,6 +3,8 @@ import {
   duplicateSequences,
   isSaturated,
   isTooFast,
+  longestCompleteHours,
+  holmAdjusted,
   selectCardListings,
   varianceRatio,
 } from '../src/market-logic.ts';
@@ -62,5 +64,36 @@ assert(varianceRatio(momentum)!.vr > 1);
 
 assert.equal(varianceRatio([1, 2, 3]), null);            // 표본 부족
 assert.equal(varianceRatio(Array(50).fill(100)), null);  // 분산 0
+
+// 30개가 넘어도 중간의 공백을 가로질러 하나의 시계열로 만들지 않는다.
+const hour = (i: number) => ({ t: new Date(Date.UTC(2026, 8, 8, i)).toISOString() });
+const interrupted = [...Array.from({ length: 20 }, (_, i) => hour(i)),
+  ...Array.from({ length: 20 }, (_, i) => hour(i + 25))];
+const segment = longestCompleteHours(interrupted, Date.UTC(2026, 8, 11));
+assert.equal(segment.length, 20);
+assert.equal(segment[0].t, hour(25).t); // 같은 길이면 최신 구간
+assert.equal(longestCompleteHours([hour(0), hour(1), hour(2)], Date.UTC(2026, 8, 8, 2, 30)).length, 2);
+assert.deepEqual(longestCompleteHours([], Date.now()), []);
+assert.deepEqual(holmAdjusted([0.04, 0.001, 0.03]), [0.06, 0.003, 0.06]);
+assert.deepEqual(holmAdjusted([0.6, 0.8]), [1, 1]);
+assert.deepEqual(holmAdjusted([]), []);
+
+// 손으로 검산할 수 있는 기준: 로그수익률 [0.01,-0.02,0.01,0]을 10회 반복.
+// n=40, 1기간 제곱합=.006, 2기간=.0039, m=2*39*(1-2/40).
+const reference = [100];
+for (let i = 0; i < 40; i++) reference.push(reference.at(-1)! * Math.exp([0.01, -0.02, 0.01, 0][i % 4]));
+const checked = varianceRatio(reference)!;
+const expectedVR = (0.0039 / (2 * 39 * 0.95)) / (0.006 / 39);
+const expectedZ = (expectedVR - 1) / Math.sqrt(0.0000008 / 0.006 ** 2);
+assert(Math.abs(checked.vr - expectedVR) < 1e-10);
+assert(Math.abs(checked.z - expectedZ) < 1e-10);
+assert(checked.p < 0.001);
+
+// 가격 자체는 랜덤워크지만 변동성이 중간에 크게 달라지는 계열도 확인한다.
+const changingVariance = [100];
+for (let i = 0; i < 4000; i++) changingVariance.push(changingVariance.at(-1)! * Math.exp((rand() - 0.5) * (i < 2000 ? 0.01 : 0.08)));
+assert(Math.abs(varianceRatio(changingVariance)!.vr - 1) < 0.1);
+assert.equal(varianceRatio(walk, 1), null);
+assert.equal(varianceRatio([...walk.slice(0, 30), Infinity]), null);
 
 console.log('시장 로직 테스트 통과');

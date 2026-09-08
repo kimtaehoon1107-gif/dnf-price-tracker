@@ -44,41 +44,72 @@ export function isTooFast(
 export interface VarianceRatio {
   vr: number;
   z: number;
+  p: number;
   returns: number;
 }
 
+/** 빈 시간을 메우거나 건너뛰지 않는다. 길이가 같으면 더 최근 구간을 선택한다. */
+export function longestCompleteHours<T extends { t: string }>(rows: T[], asOf: number): T[] {
+  const cutoff = Math.floor(asOf / 3_600_000) * 3_600_000;
+  const complete = rows.filter((row) => Date.parse(row.t) < cutoff)
+    .sort((a, b) => a.t.localeCompare(b.t));
+  let longest: T[] = [], current: T[] = [];
+  for (const row of complete) {
+    if (current.length && Date.parse(row.t) - Date.parse(current.at(-1)!.t) !== 3_600_000) {
+      current = [];
+    }
+    current.push(row);
+    if (current.length >= longest.length) longest = current;
+  }
+  return longest;
+}
+
+/** Holm 보정은 종목 간 독립성을 가정하지 않고 한 번의 빌드 내 다중 검정을 보정한다. */
+export function holmAdjusted(pValues: number[]): number[] {
+  const order = pValues.map((p, i) => ({ p, i })).sort((a, b) => a.p - b.p);
+  const adjusted = Array<number>(pValues.length);
+  let previous = 0;
+  order.forEach(({ p, i }, rank) => {
+    previous = Math.max(previous, Math.min(1, p * (order.length - rank)));
+    adjusted[i] = previous;
+  });
+  return adjusted;
+}
+
 /**
- * 분산비 검정 (Lo–MacKinlay 1988).
- *
- * 랜덤워크라면 q기간 수익률의 분산은 1기간 분산의 정확히 q배다.
- *   VR(q) = Var(q기간) / (q × Var(1기간))
- *   VR = 1  랜덤워크    VR > 1  추세(모멘텀)    VR < 1  평균회귀
- *
- * z는 동분산 가정 아래의 표준화 통계량이다. 이분산에 견고한 형태가 따로 있지만,
- * 지금 표본(시간봉 30~90개)에서는 어느 쪽을 써도 결론이 갈릴 만큼 정밀하지 않다.
- * 그래서 z는 방향의 참고값으로만 쓰고, 판정은 겹치는 구간의 일관성으로 뒷받침한다.
+ * Lo–MacKinlay: 겹치는 수익률의 편향 보정 + 이분산 견고한 표준오차.
+ * 입력은 반드시 같은 간격의 연속 가격이다. VR < 1은 단기 반전을 시사할 뿐,
+ * 가격 수준의 평균회귀나 매수 전략의 수익성을 입증하지 않는다.
+ * 대조 구현: https://bashtage.github.io/arch/_modules/arch/unitroot/unitroot.html#VarianceRatio
  */
 export function varianceRatio(prices: number[], q = 2): VarianceRatio | null {
-  if (prices.length < 30 || prices.some((p) => !(p > 0))) return null;
-
+  const n = prices.length - 1;
+  if (prices.length < 30 || !Number.isInteger(q) || q < 2 || q >= n
+    || prices.some((p) => !(p > 0) || !Number.isFinite(p))) return null;
   const one = prices.slice(1).map((p, i) => Math.log(p / prices[i]));
-  const variance = (xs: number[]) => {
-    if (xs.length < 2) return null;
-    const mean = xs.reduce((a, b) => a + b, 0) / xs.length;
-    return xs.reduce((a, b) => a + (b - mean) ** 2, 0) / (xs.length - 1);
-  };
-  const var1 = variance(one);
-  if (var1 === null || var1 <= 0) return null;
-
-  // q기간 수익률은 한 칸씩 겹쳐가며 만든다(overlapping). 표본이 얇을수록 이 편이 낫다.
-  const multi: number[] = [];
-  for (let i = 0; i + q < prices.length; i++) multi.push(Math.log(prices[i + q] / prices[i]));
-  const varq = variance(multi);
-  if (varq === null) return null;
-
-  const vr = varq / (q * var1);
-  const se = Math.sqrt((2 * (2 * q - 1) * (q - 1)) / (3 * q * one.length));
-  return { vr, z: (vr - 1) / se, returns: one.length };
+  const mean = one.reduce((sum, r) => sum + r, 0) / n;
+  const squares = one.map((r) => (r - mean) ** 2);
+  const sumSquares = squares.reduce((sum, r) => sum + r, 0);
+  if (sumSquares <= Number.EPSILON ** 2 * n) return null;
+  let multiSquares = 0;
+  for (let i = q; i < prices.length; i++) {
+    multiSquares += (Math.log(prices[i] / prices[i - q]) - q * mean) ** 2;
+  }
+  const m = q * (n - q + 1) * (1 - q / n);
+  const vr = (multiSquares / m) / (sumSquares / (n - 1));
+  let theta = 0;
+  for (let lag = 1; lag < q; lag++) {
+    let cross = 0;
+    for (let i = lag; i < n; i++) cross += squares[i] * squares[i - lag];
+    theta += (2 * (1 - lag / q)) ** 2 * cross / sumSquares ** 2;
+  }
+  if (!(theta > 0)) return null;
+  const z = (vr - 1) / Math.sqrt(theta);
+  // 표준정규분포의 양측 확률. A&S 26.2.17, CDF 최대 오차 7.5e-8.
+  const a = Math.abs(z), t = 1 / (1 + 0.2316419 * a);
+  const tail = Math.exp(-a * a / 2) / Math.sqrt(2 * Math.PI)
+    * t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
+  return { vr, z, p: Math.min(1, 2 * tail), returns: n };
 }
 
 /** 카드 가격은 단계가 명시된 0업과 실제 최대 업그레이드 매물만 사용한다. */

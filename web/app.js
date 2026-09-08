@@ -1016,17 +1016,18 @@ async function renderDetail(it) {
       const p0 = f.points[0];
       desc.innerHTML =
         `캔들은 일별 시가·고가·저가·종가이며 오늘 봉은 수집 중입니다. 검은 실선은 일별 VWAP, 파란 점선은 <b>${f.horizonDays}일 VWAP 예측</b>입니다. ` +
-        `내일 예상 <b>${fmt(p0.mid)}</b>, 80% 구간 ${fmt(p0.lo)}~${fmt(p0.hi)}. ` +
+        `내일 예상 <b>${fmt(p0.mid)}</b>, 목표 80% 구간 ${fmt(p0.lo)}~${fmt(p0.hi)}. ` +
         (f.vsNaive !== null
-          ? `백테스트에서 naive(마지막 값 유지) 대비 MAPE가 <b class="${f.vsNaive > 0 ? 'up' : 'down'}">${f.vsNaive.toFixed(1)}%</b> ${f.vsNaive > 0 ? '개선' : '악화'}됐고 구간 커버리지는 ${f.coverage?.toFixed(0)}%입니다.`
-          : '표본이 얇아 백테스트는 생략했습니다.') +
+          ? `1일 뒤 롤링 평가 ${f.count}건에서 naive 대비 MAPE가 <b class="${f.vsNaive > 0 ? 'up' : 'down'}">${Math.abs(f.vsNaive).toFixed(1)}%</b> ${f.vsNaive > 0 ? '개선' : '악화'}됐고 구간 커버리지는 ${f.coverage?.toFixed(0)}%입니다.`
+          : f.count ? `1일 뒤 롤링 평가 ${f.count}건에서 naive 오차가 0이라 상대 개선율을 계산하지 않습니다.`
+          : '학습 조건과 목표 날짜를 모두 충족한 평가 관측이 아직 없습니다.') +
         `<br><span style="color:var(--ink-4)">모델 — ${esc(f.method)}</span>`;
     } else {
       desc.textContent = isZeroCard
         ? `캔들은 수집 시점별 ${cardTier} 최저호가의 일별 시가·고가·저가·종가이며, 검은 실선은 일평균 ${cardTier} 최저호가입니다. 정확한 ${cardTier} 체결가를 구분할 수 없어 예측은 표시하지 않습니다.`
         : it.g === 'D'
         ? '캔들은 일별 시가·고가·저가·종가이며 오늘 봉은 수집 중입니다. 검은 실선은 일별 VWAP입니다. D등급은 일평균 체결이 5건 미만이라 예측을 표시하지 않습니다.'
-        : '캔들은 일별 시가·고가·저가·종가이며 오늘 봉은 수집 중입니다. 검은 실선은 일별 VWAP입니다. 예측에는 일봉이 최소 10일 필요합니다.';
+        : '캔들은 일별 시가·고가·저가·종가이며 오늘 봉은 수집 중입니다. 검은 실선은 일별 VWAP입니다. 예측에는 완료 일봉 10개 이상과 학습 기간 일평균 체결 5건 이상이 필요합니다.';
     }
     const dayAt = new Map(d.map((x) => [x.d, x]));
     const forecastAt = new Map((s.forecast?.points ?? []).map((p) => [p.d, p]));
