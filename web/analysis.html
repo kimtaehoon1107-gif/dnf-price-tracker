@@ -270,9 +270,10 @@ fetch('data/summary.json').then(r => {
     `페이지 생성 ${built.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })} KST`;
 
   document.getElementById('scope-line').innerHTML =
-    `<b>${D.meta.lo}</b>부터 축적한 자료입니다 —
+    `보유 체결 기록의 범위는 <b>${D.meta.lo}~${D.meta.hi}</b>입니다 —
      추적 <b>${fmt(D.meta.items)}종</b>, 누적 체결 <b>${fmt(D.meta.trades)}건</b>.
      카드를 제외한 체결가 분석 후보는 <b>${fmt(D.randomWalk.candidates)}종</b>입니다.<br>
+     수집 시작 시 조회한 과거 체결 기록을 포함하며, 품목별 관측 기간은 다릅니다.<br>
      <span style="color:var(--ink-3)">현재 검정과 일봉 예측 평가는 매시간 재계산되며,
      페이지 생성 시각은 오른쪽 위에 표시됩니다.</span>`;
 
