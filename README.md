@@ -49,16 +49,25 @@
 
 ## 어떻게 돌아가나
 
-```text
-Supabase pg_cron ──pg_net──> GitHub Actions ──> Neople API
-                                              │
-                                              ▼
-                                      Supabase Postgres
-                                      원본 체결 → 시간봉
-                                              │ 매시간 빌드
-                                              ▼
-                                         GitHub Pages
+```mermaid
+flowchart TD
+    cron["Supabase pg_cron<br/>실행 예약"]
+    api["Neople API<br/>최근 체결 · 열린 매물"]
+    collect["GitHub Actions · 수집<br/>55분 실행 · 아이템별 수집 주기"]
+    db[("Supabase Postgres<br/>원본 체결 · 매물 · 시간봉")]
+    build["GitHub Actions · 빌드·배포<br/>DB 조회 → 정적 사이트 생성"]
+    pages["GitHub Pages<br/>시세 · 차트 · 분석"]
+
+    cron -. "15분마다 · pg_net" .-> collect
+    collect <-->|"조회 · 응답"| api
+    collect -->|"체결 · 매물 저장"| db
+    cron -. "매시 2분 · 시간봉 집계" .-> db
+    cron -. "매시 5분 · pg_net" .-> build
+    db -->|"원본 · 집계 데이터"| build
+    build -->|"HTML · JSON 배포"| pages
 ```
+
+점선은 예약된 작업의 실행, 실선은 API 조회·응답과 데이터 흐름입니다. `pg_net`은 GitHub의 `workflow_dispatch` API를 호출하며, 시간봉 집계는 DB 안에서 실행됩니다.
 
 이 저장소에서는 GitHub Actions의 예약 실행이 40회 넘는 기회 중 거의 생성되지 않았습니다. Supabase의 `pg_cron`이 `pg_net`으로 `workflow_dispatch`를 호출하도록 변경했습니다. 운영 상태는 트리거 호출 결과와 별도로 실제 수집 성공 기록을 기준으로 확인합니다.
 
