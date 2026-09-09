@@ -53,7 +53,7 @@
 flowchart TD
     cron["Supabase pg_cron<br/>실행 예약"]
     api["Neople API<br/>최근 체결 · 열린 매물"]
-    collect["GitHub Actions · 수집<br/>55분 실행 · 아이템별 수집 주기"]
+    collect["GitHub Actions · 수집<br/>55분 실행 · 아이템별 주기"]
     db[("Supabase Postgres<br/>원본 체결 · 매물 · 시간봉")]
     build["GitHub Actions · 빌드·배포<br/>DB 조회 → 정적 사이트 생성"]
     pages["GitHub Pages<br/>시세 · 차트 · 분석"]
