@@ -8,7 +8,7 @@ import {
   selectCardListings,
   varianceRatio,
 } from '../src/market-logic.ts';
-import { askGap } from '../web/metrics.js';
+import { askGap, representativePrice } from '../web/metrics.js';
 
 const same = { soldDate: '2026-09-08T00:00:00Z', unitPrice: 100, count: 3, reinforce: 0 };
 assert.deepEqual(duplicateSequences([
@@ -35,6 +35,9 @@ assert.deepEqual(selectCardListings(cards, null), [cards[0]]);
 assert(Math.abs(askGap({ price_basis: 'trade', min_ask: 90, vwap24: 100 }) + 10) < 1e-10);
 assert.equal(askGap({ price_basis: 'ask0', min_ask: 90, vwap24: 100 }), null);
 assert.equal(askGap({ price_basis: 'trade', min_ask: null, vwap24: 100 }), null);
+assert.equal(representativePrice({ price_basis: 'trade', vwap1h: 125, last_price: 130 }), 125);
+assert.equal(representativePrice({ price_basis: 'trade', vwap1h: null, last_price: 130 }), null);
+assert.equal(representativePrice({ price_basis: 'ask0', vwap1h: null, last_price: 100 }), 100);
 
 // ── 분산비 ──
 // 완전한 랜덤워크를 넣으면 VR이 1 근처여야 한다. 난수 시드를 고정해 재현 가능하게 만든다.

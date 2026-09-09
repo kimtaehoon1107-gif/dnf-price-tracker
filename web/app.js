@@ -1,6 +1,6 @@
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
-import { askGap } from './metrics.js';
+import { askGap, representativePrice } from './metrics.js?v=20260909-vwap1h';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
   ? '-' : Number(n).toLocaleString('ko-KR', { maximumFractionDigits: d });
@@ -11,6 +11,9 @@ const pct = (n) => n === null || !isFinite(n) ? '-' : `${n >= 0 ? '+' : ''}${n.t
 const cls = (n) => n === null || !isFinite(n) || Math.abs(n) < 0.005 ? 'flat' : n > 0 ? 'up' : 'down';
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const css = (n) => getComputedStyle(document.body).getPropertyValue(n).trim();
+const priceTime = (value) => value ? new Date(value).toLocaleString('ko-KR', {
+  timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
+}) : '기록 없음';
 
 // 카드 목록에서는 같은 능력치 이름을 반복하지 않고 0업→맥스업 변화만 압축한다.
 // 이름이나 순서가 달라지면 억지로 합치지 않고 두 단계의 원문을 모두 보여준다.
@@ -407,6 +410,7 @@ async function boot() {
 
 const enrich = (it) => ({
   ...it,
+  display_price: representativePrice(it),
   chg: it.vwap24 && it.vwap_prev ? (it.vwap24 / it.vwap_prev - 1) * 100 : null,
   max_chg: it.max_vwap24 && it.max_vwap_prev ? (it.max_vwap24 / it.max_vwap_prev - 1) * 100 : null,
   turnover: it.price_basis === 'ask0' ? 0 : (it.vwap24 ?? it.last_price) * it.api_qty24,
@@ -553,7 +557,7 @@ function renderList() {
       <div class="lh">
         <span class="r">#</span>
         <span data-k="item_name">아이템</span>
-        <span class="r" data-k="last_price">현재가 · 호가</span>
+        <span class="r" data-k="display_price" title="일반 아이템: 최근 1시간 수량 가중평균 · 카드: 0업 최저호가">1h VWAP · 호가</span>
         <span class="r" data-k="chg">24h</span>
         <span class="r h5" data-k="turnover">관측 거래대금</span>
         <span class="r h6">14일 추이</span>
@@ -575,7 +579,10 @@ function renderList() {
             </div>
           </div>
           <div class="px">
-            <b>${fmt(r.last_price)}</b>
+            <b title="${r.price_basis === 'trade' ? `최근 1시간 ${fmt(r.trades1h)}건 · ${fmt(r.api_qty1h)}개로 계산` : '0업 최저호가'}">${fmt(r.display_price)}</b>
+            ${r.price_basis === 'trade' ? `${r.vwap1h == null ? '<small class="flat">1h 체결 없음</small>' : ''}
+              <small class="flat" title="최근 체결 ${fmt(r.last_price)}골드">체결 ${r.last_trade_at ? fmt(r.last_price) : '-'}</small>
+              <small class="flat">${priceTime(r.last_trade_at)}</small>` : ''}
             ${r.gap === null ? '' :
               `<small class="${cls(r.gap)}" title="최저호가 ${fmt(r.min_ask)} · 24h VWAP ${fmt(r.vwap24)} 대비">호가 ${pct(r.gap)}</small>`}
           </div>
@@ -588,9 +595,10 @@ function renderList() {
     </div>
 
     <p class="hint">
+      <b>1h VWAP</b>은 ${priceTime(DATA.priceAsOf)} KST 기준 직전 60분의 총 거래금액을 총수량으로 나눈 값입니다. 1시간 내 관측 체결이 없으면 평균은 표시하지 않으며, 아래에는 최근 체결가와 거래 시각(KST)을 표시합니다. 표본이 적거나 고가 대량 체결이 있으면 평균도 크게 움직일 수 있습니다.<br>
       기본 정렬은 <b>24h 거래대금</b>입니다. 변동률로 정렬하면 하루 한두 건 거래된 아이템의 의미 없는 ±40%가 맨 위를 차지합니다.
       같은 이유로 24h 표본이 5개 미만인 변동률에는 <b>?</b>를 붙였습니다.<br>
-      <b>호가</b>는 현재 최저 호가가 최근 24시간 VWAP보다 얼마나 높거나 낮은지입니다. 음수는 지금 올라온 매물이 최근 체결 평균보다 싸다는 뜻입니다. 카드는 현재가 자체가 호가라 표시하지 않습니다.<br>
+      <b>호가</b> 백분율은 최저 호가를 <b>24시간 VWAP</b>과 비교한 값이며, 위의 1h VWAP과 비교한 값이 아닙니다. 카드는 대표 가격 자체가 호가라 표시하지 않습니다.<br>
       <b>등급</b>은 일평균 체결 건수입니다 — A ≥ 60건, B ≥ 20건, C ≥ 5건, D는 그 미만.
       <b>카드</b>는 0업 최저호가만 표시하며 체결 등급을 매기지 않습니다.
       <b>종결</b>은 현재 기준 최상위 아이템이며, 패치로 교체되면 갱신됩니다.
@@ -761,10 +769,13 @@ async function renderDetail(it) {
       <button class="${showingMax ? '' : 'on'}" data-card-mode="zero" type="button">0업</button>
       <button class="${showingMax ? 'on' : ''}" data-card-mode="max" type="button">맥스업${baseItem.max_upgrade ? ` (${baseItem.max_upgrade}업)` : ''}</button>
     </div>` : ''}
-    <div class="bigpx">${fmt(it.last_price)}<small>골드</small></div>
+    <div class="price-meta price-basis">${isZeroCard ? `${cardTier} 최저호가` : '최근 1시간 수량 가중평균 (VWAP)'}</div>
+    <div class="bigpx">${fmt(representativePrice(it))}<small>골드</small></div>
+    ${isZeroCard ? '' : `<div class="price-meta">최근 체결 ${it.last_trade_at ? `${fmt(it.last_price)}골드 · ${priceTime(it.last_trade_at)} KST` : '기록 없음'}</div>
+      <div class="price-meta">${it.vwap1h == null ? '최근 1시간 관측 체결 없음' : `최근 1시간 ${fmt(it.trades1h)}건 · ${fmt(it.api_qty1h)}개로 계산`} · ${priceTime(DATA.priceAsOf)} KST 기준</div>`}
     <div class="bigchg ${cls(it.chg)}">${it.chg === null
       ? '데이터 없음'
-      : `${pct(it.chg)} <span style="color:var(--ink-3);font-weight:500">24시간</span>`}</div>
+      : `${pct(it.chg)} <span style="color:var(--ink-3);font-weight:500">24h 평균 변화</span>`}</div>
 
     <div class="panel"><div class="kv">${isZeroCard ? `
       <div><div class="k">24h 평균 ${cardTier} 최저호가</div><div class="v">${fmt(it.vwap24)}</div></div>

@@ -41,6 +41,7 @@ const items = (await query<{
   is_final: boolean; final_since: string | null; key_stat: string | null; key_stat_max: string | null;
   price_basis: 'trade' | 'ask0';
   trades: number; span_days: number; last_price: number;
+  last_trade_at: Date | null; vwap1h: number | null; trades1h: number; api_qty1h: number;
   vwap24: number | null; vwap_prev: number | null; api_qty24: number;
   listings: number; min_ask: number | null; median_ask: number | null;
   max_upgrade: number | null; max_trades: number; max_span_days: number;
@@ -98,8 +99,16 @@ const items = (await query<{
     WHERE i.category = '카드' AND s.upgrade > 0 AND s.upgrade = s.upgrade_max
     ORDER BY s.item_id, s.captured_at DESC
   ),
+  recent_trade AS (
+    SELECT t.item_id,
+           (SUM(t.unit_price::numeric*t.count) / NULLIF(SUM(t.count),0))::float8 AS vwap1h,
+           COUNT(*)::int AS trades1h, SUM(t.count)::int AS api_qty1h
+    FROM trades t JOIN items i USING (item_id)
+    WHERE i.category <> '카드' AND t.sold_date > now()-interval '1 hour' AND t.sold_date <= now()
+    GROUP BY t.item_id
+  ),
   last_trade AS (
-    SELECT DISTINCT ON (t.item_id) t.item_id, t.unit_price
+    SELECT DISTINCT ON (t.item_id) t.item_id, t.unit_price, t.sold_date
     FROM trades t JOIN items i USING (item_id)
     WHERE i.category <> '카드'
     ORDER BY t.item_id, t.sold_date DESC, t.id DESC
@@ -110,6 +119,8 @@ const items = (await query<{
          CASE WHEN i.category = '카드' THEN 'ask0' ELSE 'trade' END AS price_basis,
          COALESCE(a.trades,0) AS trades, COALESCE(a.span_days,0) AS span_days,
          COALESCE(CASE WHEN i.category = '카드' THEN ls.min_unit_price ELSE lt.unit_price END,0)::float8 AS last_price,
+         lt.sold_date AS last_trade_at, rt.vwap1h,
+         COALESCE(rt.trades1h,0) AS trades1h, COALESCE(rt.api_qty1h,0) AS api_qty1h,
          a.vwap24, a.vwap_prev, COALESCE(a.api_qty24,0) AS api_qty24,
          COALESCE(ls.listing_count,0) AS listings,
          ls.min_unit_price::float8 AS min_ask, ls.median::float8 AS median_ask,
@@ -125,6 +136,7 @@ const items = (await query<{
   LEFT JOIN last_snap ls USING (item_id)
   LEFT JOIN last_max_snap lms USING (item_id)
   LEFT JOIN last_trade lt USING (item_id)
+  LEFT JOIN recent_trade rt USING (item_id)
   WHERE i.tracked ORDER BY i.item_name`)).rows;
 
 // ── 아이템별 일봉 / 시간봉 ─────────────────────────────────────
@@ -568,6 +580,7 @@ const randomWalk = {
 
 writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
   builtAt: new Date().toISOString(),
+  priceAsOf: quality.checkedAt,
   meta, health, quality, collection, weekday, weekdaySample, randomWalk, items: withMeta, legendary, marketRanking,
   margin: {
     pkg: pkg?.vwap ?? null, pkgN: pkg?.n ?? 0, parts, partsComplete,

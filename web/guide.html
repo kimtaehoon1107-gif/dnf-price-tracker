@@ -65,11 +65,12 @@
   </nav>
 
   <section class="panel guide-panel" id="price">
-    <h3><span class="guide-no">01</span>현재가 · 24시간 요약</h3>
-    <p class="desc">현재가 요약은 상세 화면 맨 위에서 현재 가격, 최근 평균, 거래 활동과 매물 상태를 함께 보여줍니다.</p>
+    <h3><span class="guide-no">01</span>대표 가격 · 24시간 요약</h3>
+    <p class="desc">상세 화면 맨 위에서 최근 1시간 평균 체결가, 최근 체결, 거래 활동과 매물 상태를 함께 보여줍니다.</p>
     <div class="guide-example">
+      <div class="meta">최근 1시간 수량 가중평균 (VWAP)</div>
       <div class="bigpx">10,000,000<small>골드</small></div>
-      <div class="bigchg up">+3.20% <span class="guide-muted">24시간</span></div>
+      <div class="bigchg up">+3.20% <span class="guide-muted">24h 평균 변화</span></div>
       <div class="kv">
         <div><div class="k">24h VWAP</div><div class="v">9,800,000</div></div>
         <div><div class="k">24h API 관측 수량</div><div class="v">126</div></div>
@@ -79,7 +80,8 @@
       </div>
     </div>
     <div class="guide-copy">
-      <div><b>현재가</b><span>일반 아이템은 가장 최근 체결의 개당가입니다. 카드는 현재 0업 또는 맥스업 최저 호가입니다.</span></div>
+      <div><b>대표 가격</b><span>일반 아이템은 데이터 기준 시각 직전 60분의 총 거래금액을 총수량으로 나눈 VWAP입니다. 카드는 0업 또는 맥스업 최저 호가입니다.</span></div>
+      <div><b>최근 체결</b><span>대표 가격 아래에 가장 최근 체결가와 거래 시각을 따로 표시합니다. 1시간 내 관측 체결이 없으면 VWAP은 비워 두고 최근 체결로 대체하지 않습니다. 거래가 한 건뿐이면 그 가격과 VWAP은 같습니다.</span></div>
       <div><b>24h 등락률</b><span>24h 등락률은 최근 24시간 평균과 그 직전 24시간 평균을 비교한 값입니다. 큰 값 하나가 아니라 두 구간 전체의 변화를 봅니다.</span></div>
       <div><b>VWAP</b><span>VWAP은 거래 수량으로 가중한 평균 체결가입니다. 1개 거래와 100개 거래를 같은 무게로 평균 내지 않습니다.</span></div>
       <div><b>목록의 호가</b><span>목록의 호가 백분율은 현재 최저 호가와 24h VWAP의 간격입니다. 계산과 해석은 <a href="#gap">06 호가–체결 갭</a>에서 확인합니다.</span></div>

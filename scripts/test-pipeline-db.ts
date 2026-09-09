@@ -140,7 +140,27 @@ try {
   await client.query(`UPDATE pg_temp.candle_pipeline_state SET refreshed_at=now();SELECT pg_temp.check_candle_health()`);
   assert.equal((await client.query('SELECT COUNT(*)::int AS n FROM pg_temp.candle_health WHERE NOT stale')).rows[0].n, 2);
   assert.equal((await client.query('SELECT COUNT(*)::int AS n FROM pg_temp.audit_http')).rows[0].n, 2);
-  console.log('집계 경계·백필·삭제 보호·읽기 전용 검사·부분 장애·쿨다운 테스트 통과 (운영 변경 없음)');
+  // 빌드의 실제 1시간 가격 쿼리를 검증한다. 수량이 다른 거래·시간 경계·카드 제외를 분리한다.
+  const priceSQL = readFileSync('web/build.ts', 'utf8').split('  recent_trade AS (')[1].split('\n  ),')[0]
+    .replace(/\b(trades|items)\b/g, 'pg_temp.$1');
+  await client.query(`ALTER TABLE pg_temp.items ADD COLUMN category text;
+    INSERT INTO pg_temp.items(item_id,category) VALUES
+      ('weighted','소울 결정'),('single','소울 결정'),('old-only','소울 결정'),('empty','소울 결정'),('card-price','카드');
+    INSERT INTO pg_temp.trades VALUES
+      (100,'weighted',now()-interval '10 minutes',100,1),
+      (101,'weighted',now()-interval '5 minutes',100,1),
+      (102,'weighted',now(),130,10),
+      (103,'weighted',now()-interval '1 hour',9999,100),
+      (104,'weighted',now()+interval '1 second',9999,100),
+      (105,'single',now()-interval '1 minute',200,3),
+      (106,'old-only',now()-interval '2 hours',300,1),
+      (107,'card-price',now()-interval '1 minute',400,1);`);
+  const prices = (await client.query(`WITH recent_trade AS (${priceSQL}) SELECT * FROM recent_trade ORDER BY item_id`)).rows;
+  assert.deepEqual(prices, [
+    { item_id: 'single', vwap1h: 200, trades1h: 1, api_qty1h: 3 },
+    { item_id: 'weighted', vwap1h: 125, trades1h: 3, api_qty1h: 12 },
+  ]);
+  console.log('집계·보존·감시·1시간 VWAP 수량 가중/경계/무거래/카드 제외 테스트 통과 (운영 변경 없음)');
 } finally {
   await client.query('ROLLBACK');
   client.release();
