@@ -9,3 +9,8 @@ data/*
 *.db-shm
 
 dist/
+
+# 로컬 작업 지침과 인계 기록
+/AGENTS.md
+/CLAUDE.md
+/TASKS.md
