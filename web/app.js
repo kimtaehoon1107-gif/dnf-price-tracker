@@ -391,7 +391,7 @@ let DATA = null;
 let tab = '전체';
 // 기본 정렬은 24h 거래대금. 변동률로 정렬하면 하루 한두 건 거래된 아이템의
 // 의미 없는 ±40%가 맨 위를 차지한다.
-let job = '딜러';
+let job = '전체';
 let sortKey = 'turnover';
 let sortDir = -1;
 let cardMode = 'zero';
@@ -531,6 +531,12 @@ function categoryTabs(cats) {
   </div>`;
 }
 
+function cardJobTabs() {
+  return `<div class="job-sw">
+    ${['전체', '딜러', '버퍼'].map((j) => `<button class="${j === job ? 'on' : ''}" data-j="${j}">${j}</button>`).join('')}
+  </div>`;
+}
+
 // ── 목록 ───────────────────────────────────────────────────────
 function renderList() {
   const all = DATA.items.map(enrich);
@@ -538,7 +544,7 @@ function renderList() {
     .map((c) => ({ c, sum: all.filter((x) => x.category === c).reduce((a, x) => a + x.turnover, 0) }))
     .sort((a, b) => b.sum - a.sum).map((x) => x.c);
 
-  if (tab === '카드') { renderInventory(all, cats); return; }
+  if (tab === '카드' && job !== '전체') { renderInventory(all, cats); return; }
 
   const rows = (tab === '전체' ? all : all.filter((x) => x.category === tab))
     .sort((a, b) => {
@@ -552,6 +558,7 @@ function renderList() {
     ${summaryCards()}
 
     ${categoryTabs(cats)}
+    ${tab === '카드' ? cardJobTabs() : ''}
 
     <div class="list">
       <div class="lh">
@@ -615,6 +622,9 @@ function renderList() {
       renderList();
     };
   });
+  document.querySelectorAll('.job-sw button').forEach((el) => {
+    el.onclick = () => { job = el.dataset.j; renderList(); };
+  });
 }
 
 
@@ -643,9 +653,7 @@ function renderInventory(all, cats) {
     ${summaryCards()}
     ${categoryTabs(cats)}
 
-    <div class="job-sw">
-      ${['딜러', '버퍼'].map((j) => `<button class="${j === job ? 'on' : ''}" data-j="${j}">${j}</button>`).join('')}
-    </div>
+    ${cardJobTabs()}
 
     <div class="card" style="margin-bottom:20px">
       <div class="k">${job} 종결 인챈트 풀세트</div>
