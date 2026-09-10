@@ -818,19 +818,19 @@ async function renderDetail(it) {
         </div>
       </details>
     </div>
-    <div class="panel">
-      <h3>${isZeroCard ? `최근 7일 · 시간별 ${cardTier} 최저호가` : '최근 7일 · 시간별 VWAP'}</h3>
-      <p class="desc">${isZeroCard
-        ? '수집 시점마다 관측한 최저호가를 시간 단위로 평균했습니다.'
-        : '그 시간에 체결된 수량으로 가중한 평균가입니다. 일봉이 며칠치뿐일 때 장중 움직임을 볼 수 있는 유일한 차트입니다.'}</p>
-      <div class="chart" id="c3"></div>
-    </div>
     <div class="panel" id="stock-panel">
       <h3>최근 7일 · ${isZeroCard ? `${cardTier} ` : ''}API 관측 매물 잔량</h3>
       <p class="desc">각 시간의 마지막 관측에서 판매 중이던 수량입니다. 신규 등록량이나 체결량이 아니며, 빈 시간은 수집 기록이 없습니다. 현재 시간은 수집 중입니다.</p>
       <div class="kv depth-kv" id="stock-kv"></div>
       <div class="chart" id="stock-chart"></div>
       <p class="hint">API는 한 번에 최대 400건의 매물을 반환하므로 전체 경매장 물량보다 적을 수 있습니다.${isZeroCard ? ' 카드 업그레이드 단계는 같은 응답 안에서 구분합니다.' : ''} 매물 1건에 여러 개가 들어 있을 수 있어 건수와 수량을 구분합니다.</p>
+    </div>
+    <div class="panel">
+      <h3>${isZeroCard ? `최근 7일 · 시간별 ${cardTier} 최저호가` : '최근 7일 · 시간별 VWAP'}</h3>
+      <p class="desc">${isZeroCard
+        ? '수집 시점마다 관측한 최저호가를 시간 단위로 평균했습니다.'
+        : '그 시간에 체결된 수량으로 가중한 평균가입니다. 일봉이 며칠치뿐일 때 장중 움직임을 볼 수 있는 유일한 차트입니다.'}</p>
+      <div class="chart" id="c3"></div>
     </div>
     ${isZeroCard ? '' : `<div class="panel" id="weekday-panel">
       <h3>아이템별 요일 프로파일</h3>
