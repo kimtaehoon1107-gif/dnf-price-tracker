@@ -387,6 +387,20 @@ function observedHourlySeries(rows, key) {
   return points;
 }
 
+// 미관측 시간을 가로질러 가격선을 이으면 점검 중에도 관측한 것처럼 보인다.
+function hourlyPriceSegments(points) {
+  const segments = [];
+  let current = [];
+  for (const point of points) {
+    if (point.value === undefined) {
+      if (current.length) segments.push(current);
+      current = [];
+    } else current.push(point);
+  }
+  if (current.length) segments.push(current);
+  return segments;
+}
+
 let DATA = null;
 let tab = '전체';
 // 기본 정렬은 24h 거래대금. 변동률로 정렬하면 하루 한두 건 거래된 아이템의
@@ -819,18 +833,12 @@ async function renderDetail(it) {
       </details>
     </div>
     <div class="panel" id="stock-panel">
-      <h3>최근 7일 · ${isZeroCard ? `${cardTier} ` : ''}API 관측 매물 잔량</h3>
-      <p class="desc">각 시간의 마지막 관측에서 판매 중이던 수량입니다. 신규 등록량이나 체결량이 아니며, 빈 시간은 수집 기록이 없습니다. 현재 시간은 수집 중입니다.</p>
+      <h3>최근 7일 · ${isZeroCard ? `${cardTier} ` : ''}가격과 매물 잔량</h3>
+      <p class="desc">${isZeroCard ? '선택한 단계의 시간별 평균 최저호가와' : '시간별 체결 수량 가중평균(VWAP)과'} 각 시간의 마지막 매물 잔량을 같은 시간축에서 비교합니다. 현재 시간은 수집 중입니다.</p>
       <div class="kv depth-kv" id="stock-kv"></div>
+      <div class="stock-legend"><span><i class="stock-price-key"></i>${isZeroCard ? `${cardTier} 평균 최저호가` : '체결 VWAP'} · 왼쪽 골드</span><span><i class="stock-qty-key"></i>매물 잔량 · 오른쪽 개</span><span>시간 · KST</span></div>
       <div class="chart" id="stock-chart"></div>
-      <p class="hint">API는 한 번에 최대 400건의 매물을 반환하므로 전체 경매장 물량보다 적을 수 있습니다.${isZeroCard ? ' 카드 업그레이드 단계는 같은 응답 안에서 구분합니다.' : ''} 매물 1건에 여러 개가 들어 있을 수 있어 건수와 수량을 구분합니다.</p>
-    </div>
-    <div class="panel">
-      <h3>${isZeroCard ? `최근 7일 · 시간별 ${cardTier} 최저호가` : '최근 7일 · 시간별 VWAP'}</h3>
-      <p class="desc">${isZeroCard
-        ? '수집 시점마다 관측한 최저호가를 시간 단위로 평균했습니다.'
-        : '그 시간에 체결된 수량으로 가중한 평균가입니다. 일봉이 며칠치뿐일 때 장중 움직임을 볼 수 있는 유일한 차트입니다.'}</p>
-      <div class="chart" id="c3"></div>
+      <p class="hint">빈 구간은 해당 자료가 없는 시간이며 0개와 구분합니다. 잔량은 신규 등록량이나 체결량이 아닙니다. 가격과 잔량의 동시 변화만으로 원인을 확정할 수는 없습니다.<br>매물 API는 최대 400건을 반환하므로 전체 물량보다 적을 수 있습니다.${isZeroCard ? ' 카드 단계는 같은 응답 안에서 구분합니다.' : ''}</p>
     </div>
     ${isZeroCard ? '' : `<div class="panel" id="weekday-panel">
       <h3>아이템별 요일 프로파일</h3>
@@ -945,33 +953,59 @@ async function renderDetail(it) {
   if (weekday.state !== 'ready') document.getElementById('view').append(document.getElementById('weekday-panel'));
   }
 
-  if (stock.length) {
+  const hourly = s.hourly ?? [];
+  if (stock.length || hourly.length) {
     const latest = stock.at(-1);
     document.getElementById('stock-kv').innerHTML = `
-      <div><div class="k">최근 관측 잔량</div><div class="v">${fmt(latest.qty)}<small> 개</small></div></div>
-      <div><div class="k">관측 매물</div><div class="v">${fmt(latest.listings)}<small> 건</small></div></div>
-      <div><div class="k">마지막 관측 · KST</div><div class="v">${priceTime(latest.observed_at)}</div></div>`;
+      <div><div class="k">최근 관측 잔량</div><div class="v">${fmt(latest?.qty)}<small> 개</small></div></div>
+      <div><div class="k">관측 매물</div><div class="v">${fmt(latest?.listings)}<small> 건</small></div></div>
+      <div><div class="k">마지막 매물 관측 · KST</div><div class="v">${priceTime(latest?.observed_at)}</div></div>`;
     const stockBox = document.getElementById('stock-chart');
     const stockChart = LightweightCharts.createChart(stockBox, {
-      ...opts, height: 300, rightPriceScale: { borderVisible: false, mode: 0 },
-      timeScale: { borderVisible: false, timeVisible: true },
-      localization: { locale: 'ko-KR', priceFormatter: (v) => `${fmt(v)}개` },
+      ...opts, height: 360,
+      leftPriceScale: { visible: true, borderVisible: false, mode: 0, scaleMargins: { top: 0.08, bottom: 0.22 } },
+      rightPriceScale: { visible: true, borderVisible: false, mode: 0, scaleMargins: { top: 0.3, bottom: 0.05 } },
+      timeScale: {
+        borderVisible: false, timeVisible: true, secondsVisible: false,
+        tickMarkFormatter: (time, type) => new Date(time * 1000).toLocaleString('ko-KR', {
+          timeZone: 'Asia/Seoul', ...(type <= 2 ? { month: 'numeric', day: 'numeric' } : { hour: '2-digit', minute: '2-digit', hour12: false }),
+        }),
+      },
+      localization: { locale: 'ko-KR', timeFormatter: tipTime },
     });
+    const stockPoints = observedHourlySeries(stock, 'qty');
+    const pricePoints = observedHourlySeries(hourly, 'vwap');
     stockChart.addHistogramSeries({
-      color: css('--blue'), priceFormat: { type: 'custom', minMove: 1, formatter: (v) => `${fmt(v)}개` },
-    }).setData(observedHourlySeries(stock, 'qty'));
+      priceScaleId: 'right', color: css('--blue') + '55', priceLineVisible: false,
+      priceFormat: { type: 'custom', minMove: 1, formatter: (v) => `${fmt(v)}개` },
+    }).setData(stockPoints);
+    const segments = hourlyPriceSegments(pricePoints);
+    for (const [index, segment] of segments.entries()) {
+      stockChart.addLineSeries({
+        priceScaleId: 'left', color: css('--ink'), lineWidth: 2,
+        pointMarkersVisible: segment.length === 1, pointMarkersRadius: 3,
+        priceLineVisible: false, lastValueVisible: index === segments.length - 1,
+        priceFormat: { type: 'custom', minMove: 1, formatter: (v) => fmt(v) },
+      }).setData(segment);
+    }
+    const hourlyAt = bySecond(hourly, 't');
     attachTooltip(stockChart, stockBox, (param) => {
       const row = stockAt.get(param.time);
-      return row ? tipRows(param.time, [
-        ['관측 잔량', `${fmt(row.qty)}개`],
-        ['관측 매물', `${fmt(row.listings)}건`],
-        ['최저호가', row.min_ask === null ? '매물 없음' : `${fmt(row.min_ask)}골드`],
-        ['실제 관측 · KST', priceTime(row.observed_at)],
-      ]) : null;
+      const price = hourlyAt.get(param.time);
+      return tipRows(param.time, [
+        [isZeroCard ? `${cardTier} 평균 최저호가` : '체결 VWAP', price ? `${fmt(price.vwap)}골드` : '가격 관측 없음'],
+        !isZeroCard && price ? ['관측 체결 수량', `${fmt(price.qty)}개`] : null,
+        ['매물 잔량', row ? `${fmt(row.qty)}개` : '매물 미관측'],
+        row ? ['관측 매물', `${fmt(row.listings)}건`] : null,
+        row ? ['관측 시점 최저호가', row.min_ask === null ? '매물 없음' : `${fmt(row.min_ask)}골드`] : null,
+        row ? ['매물 관측 · KST', priceTime(row.observed_at)] : null,
+      ]);
     });
-    stockChart.timeScale().fitContent();
+    const firstObserved = [...stockPoints, ...pricePoints].filter((point) => point.value !== undefined);
+    const end = stockPoints.at(-1).time;
+    stockChart.timeScale().setVisibleRange({ from: Math.min(end - 3600, ...firstObserved.map((point) => point.time)), to: end });
   } else {
-    document.getElementById('stock-chart').innerHTML = '<p style="color:var(--ink-3);margin:0">최근 7일의 매물 잔량 관측 기록이 없습니다.</p>';
+    document.getElementById('stock-chart').innerHTML = '<p style="color:var(--ink-3);margin:0">최근 7일의 가격과 매물 잔량 관측 기록이 없습니다.</p>';
   }
 
   if (depletion.length) {
@@ -1122,30 +1156,6 @@ async function renderDetail(it) {
     document.getElementById('c1').innerHTML = '<p style="color:var(--ink-3);margin:0">일봉을 그릴 만큼 데이터가 모이지 않았습니다.</p>';
     document.getElementById('candle-toggle').hidden = true;
     desc.textContent = '';
-  }
-
-  if (s.hourly?.length) {
-    const box3 = document.getElementById('c3');
-    // 장중 차트라 축에 시각까지 보여준다. 일봉 차트는 날짜 문자열이라 켜지 않는다.
-    const c3 = LightweightCharts.createChart(box3, {
-      ...opts, height: 300, timeScale: { borderVisible: false, timeVisible: true },
-    });
-    c3.addAreaSeries({
-      lineColor: css('--blue'), topColor: css('--blue') + '33', bottomColor: css('--blue') + '08', lineWidth: 2,
-    }).setData(s.hourly.map((h) => ({ time: Math.floor(Date.parse(h.t) / 1000), value: h.vwap })));
-    const hourlyAt = bySecond(s.hourly, 't');
-    attachTooltip(c3, box3, (param) => {
-      const row = hourlyAt.get(param.time);
-      if (!row) return null;
-      const inventory = stockAt.get(param.time);
-      return tipRows(param.time, [
-        [isZeroCard ? '최저호가' : 'VWAP', fmt(row.vwap)],
-        isZeroCard ? null : ['체결 수량', fmt(row.qty)],
-        inventory ? ['시간 내 마지막 잔량', `${fmt(inventory.qty)}개 · ${fmt(inventory.listings)}건`] : null,
-        inventory ? ['매물 관측 · KST', priceTime(inventory.observed_at)] : null,
-      ]);
-    });
-    c3.timeScale().fitContent();
   }
 
   if (!isZeroCard && s.askGap?.length) {
