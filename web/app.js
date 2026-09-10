@@ -373,8 +373,8 @@ function eventStudyHTML(events, days, priceBasis) {
 
 // 수집이 없던 시간은 0이 아니라 공백이다. 7일 시간축을 직접 채우되,
 // 관측된 0만 value: 0으로 두고 미관측 시간은 whitespace point로 남긴다.
-function depletionSeries(rows) {
-  const byHour = new Map(rows.map((x) => [Math.floor(Date.parse(x.t) / 3600000), x.rate]));
+function observedHourlySeries(rows, key) {
+  const byHour = new Map(rows.map((x) => [Math.floor(Date.parse(x.t) / 3600000), x[key]]));
   const end = Math.floor(Date.parse(DATA.builtAt) / 3600000);
   const start = end - 7 * 24 + 1;
   const points = [];
@@ -398,7 +398,7 @@ let cardMode = 'zero';
 let detailItemId = null;
 
 async function boot() {
-  const response = await fetch('data/summary.json');
+  const response = await fetch('data/summary.json', { cache: 'no-cache' });
   if (!response.ok) throw new Error(`요약 데이터 HTTP ${response.status}`);
   DATA = await response.json();
   const b = new Date(DATA.builtAt);
@@ -825,6 +825,13 @@ async function renderDetail(it) {
         : '그 시간에 체결된 수량으로 가중한 평균가입니다. 일봉이 며칠치뿐일 때 장중 움직임을 볼 수 있는 유일한 차트입니다.'}</p>
       <div class="chart" id="c3"></div>
     </div>
+    <div class="panel" id="stock-panel">
+      <h3>최근 7일 · ${isZeroCard ? `${cardTier} ` : ''}API 관측 매물 잔량</h3>
+      <p class="desc">각 시간의 마지막 관측에서 판매 중이던 수량입니다. 신규 등록량이나 체결량이 아니며, 빈 시간은 수집 기록이 없습니다. 현재 시간은 수집 중입니다.</p>
+      <div class="kv depth-kv" id="stock-kv"></div>
+      <div class="chart" id="stock-chart"></div>
+      <p class="hint">API는 한 번에 최대 400건의 매물을 반환하므로 전체 경매장 물량보다 적을 수 있습니다.${isZeroCard ? ' 카드 업그레이드 단계는 같은 응답 안에서 구분합니다.' : ''} 매물 1건에 여러 개가 들어 있을 수 있어 건수와 수량을 구분합니다.</p>
+    </div>
     ${isZeroCard ? '' : `<div class="panel" id="weekday-panel">
       <h3>아이템별 요일 프로파일</h3>
       <p class="desc" id="weekday-desc">완료된 일봉을 분석하는 중…</p>
@@ -860,11 +867,11 @@ async function renderDetail(it) {
     };
   });
 
-  const response = await fetch(`data/series/${it.item_id}.json`);
+  const response = await fetch(`data/series/${it.item_id}.json`, { cache: 'no-cache' });
   if (!response.ok) throw new Error(`시계열 데이터 HTTP ${response.status}`);
   const rawSeries = await response.json();
   const s = showingMax
-    ? { ...rawSeries, ...rawSeries.max, events: rawSeries.events ?? [], askGap: [], forecast: null }
+    ? { ...rawSeries, ...rawSeries.max, stock: rawSeries.max?.stock ?? [], events: rawSeries.events ?? [], askGap: [], forecast: null }
     : rawSeries;
   // 해시가 바뀐 사이 이전 요청이 늦게 도착하면 새 상세 화면을 덮지 않는다.
   if (location.hash.slice(1) !== it.item_id || cardMode !== (showingMax ? 'max' : 'zero')) return;
@@ -899,6 +906,8 @@ async function renderDetail(it) {
   const desc = document.getElementById('fc-desc');
   const shock = shockData(d);
   const depletion = s.depletion ?? [];
+  const stock = s.stock ?? [];
+  const stockAt = bySecond(stock, 't');
   const firstDay = d[0]?.d;
   const lastDay = d.at(-1)?.d;
   const events = (s.events ?? []).filter((event) => {
@@ -936,6 +945,35 @@ async function renderDetail(it) {
   if (weekday.state !== 'ready') document.getElementById('view').append(document.getElementById('weekday-panel'));
   }
 
+  if (stock.length) {
+    const latest = stock.at(-1);
+    document.getElementById('stock-kv').innerHTML = `
+      <div><div class="k">최근 관측 잔량</div><div class="v">${fmt(latest.qty)}<small> 개</small></div></div>
+      <div><div class="k">관측 매물</div><div class="v">${fmt(latest.listings)}<small> 건</small></div></div>
+      <div><div class="k">마지막 관측 · KST</div><div class="v">${priceTime(latest.observed_at)}</div></div>`;
+    const stockBox = document.getElementById('stock-chart');
+    const stockChart = LightweightCharts.createChart(stockBox, {
+      ...opts, height: 300, rightPriceScale: { borderVisible: false, mode: 0 },
+      timeScale: { borderVisible: false, timeVisible: true },
+      localization: { locale: 'ko-KR', priceFormatter: (v) => `${fmt(v)}개` },
+    });
+    stockChart.addHistogramSeries({
+      color: css('--blue'), priceFormat: { type: 'custom', minMove: 1, formatter: (v) => `${fmt(v)}개` },
+    }).setData(observedHourlySeries(stock, 'qty'));
+    attachTooltip(stockChart, stockBox, (param) => {
+      const row = stockAt.get(param.time);
+      return row ? tipRows(param.time, [
+        ['관측 잔량', `${fmt(row.qty)}개`],
+        ['관측 매물', `${fmt(row.listings)}건`],
+        ['최저호가', row.min_ask === null ? '매물 없음' : `${fmt(row.min_ask)}골드`],
+        ['실제 관측 · KST', priceTime(row.observed_at)],
+      ]) : null;
+    });
+    stockChart.timeScale().fitContent();
+  } else {
+    document.getElementById('stock-chart').innerHTML = '<p style="color:var(--ink-3);margin:0">최근 7일의 매물 잔량 관측 기록이 없습니다.</p>';
+  }
+
   if (depletion.length) {
     const cutoff = Date.parse(DATA.builtAt) - 24 * 3600000;
     const recent = depletion.filter((x) => Date.parse(x.t) >= cutoff);
@@ -957,7 +995,7 @@ async function renderDetail(it) {
     c6.addAreaSeries({
       lineColor: css('--gold'), topColor: css('--gold') + '33', bottomColor: css('--gold') + '08',
       lineWidth: 2, priceFormat: { type: 'custom', formatter: (v) => `${fmt(v)}개/h` },
-    }).setData(depletionSeries(depletion));
+    }).setData(observedHourlySeries(depletion, 'rate'));
     const depletionAt = bySecond(depletion, 't');
     attachTooltip(c6, box6, (param) => {
       const row = depletionAt.get(param.time);
@@ -1099,9 +1137,12 @@ async function renderDetail(it) {
     attachTooltip(c3, box3, (param) => {
       const row = hourlyAt.get(param.time);
       if (!row) return null;
+      const inventory = stockAt.get(param.time);
       return tipRows(param.time, [
         [isZeroCard ? '최저호가' : 'VWAP', fmt(row.vwap)],
         isZeroCard ? null : ['체결 수량', fmt(row.qty)],
+        inventory ? ['시간 내 마지막 잔량', `${fmt(inventory.qty)}개 · ${fmt(inventory.listings)}건`] : null,
+        inventory ? ['매물 관측 · KST', priceTime(inventory.observed_at)] : null,
       ]);
     });
     c3.timeScale().fitContent();

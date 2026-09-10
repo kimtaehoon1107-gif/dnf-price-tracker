@@ -269,6 +269,25 @@ const depletion = (await query<{
   GROUP BY o.item_id, o.upgrade, date_trunc('hour', o.captured_at AT TIME ZONE 'UTC')
   ORDER BY o.item_id, o.upgrade, 3`)).rows;
 
+// 잔량은 반복 관측한 재고이므로 합산하지 않고 매시간 마지막 스냅샷만 쓴다.
+// 카드의 단계 미상 기록과 중간 업그레이드는 0업·맥스업에 섞지 않는다.
+const stock = (await query<{
+  item_id: string; upgrade: number | null; t: string; observed_at: string;
+  qty: number; listings: number; min_ask: number | null;
+}>(`
+  SELECT DISTINCT ON (s.item_id, s.upgrade, date_trunc('hour', s.captured_at))
+         s.item_id, s.upgrade,
+         to_char(date_trunc('hour', s.captured_at AT TIME ZONE 'UTC'),
+                 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS t,
+         to_char(s.captured_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS observed_at,
+         s.total_qty AS qty, s.listing_count AS listings, s.min_unit_price::float8 AS min_ask
+  FROM listing_snapshots s JOIN items i USING (item_id)
+  WHERE s.captured_at >= date_trunc('hour', now()) - interval '167 hours'
+    AND s.captured_at <= now()
+    AND ((i.category <> '카드' AND s.upgrade IS NULL)
+      OR (i.category = '카드' AND (s.upgrade = 0 OR (s.upgrade > 0 AND s.upgrade = s.upgrade_max))))
+  ORDER BY s.item_id, s.upgrade, date_trunc('hour', s.captured_at), s.captured_at DESC, s.id DESC`)).rows;
+
 const depth = (await query<{ item_id: string; price: number; qty: number }>(`
   SELECT l.item_id, l.unit_price::float8 AS price, SUM(l.cur_count)::float8 AS qty
   FROM listings l JOIN items i USING (item_id)
@@ -310,6 +329,8 @@ const cardHourlyMaxBy = byItem(cardHourlyMax);
 const askGapBy = byItem(askGap);
 const depletionBy = byItem(depletion.filter((row) => row.upgrade === null || row.upgrade === 0));
 const cardDepletionMaxBy = byItem(depletion.filter((row) => row.upgrade !== null && row.upgrade > 0));
+const stockBy = byItem(stock.filter((row) => row.upgrade === null || row.upgrade === 0));
+const cardStockMaxBy = byItem(stock.filter((row) => row.upgrade !== null && row.upgrade > 0));
 const depthBy = byItem(depth);
 const eventsBy = new Map<string, typeof events>();
 for (const event of events) {
@@ -397,11 +418,13 @@ for (const it of items) {
   writeFileSync(`${OUT}/data/series/${it.item_id}.json`, JSON.stringify({
     priceBasis: it.price_basis, daily: d, hourly: hourlyBy.get(it.item_id) ?? [],
     askGap: askGapBy.get(it.item_id) ?? [], depletion: depletionBy.get(it.item_id) ?? [],
+    stock: stockBy.get(it.item_id) ?? [],
     depth: depthBy.get(it.item_id) ?? [], events: eventsBy.get(it.item_id) ?? [], forecast: f,
     max: it.category === '카드' ? {
       priceBasis: 'askMax', daily: cardDailyMaxBy.get(it.item_id) ?? [],
       hourly: cardHourlyMaxBy.get(it.item_id) ?? [],
       depletion: cardDepletionMaxBy.get(it.item_id) ?? [],
+      stock: cardStockMaxBy.get(it.item_id) ?? [],
     } : null,
   }));
 }
