@@ -11,6 +11,7 @@ on:
       - 'web/**'
       - 'src/forecast.ts'
       - 'src/market-logic.ts'
+      - 'src/legendary.ts'
       - 'src/candle-check.ts'
       - 'src/db.ts'
       - 'scripts/legendary-floor.ts'

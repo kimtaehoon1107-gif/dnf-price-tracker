@@ -162,7 +162,7 @@ function weekdayProfile(days, events) {
   };
 }
 
-function weekdaySVG(points, key, title) {
+function weekdaySVG(points, key, title, baselineLabel = '아이템 평균 100') {
   const W = 420, H = 220, L = 28, R = 14, T = 34, B = 34;
   const plotW = W - L - R, plotH = H - T - B;
   const maxDeviation = Math.max(5, ...points.map((point) => Math.abs(point[key] - 100))) * 1.2;
@@ -175,8 +175,8 @@ function weekdaySVG(points, key, title) {
 
   return `<div class="weekday-chart">
     <h4>${title}</h4>
-    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(`${title}. 아이템 평균 100. ${aria}`)}">
-      <title>${esc(`${title} · 아이템 평균 100`)}</title>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(`${title}. ${baselineLabel}. ${aria}`)}">
+      <title>${esc(`${title} · ${baselineLabel}`)}</title>
       <rect class="weekday-thursday" x="${L + slot * 3}" y="${T - 8}" width="${slot}" height="${plotH + 25}" rx="8"/>
       <line class="weekday-baseline" x1="${L}" y1="${baseline}" x2="${W - R}" y2="${baseline}"/>
       <text class="weekday-axis" x="${L - 5}" y="${baseline + 4}" text-anchor="end">100</text>
@@ -373,10 +373,10 @@ function eventStudyHTML(events, days, priceBasis) {
 
 // 수집이 없던 시간은 0이 아니라 공백이다. 7일 시간축을 직접 채우되,
 // 관측된 0만 value: 0으로 두고 미관측 시간은 whitespace point로 남긴다.
-function observedHourlySeries(rows, key) {
+function observedHourlySeries(rows, key, hours = 7 * 24, asOf = DATA.builtAt) {
   const byHour = new Map(rows.map((x) => [Math.floor(Date.parse(x.t) / 3600000), x[key]]));
-  const end = Math.floor(Date.parse(DATA.builtAt) / 3600000);
-  const start = end - 7 * 24 + 1;
+  const end = Math.floor(Date.parse(asOf) / 3600000);
+  const start = end - hours + 1;
   const points = [];
   for (let hour = start; hour <= end; hour++) {
     const value = byHour.get(hour);
@@ -410,6 +410,7 @@ let sortKey = 'turnover';
 let sortDir = -1;
 let cardMode = 'zero';
 let detailItemId = null;
+let legendaryChart = null;
 
 async function boot() {
   const response = await fetch('data/summary.json', { cache: 'no-cache' });
@@ -471,13 +472,15 @@ function upgradeEconomicsHTML(it) {
 }
 
 function render() {
+  legendaryChart?.remove();
+  legendaryChart = null;
   const id = location.hash.slice(1);
   const it = DATA.items.find((x) => x.item_id === id);
   scrollTo(0, 0);
-  if (it) {
+  if (it || id === 'legendary-card') {
     if (detailItemId !== id) cardMode = 'zero';
     detailItemId = id;
-    renderDetail(enrich(it)).catch((error) => {
+    (it ? renderDetail(enrich(it)) : renderLegendary()).catch((error) => {
       if (location.hash.slice(1) !== id) return;
       console.error(error);
       document.getElementById('view').innerHTML = `
@@ -514,11 +517,11 @@ function summaryCards() {
       <div class="v">${m.items}<small>종</small></div>
       <div class="sub">체결 ${fmt(m.trades)}건 · ${m.lo}~${m.hi}</div>
     </div>
-    ${lg ? `<div class="card hl">
+    ${lg ? `<a class="card hl" href="#legendary-card">
       <div class="k">레전더리 0업 카드</div>
       <div class="v">${fmt(lg.p10)}</div>
-      <div class="sub">최저 ${fmt(lg.min_unit_price)} · 중앙 ${fmt(lg.median)} · 매물 ${lg.with_listings}/${lg.scanned}종</div>
-    </div>` : ''}
+      <div class="sub">저가 기준 P10 · 그래프 보기 →<br>최저 ${fmt(lg.min_unit_price)} · 매물 ${lg.with_listings}/${lg.scanned}종</div>
+    </a>` : ''}
     ${netMargin !== null ? `<div class="card">
       <div class="k">패키지 해체 차익</div>
       <div class="v ${cls(netMargin)}">${pct(netMargin)}</div>
@@ -554,6 +557,7 @@ function cardJobTabs() {
 // ── 목록 ───────────────────────────────────────────────────────
 function renderList() {
   const all = DATA.items.map(enrich);
+  const lg = DATA.legendary?.[0];
   const cats = [...new Set(all.map((x) => x.category))]
     .map((c) => ({ c, sum: all.filter((x) => x.category === c).reduce((a, x) => a + x.turnover, 0) }))
     .sort((a, b) => b.sum - a.sum).map((x) => x.c);
@@ -584,6 +588,16 @@ function renderList() {
         <span class="r h6">14일 추이</span>
         <span class="r h7" data-k="listings">매물</span>
       </div>
+      ${lg && ['전체', '카드'].includes(tab) ? `<a class="row legendary-row" href="#legendary-card">
+        <div class="rank r">지수</div>
+        <div class="nm"><div class="legendary-icon" aria-hidden="true">0업</div><div class="t">
+          <b>레전더리 카드 재료 시세<span class="tag">0업</span></b>
+          <span>종류별 최저호가의 저가 기준 P10 · 매물 확인 ${lg.with_listings}/${lg.scanned}종</span>
+        </div></div>
+        <div class="px"><b>${fmt(lg.p10)}</b><small class="flat">P10 · 골드</small></div>
+        <div class="chg flat">-</div><div class="dim c5">-</div>
+        <div class="dim c6">그래프 보기 →</div><div class="dim c7">${fmt(lg.total_listings)}</div>
+      </a>` : ''}
       ${rows.map((r, i) => {
         const color = css(r.chg > 0 ? '--up' : r.chg < 0 ? '--down' : '--ink-4');
         const thin = r.price_basis === 'trade' && r.api_qty24 < 5 && r.chg !== null;
@@ -754,6 +768,113 @@ function attachTooltip(chart, container, format) {
 /** 시각(초) → 원본 행. 차트는 값만 알고 있어 원자료를 되찾으려면 필요하다. */
 const bySecond = (rows, key) =>
   new Map(rows.map((row) => [Math.floor(Date.parse(row[key]) / 1000), row]));
+
+// ── 레전더리 재료 시세 ─────────────────────────────────────────
+async function renderLegendary() {
+  const view = document.getElementById('view');
+  view.innerHTML = '<a class="back" href="#">← 전체 목록</a><div class="panel">레전더리 카드 시세를 불러오는 중…</div>';
+  const response = await fetch('data/legendary.json', { cache: 'no-cache' });
+  if (!response.ok) throw new Error(`레전더리 시계열 HTTP ${response.status}`);
+  const data = await response.json();
+  if (location.hash.slice(1) !== 'legendary-card') return;
+  const latest = data.hourly.at(-1);
+  if (!latest) {
+    view.innerHTML = '<a class="back" href="#">← 전체 목록</a><div class="panel"><h3>레전더리 카드 재료 시세 · 0업</h3><p>0업 가격 관측 기록이 아직 없습니다.</p></div>';
+    return;
+  }
+  const weekday = data.weekday;
+  const stale = Date.parse(data.asOf) - Date.parse(latest.captured_at) > 2 * 3600000;
+  view.innerHTML = `
+    <a class="back" href="#">← 전체 목록</a>
+    <div class="dh"><div class="legendary-icon" aria-hidden="true">0업</div><div>
+      <h2>레전더리 카드 재료 시세<span class="tag">0업</span></h2>
+      <div class="meta">강화·합성 재료의 저가 호가 지표 · ${latest.scanned}종 대상</div>
+    </div></div>
+    <div class="bigpx">${fmt(latest.p10)}<small> 골드</small></div>
+    <div class="bigchg flat">저가 기준가 P10 · 마지막 관측 ${priceTime(latest.captured_at)} KST${stale ? ' · 관측 지연' : ''}</div>
+    <div class="panel"><div class="kv">
+      <div><div class="k">전체 최저호가</div><div class="v">${fmt(latest.min_unit_price)}<small> 골드</small></div></div>
+      <div><div class="k">종류별 최저호가 중앙값</div><div class="v">${fmt(latest.median)}<small> 골드</small></div></div>
+      <div><div class="k">관측 매물</div><div class="v">${fmt(latest.total_listings)}<small> 건</small></div></div>
+      <div><div class="k">매물 확인 / 대상</div><div class="v">${latest.with_listings} / ${latest.scanned}<small> 종</small></div></div>
+    </div><p class="hint">최저가 카드: ${esc(latest.min_item_name)} · 관측 기간 ${data.daily[0].d}~${data.daily.at(-1).d} · ${fmt(data.observations)}회 수집</p></div>
+    <div class="panel" id="legendary-panel">
+      <div class="panel-head"><h3>가격과 관측 매물</h3><div class="legendary-ranges" role="group" aria-label="레전더리 차트 기간">
+        ${[['7', '7일'], ['30', '30일'], ['all', '전체']].map(([value, label]) => `<button class="chart-toggle${value === '7' ? ' on' : ''}" data-range="${value}" aria-pressed="${value === '7'}">${label}</button>`).join('')}
+      </div></div>
+      <p class="desc">각 시간의 마지막 관측을 비교합니다. 가격은 왼쪽 골드, 매물은 오른쪽 건수이며, 신규 등록량이나 체결량은 아닙니다.</p>
+      <div class="stock-legend"><span><i class="stock-price-key"></i>P10</span><span><i class="stock-min-key"></i>최저호가</span><span><i class="stock-qty-key"></i>관측 매물 건수</span><span>시간 · KST</span></div>
+      <div class="chart" id="legendary-chart"></div>
+      <p class="hint">빈 시간은 미관측이며 0건과 구분합니다. 현재 시간은 수집 중입니다. 가격과 매물의 동시 변화만으로 원인을 확정하지 않습니다.</p>
+    </div>
+    <div class="panel" id="legendary-weekday">
+      <h3>요일별 재료 가격 흐름</h3>
+      <p class="desc">${weekday.ready
+        ? `완료 ${weekday.weeks}주를 비교합니다. 일평균 P10을 해당 주 평균 100으로 환산하고, 전날 대비 변화율도 함께 표시합니다.`
+        : `표본을 모으는 중입니다. 월~일을 모두 관측한 완료 주 ${weekday.weeks}/${weekday.minWeeks}주 · 하루 ${weekday.minHours}시간 이상 관측한 날 ${weekday.eligibleDays}일.`}</p>
+      ${weekday.ready ? `${weekdaySVG(weekday.points, 'price', '주평균 대비 P10 가격 수준', '해당 주 평균 100')}
+        <div class="legendary-weekday-table"><table><thead><tr><th>요일</th><th>가격 지수</th><th>전날 대비</th><th>표본 일수</th></tr></thead><tbody>
+          ${weekday.points.map((point) => `<tr><th>${point.label}</th><td>${fmt(point.price, 1)}</td><td class="${cls(point.change)}">${pct(point.change)}</td><td>가격 ${point.n} · 변화 ${point.changeN}</td></tr>`).join('')}
+        </tbody></table></div>`
+        : `<p class="weekday-empty">요일별 사용 가능 표본: ${['월', '화', '수', '목', '금', '토', '일'].map((label, index) => `${label} ${weekday.counts[index]}일`).join(' · ')}<br>조건이 충족되면 그래프가 자동으로 표시됩니다.</p>`}
+      <p class="hint">당일과 관측 ${weekday.minHours}시간 미만인 날은 제외합니다. 일평균은 시간별 마지막 가격에 같은 비중을 줍니다. 패치·이벤트를 포함한 관측 패턴이며, 요일 자체의 효과나 통계적 유의성을 검증한 결과는 아닙니다.</p>
+    </div>
+    <div class="panel"><h3>이 가격을 읽는 방법</h3>
+      <p class="desc">P10은 매물이 확인된 카드 종류별 0업 최저호가를 싼 순서로 정렬한 10% 지점입니다. 매물 수나 체결 수량으로 가중한 평균가가 아닙니다. 최저호가는 그중 가장 싼 한 매물의 가격입니다.</p>
+      <p class="hint">등록된 ${latest.scanned}종을 대상으로 하며 카드 종류별 API 응답은 최대 400건입니다. 매물 소멸이나 개별 조회 실패로 관측되는 종류가 바뀌어도 P10과 매물 건수가 변할 수 있습니다. 툴팁의 매물 확인 종수를 함께 확인하세요.</p>
+    </div>`;
+
+  const box = document.getElementById('legendary-chart');
+  const chart = LightweightCharts.createChart(box, {
+    autoSize: true,
+    layout: { background: { color: 'transparent' }, textColor: css('--ink-3'), fontFamily: 'Pretendard, system-ui, sans-serif' },
+    grid: { vertLines: { visible: false }, horzLines: { color: css('--line') } },
+    leftPriceScale: { visible: true, borderVisible: false, scaleMargins: { top: 0.08, bottom: 0.25 } },
+    rightPriceScale: { visible: true, borderVisible: false, scaleMargins: { top: 0.35, bottom: 0.05 } },
+    timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false,
+      tickMarkFormatter: (time, type) => new Date(time * 1000).toLocaleString('ko-KR', {
+        timeZone: 'Asia/Seoul', ...(type <= 2 ? { month: 'numeric', day: 'numeric' } : { hour: '2-digit', minute: '2-digit', hour12: false }),
+      }) },
+    crosshair: { mode: 0 }, localization: { locale: 'ko-KR', timeFormatter: tipTime },
+  });
+  legendaryChart = chart;
+  const end = Math.floor(Date.parse(data.asOf) / 3600000) * 3600;
+  const start = Math.floor(Date.parse(data.hourly[0].t) / 3600000) * 3600;
+  const hours = (end - start) / 3600 + 1;
+  chart.addHistogramSeries({ priceScaleId: 'right', color: css('--blue') + '55', priceLineVisible: false,
+    priceFormat: { type: 'custom', minMove: 1, formatter: (value) => `${fmt(value)}건` },
+  }).setData(observedHourlySeries(data.hourly, 'total_listings', hours, data.asOf));
+  for (const [key, color] of [['min_unit_price', css('--gold')], ['p10', css('--ink')]]) {
+    const segments = hourlyPriceSegments(observedHourlySeries(data.hourly, key, hours, data.asOf));
+    for (const [index, segment] of segments.entries()) {
+      chart.addLineSeries({ priceScaleId: 'left', color, lineWidth: 2,
+        pointMarkersVisible: segment.length === 1, pointMarkersRadius: 3,
+        priceLineVisible: false, lastValueVisible: index === segments.length - 1,
+        priceFormat: { type: 'custom', minMove: 1, formatter: (value) => fmt(value) },
+      }).setData(segment);
+    }
+  }
+  const at = bySecond(data.hourly, 't');
+  attachTooltip(chart, box, (param) => {
+    const row = at.get(param.time);
+    return tipRows(param.time, row ? [
+      ['P10', `${fmt(row.p10)}골드`], ['최저호가', `${fmt(row.min_unit_price)}골드`],
+      ['최저가 카드', esc(row.min_item_name)], ['관측 매물', `${fmt(row.total_listings)}건`],
+      ['매물 확인 / 대상', `${row.with_listings} / ${row.scanned}종`],
+      ['실제 관측 · KST', priceTime(row.captured_at)],
+    ] : [['가격 · 매물', '미관측']]);
+  });
+  const setRange = (value) => {
+    chart.timeScale().setVisibleRange({ from: Math.min(end - 3600, value === 'all' ? start : Math.max(start, end - (Number(value) * 24 - 1) * 3600)), to: end });
+    document.querySelectorAll('[data-range]').forEach((button) => {
+      const active = button.dataset.range === value;
+      button.classList.toggle('on', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+  };
+  document.querySelectorAll('[data-range]').forEach((button) => { button.onclick = () => setRange(button.dataset.range); });
+  setRange('7');
+}
 
 // ── 상세 ───────────────────────────────────────────────────────
 async function renderDetail(it) {

@@ -93,6 +93,15 @@ header.top .built { font-size: 12px; color: var(--ink-4); font-variant-numeric: 
 .card .v small { font-size: 14px; font-weight: 500; color: var(--ink-3); margin-left: 2px; }
 .card .sub { font-size: 12.5px; color: var(--ink-3); margin-top: 4px; }
 .card.hl { background: var(--blue-bg); border-color: transparent; }
+a.card.hl:hover { border-color: var(--blue); }
+.legendary-icon { display: grid; place-items: center; flex: none; width: 40px; height: 44px; border: 1px solid var(--gold); border-radius: 7px; background: var(--card); color: var(--ink-2); font-size: 12px; font-weight: 700; }
+.legendary-row .rank { font-size: 12px; }
+.legendary-row .nm .t b { white-space: normal; }
+.legendary-ranges { display: flex; gap: 6px; flex: none; margin-left: auto; }
+.legendary-weekday-table { overflow-x: auto; }
+.legendary-weekday-table table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: right; }
+.legendary-weekday-table td, .legendary-weekday-table th { padding: 8px; border-bottom: 1px solid var(--line); }
+.legendary-weekday-table th:first-child { text-align: left; }
 
 /* ── 탭 ───────────────────────────────────────── */
 .tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px; scrollbar-width: none; }
@@ -226,9 +235,11 @@ a.ranking-row:hover { background: var(--page); }
 .chart { height: 300px; }
 .chart.sm { height: 130px; }
 #stock-chart { height: 360px; }
+#legendary-chart { height: 360px; }
 .stock-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 14px 0 8px; font-size: 12px; color: var(--ink-3); }
 .stock-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .stock-price-key { width: 18px; height: 2px; background: var(--ink); }
+.stock-min-key { width: 18px; height: 2px; background: var(--gold); }
 .stock-qty-key { width: 10px; height: 10px; background: var(--blue); opacity: .5; }
 
 .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 18px 12px; }

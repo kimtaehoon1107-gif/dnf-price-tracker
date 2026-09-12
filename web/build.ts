@@ -12,6 +12,7 @@ import type { QueryResultRow } from 'pg';
 import { checkCandles } from '../src/candle-check.ts';
 import { forecast, type Point, type Forecast } from '../src/forecast.ts';
 import { holmAdjusted, longestCompleteHours, varianceRatio } from '../src/market-logic.ts';
+import { legendarySeries, type LegendarySnapshot } from '../src/legendary.ts';
 
 const client = await pool.connect();
 const query = <T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => client.query<T>(text, params);
@@ -456,12 +457,12 @@ const packageEvent = (await query<{
   FROM events e WHERE e.type = '패키지' ORDER BY e.starts_at DESC LIMIT 1`)).rows[0] ?? null;
 
 // ── 레전더리 카드 최저가 지수 ──────────────────────────────────
-const legendary = (await query<{
-  captured_at: string; min_unit_price: number; min_item_name: string;
-  p10: number; median: number; scanned: number; with_listings: number;
-}>(`SELECT to_char(captured_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') captured_at,
-      min_unit_price, min_item_name, p10, median, scanned, with_listings
-    FROM legendary_card_floor WHERE upgrade = 0 ORDER BY captured_at DESC LIMIT 1`)).rows;
+const legendaryRows = (await query<LegendarySnapshot>(`
+    SELECT to_char(captured_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') captured_at,
+      min_unit_price, min_item_name, p10, median, scanned, with_listings, total_listings
+    FROM legendary_card_floor WHERE upgrade = 0 ORDER BY captured_at, id`)).rows;
+const legendary = legendaryRows.slice(-1);
+writeFileSync(`${OUT}/data/legendary.json`, JSON.stringify(legendarySeries(legendaryRows, quality.checkedAt)));
 
 // ── 스태커블 시장 거래대금 순위 ──────────────────────────────
 const marketRankingRows = (await query<{
