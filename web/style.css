@@ -460,7 +460,7 @@ footer b { color: var(--ink-2); }
   .wrap { padding: 0 12px 64px; }
   header.top { margin-bottom: 18px; }
   header.top .inner { height: 50px; padding: 0 12px; gap: 14px; }
-  header.top nav { gap: 12px; font-size: 13.5px; }
+  header.top nav { gap: 12px; font-size: 13.5px; min-width: 0; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
   header.top .built { display: none; }
   .cards {
     display: flex; overflow-x: auto; gap: 8px; margin-bottom: 18px; padding-bottom: 4px;

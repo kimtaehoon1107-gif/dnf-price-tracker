@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://ypmnadqnmadrburkrcka.supabase.co; script-src 'self'; style-src 'self' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<title>피드백 · 던파 경매장</title>
+<meta name="description" content="던파 경매장 시세 추적기에 대한 오류 제보, 기능 제안과 자유로운 의견을 남겨 주세요.">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+<link rel="stylesheet" href="style.css?v=20260914-feedback">
+<link rel="stylesheet" href="feedback.css?v=20260914">
+</head>
+<body>
+<header class="top"><div class="inner">
+  <a class="brand" href="index.html">던파 경매장</a>
+  <nav aria-label="주 메뉴">
+    <a href="index.html">시세</a><a href="ranking.html">TOP100</a><a href="analysis.html">분석</a>
+    <a href="guide.html">지표</a><a href="feedback.html" class="on" aria-current="page">피드백</a>
+    <a href="https://github.com/kimtaehoon1107-gif/dnf-price-tracker" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</div></header>
+<div class="wrap feedback-wrap">
+<main>
+  <div class="feedback-intro">
+    <div><p class="feedback-eyebrow">함께 다듬는 시세 추적기</p><h1>의견을 들려주세요</h1>
+    <p>불편했던 점, 이상한 가격, 보고 싶은 기능까지.<br>부족한 부분을 알려주시면 확인하고 답변을 남길게요.</p></div>
+    <button id="write" class="fb-button primary" type="button">의견 남기기</button>
+  </div>
+  <div class="feedback-toolbar"><span>회원가입 없이 작성 · 누구나 읽을 수 있는 공개 게시판</span>
+    <button id="admin-toggle" class="fb-button subtle" type="button">관리자</button></div>
+  <p id="admin-notice" class="fb-notice" hidden>관리자 모드입니다. 숨겨진 글도 표시됩니다. 20분 후 자동으로 로그아웃됩니다.</p>
+  <p id="message" role="status" aria-live="polite" hidden></p>
+
+  <section id="list-section" aria-label="피드백 목록">
+    <div id="posts" class="feedback-list" aria-live="polite"><p class="fb-empty">의견을 불러오는 중입니다…</p></div>
+    <div class="feedback-pagination"><button id="previous" class="fb-button" type="button" disabled>이전</button><span id="page">1 페이지</span><button id="next" class="fb-button" type="button" disabled>다음</button></div>
+  </section>
+
+  <section id="detail-section" class="fb-panel" hidden aria-labelledby="post-title">
+    <button class="fb-button subtle back-list" type="button">← 목록으로</button>
+    <div id="post-badges" class="fb-badges"></div><h2 id="post-title" tabindex="-1"></h2><p id="post-meta" class="fb-meta"></p>
+    <div id="post-body" class="fb-text"></div>
+    <div id="owner-actions" class="fb-actions"><button id="edit" class="fb-button" type="button">글 수정</button><button id="delete" class="fb-button" type="button">글 삭제</button></div>
+    <section id="reply-section" class="feedback-reply" hidden aria-labelledby="reply-heading"><h3 id="reply-heading">관리자 답변</h3><p id="reply-date" class="fb-meta"></p><div id="reply-body" class="fb-text"></div></section>
+    <form id="moderation" class="feedback-reply" hidden>
+      <h3>관리자 답변과 처리 상태</h3>
+      <label for="moderation-status">처리 상태</label><select id="moderation-status" name="status"><option value="open">접수</option><option value="reviewing">검토 중</option><option value="done">반영 완료</option><option value="closed">보류</option></select>
+      <label for="moderation-reply">답변</label><textarea id="moderation-reply" name="reply" rows="6" maxlength="5000" placeholder="확인한 내용이나 반영 결과를 남겨 주세요."></textarea>
+      <label class="fb-check"><input id="moderation-hidden" name="hidden" type="checkbox"> 일반 방문자에게 이 글 숨기기</label>
+      <button class="fb-button primary" type="submit">답변·상태 저장</button><p class="form-message" role="status"></p>
+    </form>
+  </section>
+
+  <section id="compose-section" class="fb-panel" hidden aria-labelledby="compose-title">
+    <button class="fb-button subtle back-list" type="button">← 목록으로</button><h2 id="compose-title" tabindex="-1">의견 남기기</h2>
+    <form id="compose">
+      <div class="fb-fields"><div><label for="nickname">닉네임</label><input id="nickname" name="nickname" maxlength="20" required autocomplete="nickname" placeholder="20자 이내"></div>
+      <div><label for="category">분류</label><select id="category" name="category"><option value="general">자유 의견</option><option value="bug">오류 제보</option><option value="idea">기능 제안</option></select></div></div>
+      <label for="title">제목</label><input id="title" name="title" maxlength="100" required placeholder="어떤 의견인가요?">
+      <label for="body">내용</label><textarea id="body" name="body" rows="8" maxlength="5000" required placeholder="오류라면 아이템 이름, 확인한 시각과 증상을 함께 알려주시면 도움이 됩니다."></textarea>
+      <label for="post-password">글 비밀번호</label><input id="post-password" name="password" type="password" minlength="8" maxlength="72" required autocomplete="new-password" aria-describedby="password-help">
+      <p id="password-help" class="fb-help">8자 이상. 이 글을 수정·삭제할 때 필요하며 분실 시 직접 복구할 수 없습니다. 게임 계정과 다른 비밀번호를 사용해 주세요.</p>
+      <div class="fb-honeypot" aria-hidden="true"><label for="website">웹사이트</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
+      <p class="fb-help">닉네임과 글 내용은 공개됩니다. 연락처·계정 정보는 적지 말아 주세요. 도배나 욕설은 숨김 처리될 수 있습니다.</p>
+      <div class="fb-actions"><button id="compose-submit" class="fb-button primary" type="submit">등록하기</button><button id="compose-cancel" class="fb-button" type="button">취소</button></div>
+      <p class="form-message" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <dialog id="delete-dialog"><form id="delete-form"><h2>글 삭제</h2><p>이 글과 관리자 답변이 함께 삭제됩니다.</p>
+    <label for="delete-password">글 비밀번호</label><input id="delete-password" name="password" type="password" minlength="8" maxlength="72" required autocomplete="current-password">
+    <p class="form-message" role="status"></p><div class="fb-actions"><button type="submit" class="fb-button danger">삭제하기</button><button id="delete-cancel" type="button" class="fb-button">취소</button></div>
+  </form></dialog>
+  <dialog id="admin-dialog"><form id="admin-form"><h2>관리자 로그인</h2><p>운영자 답변과 처리 상태를 관리합니다.</p>
+    <label for="admin-password">관리자 비밀번호</label><input id="admin-password" name="password" type="password" minlength="12" maxlength="72" required autocomplete="current-password">
+    <p class="fb-help">로그인은 이 페이지에서만 유지됩니다. 새로고침하거나 20분이 지나면 다시 로그인해야 합니다.</p>
+    <p class="form-message" role="status"></p><div class="fb-actions"><button type="submit" class="fb-button primary">로그인</button><button id="admin-cancel" type="button" class="fb-button">취소</button></div>
+  </form></dialog>
+</main>
+<footer>본 사이트는 네오플 오픈 API 서비스를 이용한 비공식 개인 프로젝트입니다.<br>네오플 또는 넥슨이 운영하거나 보증하는 공식 서비스가 아닙니다.<br>
+<a href="https://developers.neople.co.kr" target="_blank" rel="noopener">Neople Developers</a> · 게시판 글은 시세 데이터와 별도로 저장됩니다.</footer>
+</div>
+<script type="module" src="feedback.js?v=20260914"></script>
+</body>
+</html>

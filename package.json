@@ -12,6 +12,8 @@
     "test:pipeline": "node --env-file=.env --no-warnings scripts/test-pipeline-db.ts",
     "test:locks": "node --env-file=.env --no-warnings scripts/test-collection-lock.ts",
     "test:candles": "node --env-file=.env --no-warnings scripts/test-candles.ts",
+    "test:feedback": "node --env-file=.env --no-warnings scripts/test-feedback-db.ts",
+    "feedback:admin": "node --env-file=.env --no-warnings scripts/setup-feedback-admin.ts",
     "experiment:hourly": "node --env-file=.env --no-warnings scripts/experiment-hourly-forecast.ts",
     "db:check": "node --env-file=.env --no-warnings scripts/db-check.ts",
     "init": "node --env-file=.env --no-warnings scripts/init-db.ts",
