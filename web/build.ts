@@ -13,6 +13,7 @@ import { checkCandles } from '../src/candle-check.ts';
 import { forecast, type Point, type Forecast } from '../src/forecast.ts';
 import { holmAdjusted, longestCompleteHours, varianceRatio } from '../src/market-logic.ts';
 import { legendarySeries, type LegendarySnapshot } from '../src/legendary.ts';
+import { cardWeekday, type CardWeekdayDay } from '../src/card-weekday.ts';
 
 const client = await pool.connect();
 const query = <T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => client.query<T>(text, params);
@@ -400,6 +401,25 @@ const weekdaySample = {
     : null,
 };
 
+// 같은 시간의 마지막 호가에 같은 비중을 줘 재수집 횟수가 일평균을 바꾸지 않게 한다.
+// 단계가 없는 과거 관측은 0업으로 추정하지 않는다.
+const cardWeekdayDays = (await query<CardWeekdayDay>(`
+  WITH hourly AS (
+    SELECT DISTINCT ON (s.item_id, s.upgrade, date_trunc('hour', s.captured_at))
+      s.item_id, CASE WHEN s.upgrade = 0 THEN 'ask0' ELSE 'askMax' END AS basis,
+      s.captured_at, s.min_unit_price
+    FROM listing_snapshots s JOIN items i USING (item_id)
+    WHERE i.tracked AND i.category = '카드' AND s.min_unit_price > 0
+      AND (s.upgrade = 0 OR (s.upgrade > 0 AND s.upgrade = s.upgrade_max))
+      AND s.captured_at <= $1::timestamptz
+    ORDER BY s.item_id, s.upgrade, date_trunc('hour', s.captured_at), s.captured_at DESC, s.id DESC
+  )
+  SELECT item_id, basis, to_char(captured_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD') AS d,
+    AVG(min_unit_price)::float8 AS price, COUNT(*)::int AS hours
+  FROM hourly GROUP BY 1,2,3 ORDER BY 1,2,3`, [quality.checkedAt])).rows;
+const cardWeekdaySummary = cardWeekday(cardWeekdayDays,
+  items.filter((item) => item.category === '카드').map((item) => item.item_id), quality.checkedAt);
+
 // ── 아이템별 시계열 + 예측 ─────────────────────────────────────
 const forecasts = new Map<string, Forecast>();
 const todayKst = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
@@ -606,6 +626,7 @@ writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
   builtAt: new Date().toISOString(),
   priceAsOf: quality.checkedAt,
   meta, health, quality, collection, weekday, weekdaySample, randomWalk, items: withMeta, legendary, marketRanking,
+  cardWeekday: cardWeekdaySummary,
   margin: {
     pkg: pkg?.vwap ?? null, pkgN: pkg?.n ?? 0, parts, partsComplete,
     partsSum: parts.reduce((s, r) => s + r.vwap, 0), fee: 0.03,

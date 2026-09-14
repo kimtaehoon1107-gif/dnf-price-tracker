@@ -97,6 +97,11 @@ header.top .built { font-size: 12px; color: var(--ink-4); font-variant-numeric: 
 .card .v { font-size: 24px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .card .v small { font-size: 14px; font-weight: 500; color: var(--ink-3); margin-left: 2px; }
 .card .sub { font-size: 12.5px; color: var(--ink-3); margin-top: 4px; }
+.thursday-row { display: flex; justify-content: space-between; gap: 10px; margin-top: 9px; font-size: 12px; }
+.thursday-row b { white-space: nowrap; }
+.thursday-card .sub { font-size: 11px; }
+.thursday-method { display: block; margin-top: 10px !important; }
+#card-weekday { scroll-margin-top: 80px; }
 .card.hl { background: var(--blue-bg); border-color: transparent; }
 a.card.hl:hover { border-color: var(--blue); }
 .legendary-icon { display: grid; place-items: center; flex: none; width: 40px; height: 44px; border: 1px solid var(--gold); border-radius: 7px; background: var(--card); color: var(--ink-2); font-size: 12px; font-weight: 700; }

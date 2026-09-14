@@ -4,6 +4,7 @@ import './test-analysis.ts';
 import './test-collector.ts';
 import './test-candle-freshness.ts';
 import './test-legendary.ts';
+import './test-card-weekday.ts';
 import './test-feedback.ts';
 import './test-api.ts';
 import './test-data-status.ts';

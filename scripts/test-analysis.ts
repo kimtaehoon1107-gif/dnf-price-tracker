@@ -85,4 +85,14 @@ const fresh = await render([], [], { quality: { refreshedAt: new Date().toISOStr
   maxAgeMinutes: 90, mismatches: 0, bars: 5, pendingTrades: 7, pendingBars: 1 } });
 assert.doesNotMatch(fresh('pipeline-status'), /오래된 분석/);
 assert.match(fresh('pipeline-status'), /과거 체결 7건·1봉은 다음 집계 대기/);
+const cards = await render([], [], { cardWeekday: { minWeeks: 4, groups: [
+  { basis: 'ask0', candidates: 34, observedItems: 33, eligibleItems: 0, maxWeeks: 0, maxDays: 5, thursdayPct: null },
+  { basis: 'askMax', candidates: 34, observedItems: 31, eligibleItems: 2, maxWeeks: 4, maxDays: 28, thursdayPct: -5 },
+] } });
+assert.match(cards('card-weekday-status'), /0업 최저호가/);
+assert.match(cards('card-weekday-status'), /표본 수집 중/);
+assert.match(cards('card-weekday-status'), /맥스업 최저호가/);
+assert.match(cards('card-weekday-status'), /-5\.00%/);
+assert.match(cards('card-weekday-status'), /2\/34종/);
+assert.doesNotMatch(cards('card-weekday-status'), /NaN|undefined/);
 console.log('분석 표시 테스트 통과');

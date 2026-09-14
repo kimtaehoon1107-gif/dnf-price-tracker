@@ -514,7 +514,7 @@ function render() {
 }
 
 // 요약 카드는 목록과 인벤토리 두 뷰가 공유한다.
-// 프로젝트의 결론(레전더리 최저가·해체 마진·목요일 효과)을 첫 화면에 올린다.
+// 서로 다른 가격 기준과 표본 상태를 첫 화면에서 구분해 보여준다.
 function summaryCards() {
   const m = DATA.meta;
   const lg = DATA.legendary?.[0];
@@ -527,8 +527,15 @@ function summaryCards() {
     if (!w.length) return null;
     const mean = w.reduce((a, x) => a + x.ret, 0) / w.length;
     const t = w.find((x) => x.k === 4);
-    return t ? { rel: t.ret - mean, significant: t.se > 0 && Math.abs(t.ret / t.se) > 1.96 } : null;
+    return t ? { rel: (Math.exp((t.ret - mean) / 100) - 1) * 100 } : null;
   })();
+  const cardWeekdays = DATA.cardWeekday;
+  const cardRows = (cardWeekdays?.groups ?? []).map((group) => `
+    <div class="thursday-row"><span>카드 ${group.basis === 'ask0' ? '0업' : '맥스업'} 호가</span>
+      <b class="${cls(group.thursdayPct)}">${group.thursdayPct === null ? '표본 수집 중' : pct(group.thursdayPct)}</b></div>
+    <div class="sub">${group.thursdayPct === null
+      ? `유효 일 관측 ${group.observedItems}/${group.candidates}종 · 최대 ${group.maxWeeks}/${cardWeekdays.minWeeks}주`
+      : `조건 충족 ${group.eligibleItems}/${group.candidates}종 · 종목별 주평균 대비`}</div>`).join('');
 
   return `<div class="cards">
     <div class="card">
@@ -546,14 +553,13 @@ function summaryCards() {
       <div class="v ${cls(netMargin)}">${pct(netMargin)}</div>
       <div class="sub">관측 체결가 기준 · 수수료 3% 반영</div>
     </div>` : ''}
-    ${thu !== null ? `<div class="card">
-      <div class="k">목요일 효과</div>
-      ${thu.significant
-        ? `<div class="v ${cls(thu.rel)}">${pct(thu.rel)}</div>
-           <div class="sub">주간 평균 대비 · p&lt;0.05</div>`
-        : `<div class="v">판별 불가</div>
-           <div class="sub">관측 ${pct(thu.rel)} · 현재 비유의</div>`}
-    </div>` : ''}
+    <div class="card thursday-card">
+      <div class="k">목요일 가격 흐름</div>
+      <div class="thursday-row"><span>일반 아이템 체결가</span><b class="${cls(thu?.rel)}">${thu ? pct(thu.rel) : '표본 수집 중'}</b></div>
+      <div class="sub">${DATA.weekdaySample?.item_count ?? 0}종 · 관측 요일 평균 대비</div>
+      ${cardRows || '<div class="sub">카드 호가 데이터 준비 중</div>'}
+      <a class="sub thursday-method" href="analysis.html#card-weekday">관측 차이 · 유의성 미검증 · 기준 보기 →</a>
+    </div>
   </div>`;
 }
 

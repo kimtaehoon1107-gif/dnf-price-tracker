@@ -12,6 +12,7 @@ on:
       - 'src/forecast.ts'
       - 'src/market-logic.ts'
       - 'src/legendary.ts'
+      - 'src/card-weekday.ts'
       - 'src/candle-check.ts'
       - 'src/db.ts'
       - 'scripts/legendary-floor.ts'

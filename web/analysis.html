@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="style.css?v=20260914-disclosure">
+<link rel="stylesheet" href="style.css?v=20260914-card-weekday">
 </head>
 <body>
 <header class="top">
@@ -222,12 +222,24 @@
 
 </div>
 
+<h3 class="sub" id="card-weekday">카드 호가의 목요일 가격 흐름</h3>
+<p>메인의 목요일 요약에는 일반 아이템 체결가와 카드 0업·맥스업 호가를 구분해서 표시합니다.
+  서로 다른 가격 기준을 하나의 평균으로 합치지 않습니다. 모두 관측된 가격 차이이며 통계적 유의성 검정은 아닙니다.</p>
+<div class="table-scroll"><table id="card-weekday-status"></table></div>
+<p class="method-note">카드는 시간별 마지막 최저호가를 같은 비중으로 평균합니다. 당일과 관측 18시간 미만인 날을 제외하고,
+  월~일을 모두 갖춘 완료 주가 종목·단계별로 4주 이상이어야 표시합니다. 각 주의 평균을 100으로 환산한 뒤
+  종목별 목요일 지수를 구하고, 조건을 충족한 종목에 같은 비중을 줍니다. 표본 수는 두 단계를 합산하지 않습니다.
+  4주는 표시 기준이며 검정력을 보장하지 않습니다. 패치·이벤트와 매물 구성 변화는 제거하지 않았습니다.</p>
+<p class="method-note">일반 아이템 값은 이력 14일 초과·체결 25건 이상인 종목의 완료 일봉 VWAP을 종목 평균으로 정규화한 뒤,
+  목요일과 관측 요일 평균의 로그 차이를 백분율로 환산합니다. 카드와 표본·계산 기준이 다르므로 별도로 읽어야 합니다.
+  레전더리 165종을 스캔한 <a href="index.html#legendary-card">P10 지수의 요일 흐름</a>은 개별 카드 34종과 별도로 제공합니다.</p>
+
 <div class="note quiet">
-  <b>카드가 이 문서에서 제외된 이유</b> — 체결 API가 업그레이드 단계를 제공하지 않아 체결가만으로는
+  <b>카드가 체결가 검정·예측에서 제외된 이유</b> — 체결 API가 업그레이드 단계를 제공하지 않아 체결가만으로는
   0업과 맥스업을 구분할 수 없습니다. <b>2026-09-08 실측</b>에서 2업 호가는 0업의 1.2~3.9배였습니다.
   <b>그래서 카드는 단계가 명시된 호가로 따로 추적합니다.</b> 당시 열린 카드 매물은
   <b>0업 59%, 맥스업(2업) 41%</b>로 사실상 두 단계이고, 시세 화면에서 나눠 보여줍니다.
-  본 문서의 분석이 <b>체결가 기반</b>이라 제외된 것이지, 카드를 관측하지 못하는 것은 아닙니다.
+  앞의 분산비 검정과 예측 평가는 <b>체결가 기반</b>이므로 카드를 제외합니다. 카드 호가의 요일 관측과는 별개입니다.
 </div>
 
 </main>
@@ -399,6 +411,16 @@ fetch('data/summary.json').then(r => {
     `<b>현재 관측</b> — ${headline}<br>
      <b>검증 상태</b> — 연속 구간 ${rw.total}/${rw.candidates}종 검정 · 1일 뒤 예측 ${fmt(one.count)}건 평가.<br>
      <b>아직 모르는 것</b> — 장기 평균회귀, 다음 시간의 등락률, 실제 매수 전략의 수익성.`;
+
+  const cardWeekdays = D.cardWeekday;
+  document.getElementById('card-weekday-status').innerHTML = `
+    <thead><tr><th>가격 기준</th><th>목요일 차이</th><th>조건 충족 종목</th><th>관측 진행</th></tr></thead>
+    <tbody>${(cardWeekdays?.groups ?? []).map(group => `<tr>
+      <td>${group.basis === 'ask0' ? '0업' : '맥스업'} 최저호가</td>
+      <td>${group.thursdayPct === null ? '표본 수집 중' : signed(group.thursdayPct)}</td>
+      <td>${group.eligibleItems}/${group.candidates}종</td>
+      <td>유효 일 관측 ${group.observedItems}종 · 종목당 최대 ${group.maxDays}일 · 완료 주 최대 ${group.maxWeeks}/${cardWeekdays.minWeeks}주</td>
+    </tr>`).join('') || '<tr><td colspan="4">카드 호가 데이터를 준비 중입니다.</td></tr>'}</tbody>`;
 
   // ── 03 한계 ──
   document.getElementById('qty-limit').innerHTML =
