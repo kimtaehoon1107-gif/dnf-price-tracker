@@ -33,8 +33,7 @@ function statTransition(base, max) {
     ? part.value : `${part.value}→${to[i].value}`}`).join(' · ');
 }
 
-// 종결이 언제 교체됐는지. 종결은 패치로 바뀌므로 "얼마나 오래 종결이었나"가
-// 곧 다음 교체가 임박했는지의 신호가 된다.
+// KST 기준일을 D+0으로 센다. 경과일만으로 다음 성능 갱신 시점을 예측하지 않는다.
 const sinceDays = (d) => d ? Math.floor((Date.now() - Date.parse(d + 'T00:00:00+09:00')) / 86400000) : null;
 
 // 유동성 등급 — "이 아이템의 지표를 믿어도 되는가"를 한 글자로.
@@ -636,7 +635,7 @@ function renderList() {
             <img src="${r.img}" alt="" loading="lazy" width="32" height="32">
             <div class="t">
               <b>${esc(r.item_name)}${r.is_final ? '<span class="tag fin">종결</span>' : ''}${r.price_basis === 'ask0' ? '<span class="tag">0업</span>' : ''}${r.slot ? `<span class="tag">${esc(r.slot)}</span>` : ''}</b>
-              <span>${esc(r.item_rarity)}${r.job_role ? ' · ' + esc(r.job_role) : ''}${shownStatText}${r.price_basis === 'ask0' ? ` · 0업 호가 관측 ${fmt(r.trades)}${r.max_last_price ? ` · 맥스업 ${fmt(r.max_last_price)}` : ''}` : ` · 표본 ${fmt(r.trades)} · ${r.g}등급`}${r.final_since ? ` · 종결 D+${sinceDays(r.final_since)}` : ''}</span>
+              <span>${esc(r.item_rarity)}${r.job_role ? ' · ' + esc(r.job_role) : ''}${shownStatText}${r.price_basis === 'ask0' ? ` · 0업 호가 관측 ${fmt(r.trades)}${r.max_last_price ? ` · 맥스업 ${fmt(r.max_last_price)}` : ''}` : ` · 표본 ${fmt(r.trades)} · ${r.g}등급`}${r.is_final && r.final_since ? ` · 종결${r.category === '칭호' ? ' 성능' : ''} D+${sinceDays(r.final_since)}` : ''}</span>
             </div>
           </div>
           <div class="px">
@@ -931,9 +930,10 @@ async function renderDetail(it) {
       <div>
         <h2>${esc(it.item_name)}${it.is_final ? '<span class="tag fin">종결</span>' : ''}${isZeroCard ? `<span class="tag">${cardTier}</span>` : ''}</h2>
         <div class="meta">${esc(it.item_rarity)} · ${esc(it.item_type_detail)}${it.slot ? ' · ' + esc(it.slot) : ''}${it.job_role ? ' · ' + esc(it.job_role) : ''}${selectedKeyStat ? ' · 부여 능력치 ' + esc(selectedKeyStat) : ''}</div>
-        ${it.final_since ? `<div class="meta">종결 지정 ${it.final_since} · <b style="color:var(--ink-2)">D+${sinceDays(it.final_since)}일차</b></div>` : ''}
+        ${it.is_final && it.final_since ? `<div class="meta">${it.category === '칭호' ? '종결 성능 최초 등장' : '종결 지정'} ${it.final_since} · <b style="color:var(--ink-2)">D+${sinceDays(it.final_since)}</b></div>` : ''}
       </div>
     </div>
+    ${it.category === '칭호' && it.is_final && it.final_since ? `<p class="price-meta">칭호 D+는 같은 종결 성능 등급이 처음 등장한 날부터 계산합니다. 상품별 출시일과는 다릅니다.<br>일반형은 프로스트의 전설, 플래티넘형은 프로스트의 전설 플래티넘을 기준으로 합니다. <a href="https://df.nexon.com/community/news/seriashop/541?category=2" target="_blank" rel="noopener noreferrer">최초 출시 안내 ↗</a></p>` : ''}
     ${isZeroCard ? `<div class="upgrade-sw" role="group" aria-label="카드 업그레이드 단계">
       <button class="${showingMax ? '' : 'on'}" data-card-mode="zero" type="button">0업</button>
       <button class="${showingMax ? 'on' : ''}" data-card-mode="max" type="button">맥스업${baseItem.max_upgrade ? ` (${baseItem.max_upgrade}업)` : ''}</button>
