@@ -82,6 +82,11 @@ header.top nav a:hover { color: var(--ink); }
 header.top .spacer { flex: 1; }
 header.top .built { font-size: 12px; color: var(--ink-4); font-variant-numeric: tabular-nums; }
 
+.data-notice { margin-bottom: 20px; padding: 14px 18px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--card); font-size: 13px; color: var(--ink-2); }
+.data-notice strong { color: var(--ink); font-weight: 600; }
+.data-notice p { margin: 4px 0 0; }
+.data-notice .stale { color: var(--up); font-weight: 600; }
+
 /* ── 요약 카드 ─────────────────────────────────── */
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 26px; }
 .card {

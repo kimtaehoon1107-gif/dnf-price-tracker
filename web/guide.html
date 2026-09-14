@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="style.css?v=20260914-feedback">
+<link rel="stylesheet" href="style.css?v=20260914-disclosure">
 </head>
 <body>
 <header class="top">
@@ -54,7 +54,7 @@
   <nav class="guide-jumps" aria-label="지표 바로가기">
     <a href="#price">가격 요약</a>
     <a href="#grade">등급</a>
-    <a href="#forecast">캔들·예측</a>
+    <a href="#forecast">캔들·실험적 예측</a>
     <a href="#event">이벤트</a>
     <a href="#weekday">요일</a>
     <a href="#gap">호가 갭</a>
@@ -110,7 +110,7 @@
 
   <section class="panel guide-panel" id="forecast">
     <div class="panel-head">
-      <h3><span class="guide-no">03</span>가격 캔들 · VWAP · 예측</h3>
+      <h3><span class="guide-no">03</span>가격 캔들 · VWAP · 실험적 예측</h3>
       <span class="chart-toggle on guide-static-toggle">캔들 켜짐</span>
     </div>
     <p class="desc">가격 그래프는 실제 가격 범위, 평균 체결가와 앞으로의 예상 범위를 한 화면에 겹쳐 보여줍니다.</p>
@@ -135,7 +135,7 @@
     <div class="guide-legend">
       <span><i class="candle"></i>일별 시가·고가·저가·종가</span>
       <span><i class="actual"></i>일별 VWAP</span>
-      <span><i class="forecast"></i>7일 예측과 80% 구간</span>
+      <span><i class="forecast"></i>7일 실험적 예측과 80% 구간</span>
     </div>
     <div class="guide-copy">
       <div><b>캔들</b><span>캔들은 그날의 첫 체결가·최고가·최저가·마지막 체결가를 나타냅니다. 오늘 봉은 하루가 끝나지 않은 미완성 값입니다.</span></div>
@@ -143,7 +143,7 @@
       <div><b>파란 점선</b><span>파란 점선은 추세와 공통 요일효과를 반영한 7일 예측입니다. 바깥 두 선은 과거 잔차의 10·90 분위수로 만든 80% 예상 구간입니다.</span></div>
       <div><b>naive 대비 MAPE</b><span>naive 대비 MAPE는 “내일도 마지막 가격”이라는 단순 예측보다 오차가 얼마나 줄거나 늘었는지를 나타냅니다. 개선값이 양수일수록 모델이 더 나았습니다.</span></div>
     </div>
-    <p class="guide-foot">예측은 완료 일봉이 10일 이상이면서 D등급이 아닌 일반 아이템에만 표시됩니다. 예상 구간은 보장이 아니며 멀어질수록 넓어집니다.</p>
+    <p class="guide-foot">예측은 완료 일봉이 10일 이상이면서 D등급이 아닌 일반 아이템에만 표시됩니다. 예상 구간은 보장이 아니며 멀어질수록 넓어집니다. 과거 관측 데이터를 기반으로 한 실험 결과이며, 향후 가격이나 실제 거래 가능성을 보장하지 않습니다.</p>
     <p class="guide-foot">
       <b>예측 성능은 날짜별 롤링 평가로 확인합니다.</b> 평가 당일을 제외한 자료로 요일 계수와 추세를 다시 추정하고,
       1일·7일 뒤의 실제 가격을 naive와 비교합니다. <b>평가 건수</b>, <b>구간 커버리지</b>, <b>naive 대비 오차</b>를 함께 확인하세요.
@@ -293,7 +293,10 @@
 <footer>
   본 서비스는 <b>네오플 오픈 API 서비스</b>를 이용합니다. (<a href="https://developers.neople.co.kr" target="_blank" rel="noopener">developers.neople.co.kr</a>)<br>
   차트: <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a> · Copyright © 2023 TradingView, Inc.<br>
-  비상업적 개인 프로젝트이며 API 이용에 대한 어떠한 대가도 받지 않습니다.
+  비상업적 개인 프로젝트이며 API 이용에 대한 어떠한 대가도 받지 않습니다.<br>
+  네오플 또는 넥슨이 운영하거나 보증하는 공식 서비스가 아닌 비공식 개인 프로젝트입니다.<br>
+  표시되는 가격과 분석 결과는 수집 시점과 표본 범위에 따라 실제 경매장과 다를 수 있습니다.<br>
+  분석과 예측은 과거 관측 데이터를 기반으로 한 실험 결과이며, 향후 가격이나 실제 거래 가능성을 보장하지 않습니다.
 </footer>
 
 </div>

@@ -70,11 +70,15 @@ function apiKey(): string {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// 서버 응답이나 네트워크 오류가 인증값을 되돌려 줘도 로그·수집 실패 기록에 남기지 않는다.
+function safeApiError(path: string, message: string, key: string): Error {
+  return new Error(`${path} → ${message.replaceAll(key, '[REDACTED]')
+    .replaceAll(encodeURIComponent(key), '[REDACTED]').slice(0, 500)}`);
+}
+
 async function request<T>(path: string, params: Record<string, string | number>): Promise<T[]> {
-  const qs = new URLSearchParams({
-    ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
-    apikey: apiKey(),
-  });
+  const key = apiKey();
+  const qs = new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)]));
   const url = `${BASE}${path}?${qs}`;
 
   // 초당 1,000건 제한 대비 우리 호출량은 무시할 수준이라 레이트 제한은 걸릴 일이 없다.
@@ -82,21 +86,28 @@ async function request<T>(path: string, params: Record<string, string | number>)
   for (let attempt = 0; attempt < 4; attempt++) {
     let res: Response;
     try {
-      res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+      res = await fetch(url, { headers: { apikey: key }, signal: AbortSignal.timeout(15_000) });
     } catch (e) {
-      if (attempt === 3) throw e;
+      if (attempt === 3) throw safeApiError(path,
+        `요청 실패 (재시도 4회 실패): ${e instanceof Error ? e.message : String(e)}`, key);
       await sleep(1000 * 2 ** attempt);
       continue;
     }
 
     if (res.ok) {
-      const body = (await res.json()) as { rows?: T[] };
-      return body.rows ?? [];
+      try {
+        const body = (await res.json()) as { rows?: T[] };
+        return body.rows ?? [];
+      } catch {
+        // JSON 파서가 응답 일부를 잘라 오류에 넣으면 키 일부만 남을 수 있다.
+        throw new Error(`${path} → 응답 JSON 해석 실패`);
+      }
     }
 
     // 4xx는 우리 잘못이므로 재시도해도 같은 답이 온다
     if (res.status < 500 && res.status !== 429) {
-      throw new Error(`${path} → ${res.status} ${await res.text()}`);
+      const detail = await res.text().catch(() => '오류 응답 본문 읽기 실패');
+      throw safeApiError(path, `${res.status} ${detail}`, key);
     }
     if (attempt === 3) throw new Error(`${path} → ${res.status} (재시도 4회 실패)`);
     await sleep(1000 * 2 ** attempt);

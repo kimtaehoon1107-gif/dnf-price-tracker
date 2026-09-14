@@ -5,3 +5,5 @@ import './test-collector.ts';
 import './test-candle-freshness.ts';
 import './test-legendary.ts';
 import './test-feedback.ts';
+import './test-api.ts';
+import './test-data-status.ts';

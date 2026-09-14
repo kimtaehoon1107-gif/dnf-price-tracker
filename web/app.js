@@ -412,13 +412,32 @@ let cardMode = 'zero';
 let detailItemId = null;
 let legendaryChart = null;
 
+function renderDataStatus(now = Date.now()) {
+  const time = value => Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString('ko-KR', {
+    timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }) + ' KST' : '기록 없음';
+  const last = DATA.collection?.last_success;
+  const age = now - Date.parse(last), priceAge = now - Date.parse(DATA.priceAsOf);
+  document.getElementById('data-asof').textContent = `가격 계산 기준: ${time(DATA.priceAsOf)}`;
+  const status = document.getElementById('data-freshness');
+  const stale = !Number.isFinite(age) || !Number.isFinite(priceAge) || age >= 3 * 3600000 || priceAge >= 3 * 3600000;
+  status.classList.toggle('stale', stale);
+  // 정적 화면에 남은 기록만으로 현재 수집기 중단을 단정하지 않는다.
+  status.textContent = `표시 데이터의 마지막 정상 수집: ${time(last)}` +
+    (Number.isFinite(age) ? ` · ${Math.max(0, Math.floor(age / 3600000))}시간 ${Math.max(0, Math.floor(age / 60000) % 60)}분 경과` : '') +
+    (stale ? ' · ⚠ 데이터가 오래됐거나 기준 시각을 확인할 수 없습니다. 새로고침해 최신 상태를 확인하세요.' : '');
+}
+
 async function boot() {
   const response = await fetch('data/summary.json', { cache: 'no-cache' });
   if (!response.ok) throw new Error(`요약 데이터 HTTP ${response.status}`);
   DATA = await response.json();
   const b = new Date(DATA.builtAt);
   document.getElementById('built').textContent =
-    b.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 기준';
+    '페이지 생성 ' + b.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  renderDataStatus();
+  setInterval(renderDataStatus, 60000);
   render();
   addEventListener('hashchange', render);
 }
@@ -495,7 +514,7 @@ function render() {
 }
 
 // 요약 카드는 목록과 인벤토리 두 뷰가 공유한다.
-// 프로젝트의 결론(레전더리 최저가·해체 차익·목요일 효과)을 첫 화면에 올린다.
+// 프로젝트의 결론(레전더리 최저가·해체 마진·목요일 효과)을 첫 화면에 올린다.
 function summaryCards() {
   const m = DATA.meta;
   const lg = DATA.legendary?.[0];
@@ -523,9 +542,9 @@ function summaryCards() {
       <div class="sub">저가 기준 P10 · 그래프 보기 →<br>최저 ${fmt(lg.min_unit_price)} · 매물 ${lg.with_listings}/${lg.scanned}종</div>
     </a>` : ''}
     ${netMargin !== null ? `<div class="card">
-      <div class="k">패키지 해체 차익</div>
+      <div class="k">패키지 해체 마진</div>
       <div class="v ${cls(netMargin)}">${pct(netMargin)}</div>
-      <div class="sub">수수료 3% 반영 · 유랑악단</div>
+      <div class="sub">관측 체결가 기준 · 수수료 3% 반영</div>
     </div>` : ''}
     ${thu !== null ? `<div class="card">
       <div class="k">목요일 효과</div>
@@ -939,7 +958,7 @@ async function renderDetail(it) {
 
     <div class="panel">
       <div class="panel-head">
-        <h3>${isZeroCard ? `${cardTier} 최저호가` : '가격 · 예측'}</h3>
+        <h3>${isZeroCard ? `${cardTier} 최저호가` : '가격 · 실험적 예측'}</h3>
         <button class="chart-toggle" id="candle-toggle" type="button" aria-pressed="true">캔들 켜짐</button>
       </div>
       <p class="desc" id="fc-desc">불러오는 중…</p>
@@ -1227,12 +1246,13 @@ async function renderDetail(it) {
 
       const p0 = f.points[0];
       desc.innerHTML =
-        `캔들은 일별 시가·고가·저가·종가이며 오늘 봉은 수집 중입니다. 검은 실선은 일별 VWAP, 파란 점선은 <b>${f.horizonDays}일 VWAP 예측</b>입니다. ` +
-        `내일 예상 <b>${fmt(p0.mid)}</b>, 목표 80% 구간 ${fmt(p0.lo)}~${fmt(p0.hi)}. ` +
+        `캔들은 일별 시가·고가·저가·종가이며 오늘 봉은 수집 중입니다. 검은 실선은 일별 VWAP, 파란 점선은 <b>${f.horizonDays}일 VWAP 실험적 예측</b>입니다. ` +
+        `내일 모델 추정치 <b>${fmt(p0.mid)}</b>, 목표 80% 구간 ${fmt(p0.lo)}~${fmt(p0.hi)}. ` +
         (f.vsNaive !== null
           ? `1일 뒤 롤링 평가 ${f.count}건에서 naive 대비 MAPE가 <b class="${f.vsNaive > 0 ? 'up' : 'down'}">${Math.abs(f.vsNaive).toFixed(1)}%</b> ${f.vsNaive > 0 ? '개선' : '악화'}됐고 구간 커버리지는 ${f.coverage?.toFixed(0)}%입니다.`
           : f.count ? `1일 뒤 롤링 평가 ${f.count}건에서 naive 오차가 0이라 상대 개선율을 계산하지 않습니다.`
           : '학습 조건과 목표 날짜를 모두 충족한 평가 관측이 아직 없습니다.') +
+        `<br>과거 관측 데이터를 기반으로 한 실험 결과이며, 향후 가격이나 실제 거래 가능성을 보장하지 않습니다.` +
         `<br><span style="color:var(--ink-4)">모델 — ${esc(f.method)}</span>`;
     } else {
       desc.textContent = isZeroCard
@@ -1256,7 +1276,7 @@ async function renderDetail(it) {
       const point = forecastAt.get(param.time);
       if (!point) return null;
       return tipRows(param.time, [
-        ['예측', fmt(point.mid)],
+        ['모델 추정치', fmt(point.mid)],
         ['80% 구간', `${fmt(point.lo)} ~ ${fmt(point.hi)}`],
       ]);
     });
@@ -1313,6 +1333,7 @@ async function renderDetail(it) {
 
 boot().catch((error) => {
   console.error(error);
+  document.getElementById('data-asof').textContent = '가격 계산 기준: 확인할 수 없음';
   document.getElementById('view').innerHTML = `
     <div class="panel"><h3>데이터를 불러오지 못했습니다</h3>
     <p class="desc">잠시 뒤 새로고침해 주세요.</p></div>`;
