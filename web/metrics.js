@@ -8,3 +8,7 @@ export const askGap = (item) => item.price_basis === 'trade'
   && item.vwap24 > 0
   ? (item.min_ask / item.vwap24 - 1) * 100
   : null;
+
+/** 종이달 상자의 기존 칭호 분류·이력은 유지하고 실반 탭에서도 같은 행을 보여준다. */
+export const matchesCategory = (item, category) => category === '전체' || item.category === category
+  || (category === '실반 하모니 박스' && item.item_id === '41914178e78f02589b8e2760788a9da8');

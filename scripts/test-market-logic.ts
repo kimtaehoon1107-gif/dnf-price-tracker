@@ -8,7 +8,7 @@ import {
   selectCardListings,
   varianceRatio,
 } from '../src/market-logic.ts';
-import { askGap, representativePrice } from '../web/metrics.js';
+import { askGap, representativePrice, matchesCategory } from '../web/metrics.js';
 
 const same = { soldDate: '2026-09-08T00:00:00Z', unitPrice: 100, count: 3, reinforce: 0 };
 assert.deepEqual(duplicateSequences([
@@ -38,6 +38,15 @@ assert.equal(askGap({ price_basis: 'trade', min_ask: null, vwap24: 100 }), null)
 assert.equal(representativePrice({ price_basis: 'trade', vwap1h: 125, last_price: 130 }), 125);
 assert.equal(representativePrice({ price_basis: 'trade', vwap1h: null, last_price: 130 }), null);
 assert.equal(representativePrice({ price_basis: 'ask0', vwap1h: null, last_price: 100 }), 100);
+
+const paperMoon = { item_id: '41914178e78f02589b8e2760788a9da8', category: '칭호' };
+const melody = { item_id: 'b62cd7a12de35f28cc1332b1ef609eb8', category: '실반 하모니 박스' };
+assert(matchesCategory(paperMoon, '칭호'));
+assert(matchesCategory(paperMoon, '실반 하모니 박스'));
+assert(matchesCategory(melody, '실반 하모니 박스'));
+assert(!matchesCategory(melody, '카드'), '개봉 재료를 마법부여 카드로 취급하지 않음');
+assert(!matchesCategory({ item_id: 'other', category: '칭호' }, '실반 하모니 박스'));
+assert.equal([paperMoon, melody].filter(x => matchesCategory(x, '전체')).length, 2, '전체에서는 중복 없이 한 번만 표시');
 
 // ── 분산비 ──
 // 완전한 랜덤워크를 넣으면 VR이 1 근처여야 한다. 난수 시드를 고정해 재현 가능하게 만든다.

@@ -1,6 +1,6 @@
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
-import { askGap, representativePrice } from './metrics.js?v=20260909-vwap1h';
+import { askGap, representativePrice, matchesCategory } from './metrics.js?v=20260914-sylvan';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
   ? '-' : Number(n).toLocaleString('ko-KR', { maximumFractionDigits: d });
@@ -578,12 +578,12 @@ function renderList() {
   const all = DATA.items.map(enrich);
   const lg = DATA.legendary?.[0];
   const cats = [...new Set(all.map((x) => x.category))]
-    .map((c) => ({ c, sum: all.filter((x) => x.category === c).reduce((a, x) => a + x.turnover, 0) }))
+    .map((c) => ({ c, sum: all.filter((x) => matchesCategory(x, c)).reduce((a, x) => a + x.turnover, 0) }))
     .sort((a, b) => b.sum - a.sum).map((x) => x.c);
 
   if (tab === '카드' && job !== '전체') { renderInventory(all, cats); return; }
 
-  const rows = (tab === '전체' ? all : all.filter((x) => x.category === tab))
+  const rows = all.filter((x) => matchesCategory(x, tab))
     .sort((a, b) => {
       const va = a[sortKey], vb = b[sortKey];
       if (va === null || va === undefined) return 1;
@@ -596,6 +596,7 @@ function renderList() {
 
     ${categoryTabs(cats)}
     ${tab === '카드' ? cardJobTabs() : ''}
+    ${tab === '실반 하모니 박스' ? `<p class="desc">실반 멜로디 카드와 선택한 개봉 보상 4종의 시세입니다. 실반 하모니 박스는 NPC 개봉 메뉴로, 별도 거래 가격이 없습니다. <a href="https://df.nexon.com/pg/forestbandpkg" target="_blank" rel="noopener">공식 안내 ↗</a></p>` : ''}
 
     <div class="list">
       <div class="lh">
