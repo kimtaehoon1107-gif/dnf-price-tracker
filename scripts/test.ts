@@ -1,4 +1,5 @@
 import './test-forecast.ts';
+import './test-forecast-comparison.ts';
 import './test-market-logic.ts';
 import './test-analysis.ts';
 import './test-collector.ts';

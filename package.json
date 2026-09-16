@@ -15,6 +15,7 @@
     "test:feedback": "node --env-file=.env --no-warnings scripts/test-feedback-db.ts",
     "feedback:admin": "node --env-file=.env --no-warnings scripts/setup-feedback-admin.ts",
     "experiment:hourly": "node --env-file=.env --no-warnings scripts/experiment-hourly-forecast.ts",
+    "experiment:forecast": "node --env-file=.env --no-warnings scripts/experiment-forecast.ts",
     "db:check": "node --env-file=.env --no-warnings scripts/db-check.ts",
     "init": "node --env-file=.env --no-warnings scripts/init-db.ts",
     "migrate": "node --env-file=.env --experimental-sqlite --no-warnings scripts/migrate-sqlite.ts",
