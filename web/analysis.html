@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="style.css?v=20260914-card-weekday">
+<link rel="stylesheet" href="style.css?v=20260916-weekday">
 </head>
 <body>
 <header class="top">
@@ -230,17 +230,22 @@
 
 </div>
 
-<h3 class="sub" id="card-weekday">카드 호가의 목요일 가격 흐름</h3>
-<p>메인의 목요일 요약에는 일반 아이템 체결가와 카드 0업·맥스업 호가를 구분해서 표시합니다.
-  서로 다른 가격 기준을 하나의 평균으로 합치지 않습니다. 모두 관측된 가격 차이이며 통계적 유의성 검정은 아닙니다.</p>
+<h3 class="sub" id="card-weekday">요일별 가격 트렌드</h3>
+<p>메인에서 선택한 품목군의 월요일부터 일요일까지 가격 수준과 전날 대비 변화율을 비교합니다.
+  전체를 선택해도 일반 아이템 체결가·카드 0업·맥스업 호가는 별도로 표시합니다. 카드의 딜러·버퍼 선택도 반영합니다.
+  목요일 강조는 비교를 돕기 위한 표시이며, 목요일 효과를 입증했다는 뜻은 아닙니다.</p>
 <div class="table-scroll"><table id="card-weekday-status"></table></div>
-<p class="method-note">카드는 시간별 마지막 최저호가를 같은 비중으로 평균합니다. 당일과 관측 18시간 미만인 날을 제외하고,
-  월~일을 모두 갖춘 완료 주가 종목·단계별로 4주 이상이어야 표시합니다. 각 주의 평균을 100으로 환산한 뒤
-  종목별 목요일 지수를 구하고, 조건을 충족한 종목에 같은 비중을 줍니다. 표본 수는 두 단계를 합산하지 않습니다.
-  4주는 표시 기준이며 검정력을 보장하지 않습니다. 패치·이벤트와 매물 구성 변화는 제거하지 않았습니다.</p>
-<p class="method-note">일반 아이템 값은 이력 14일 초과·체결 25건 이상인 종목의 완료 일봉 VWAP을 종목 평균으로 정규화한 뒤,
-  목요일과 관측 요일 평균의 로그 차이를 백분율로 환산합니다. 카드와 표본·계산 기준이 다르므로 별도로 읽어야 합니다.
-  레전더리 165종을 스캔한 <a href="index.html#legendary-card">P10 지수의 요일 흐름</a>은 개별 카드 34종과 별도로 제공합니다.</p>
+<p class="method-note">일반 아이템은 완료 일봉의 수량 가중평균을 사용하며 하루 체결 5건 이상인 날을 사용합니다.
+  카드는 시간별 마지막 최저호가를 같은 비중으로 평균하며 하루 18시간 이상 관측해야 합니다.
+  가격 기준별로 월~일의 유효 관측을 모두 갖춘 완료 주가 종목당 4주 이상이어야 그래프를 표시합니다.
+  각 주의 평균을 100으로 환산해 종목별 요일 평균을 구하고, 조건을 충족한 종목에 같은 비중을 줍니다.
+  관측 주가 길거나 가격이 높은 종목에 더 큰 비중을 주지 않습니다. 4주는 표시 조건이며 검정력의 보장이 아닙니다.</p>
+<p class="method-note">전날 대비 변화율은 실제 달력상 전날에도 유효 관측이 있을 때 계산합니다.
+  월요일의 전날이 없으면 그 변화율은 제외하며 이전 금요일 등으로 대체하지 않습니다.
+  계산 표본과 유효 관측의 단위는 종목·일입니다. 아직 4주를 채우지 못한 종목도 유효 관측 수에는 포함합니다.
+  가격 수준·변화율의 표본은 다를 수 있고, 종목마다 관측 기간도 다릅니다. 패치·이벤트나 시장 추세를 제거한 유의성 검정이 아닙니다.</p>
+<p class="method-note">위의 개별 체결가 예측 모형에 쓰는 공통 요일 계수와 별개의 관측 요약입니다.
+  레전더리 165종을 스캔한 <a href="index.html#legendary-card">P10의 요일 흐름</a>도 개별 카드 품목군과 분리해 제공합니다.</p>
 
 <div class="note quiet">
   <b>카드가 체결가 검정·예측에서 제외된 이유</b> — 체결 API가 업그레이드 단계를 제공하지 않아 체결가만으로는
@@ -420,15 +425,14 @@ fetch('data/summary.json').then(r => {
      <b>검증 상태</b> — 연속 구간 ${rw.total}/${rw.candidates}종 검정 · 1일 뒤 예측 ${fmt(one.count)}건 평가.<br>
      <b>아직 모르는 것</b> — 장기 평균회귀, 다음 시간의 등락률, 실제 매수 전략의 수익성.`;
 
-  const cardWeekdays = D.cardWeekday;
+  const trends = D.weekdayTrends;
   document.getElementById('card-weekday-status').innerHTML = `
-    <thead><tr><th>가격 기준</th><th>목요일 차이</th><th>조건 충족 종목</th><th>관측 진행</th></tr></thead>
-    <tbody>${(cardWeekdays?.groups ?? []).map(group => `<tr>
-      <td>${group.basis === 'ask0' ? '0업' : '맥스업'} 최저호가</td>
-      <td>${group.thursdayPct === null ? '표본 수집 중' : signed(group.thursdayPct)}</td>
-      <td>${group.eligibleItems}/${group.candidates}종</td>
-      <td>유효 일 관측 ${group.observedItems}종 · 종목당 최대 ${group.maxDays}일 · 완료 주 최대 ${group.maxWeeks}/${cardWeekdays.minWeeks}주</td>
-    </tr>`).join('') || '<tr><td colspan="4">카드 호가 데이터를 준비 중입니다.</td></tr>'}</tbody>`;
+    <thead><tr><th>가격 기준 · 주평균 100</th>${['월','화','수','목','금','토','일'].map(label => `<th>${label}</th>`).join('')}<th>조건 충족 종목</th></tr></thead>
+    <tbody>${(trends?.groups ?? []).map(group => `<tr>
+      <td>${group.basis === 'trade' ? '일반 아이템 체결가' : group.basis === 'ask0' ? '0업 최저호가' : '맥스업 최저호가'}</td>
+      ${group.points.map(p => `<td${p.k === 4 ? ' class="weekday-thu-row"' : ''}>${p.price === null ? '—' : fmt(p.price, 1)}</td>`).join('')}
+      <td>${group.eligibleItems}/${group.candidates}종${group.eligibleItems ? '' : `<br>표본 수집 중 · 최대 ${group.maxWeeks}/4주`}</td>
+    </tr>`).join('') || '<tr><td colspan="9">요일 트렌드 데이터를 준비 중입니다.</td></tr>'}</tbody>`;
 
   // ── 03 한계 ──
   document.getElementById('qty-limit').innerHTML =

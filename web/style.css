@@ -97,10 +97,29 @@ header.top .built { font-size: 12px; color: var(--ink-4); font-variant-numeric: 
 .card .v { font-size: 24px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .card .v small { font-size: 14px; font-weight: 500; color: var(--ink-3); margin-left: 2px; }
 .card .sub { font-size: 12.5px; color: var(--ink-3); margin-top: 4px; }
-.thursday-row { display: flex; justify-content: space-between; gap: 10px; margin-top: 9px; font-size: 12px; }
-.thursday-row b { white-space: nowrap; }
-.thursday-card .sub { font-size: 11px; }
-.thursday-method { display: block; margin-top: 10px !important; }
+button.weekday-summary { text-align: left; font-family: inherit; color: var(--ink); cursor: pointer; }
+.weekday-summary .k, .weekday-summary .sub { display: block; }
+.weekday-summary:hover { border-color: var(--blue); }
+.weekday-days { display: flex; justify-content: space-between; gap: 5px; padding: 8px 0; font-size: 15px; font-weight: 600; }
+.weekday-days .thu { color: var(--gold); }
+.weekday-trend { scroll-margin-top: 80px; }
+.weekday-trend > summary { display: flex; justify-content: space-between; gap: 8px; cursor: pointer; font-size: 15px; font-weight: 700; list-style: none; }
+.weekday-trend > summary::-webkit-details-marker { display: none; }
+.weekday-trend > summary small { color: var(--ink-3); font-size: 12px; font-weight: 500; margin-left: 6px; }
+.weekday-trend[open] > summary { margin-bottom: 16px; }
+.weekday-bases { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.weekday-bases .chart-toggle { margin-left: 0; }
+.weekday-trend .weekday-grid { margin: 14px 0; }
+.weekday-trend .weekday-chart svg { min-width: 260px; }
+.weekday-trend .legendary-weekday-table { margin-top: 12px; }
+.weekday-trend th { white-space: nowrap; }
+.weekday-thu-row { background: rgba(245,166,35,.08); }
+.weekday-thu-row > th { color: var(--gold); }
+.weekday-samples { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; margin: 16px 0; text-align: center; }
+.weekday-samples > div { border: 1px solid var(--line); border-radius: 8px; padding: 8px 2px; }
+.weekday-samples span { display: block; color: var(--ink-3); font-size: 12px; }
+.weekday-samples b { display: block; margin-top: 4px; font-size: 16px; font-variant-numeric: tabular-nums; }
+.weekday-samples .weekday-thu-row span { color: var(--gold); font-weight: 700; }
 #card-weekday { scroll-margin-top: 80px; }
 .card.hl { background: var(--blue-bg); border-color: transparent; }
 a.card.hl:hover { border-color: var(--blue); }

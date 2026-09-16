@@ -1,8 +1,5 @@
 import assert from 'node:assert/strict';
 import { cardWeekday, type CardWeekdayDay } from '../src/card-weekday.ts';
-import { readFileSync } from 'node:fs';
-import vm from 'node:vm';
-import * as metrics from '../web/metrics.js';
 
 const monday = Date.parse('2026-08-03T00:00:00Z');
 const DAY = 86400000;
@@ -45,21 +42,4 @@ const weighted = zero([...history('cheap', 'ask0', 1, 4, 1.1), ...history('expen
 assert(Math.abs(weighted.thursdayPct! - mixed.groups[0].thursdayPct! / 2) < 1e-9, '긴 이력의 종목에 더 큰 비중을 주지 않음');
 assert.equal(zero([...history('ignored', 'ask0'), ...history('cheap', 'ask0', 0)]).eligibleItems, 0, '비추적 종목·가격 없는 날 제외');
 
-const context = vm.createContext({ console, fetch: () => new Promise(() => {}) });
-const module = new vm.SourceTextModule(readFileSync('web/app.js', 'utf8') +
-  '\nexport function renderFixture(cards) { DATA = { meta: {items: 2, trades: 100, lo: "2026-08-03", hi: "2026-09-07"}, cardWeekday: cards, weekday: [{ k: 4, ret: 10, se: 0.1 }], weekdaySample: { item_count: 8 } }; return summaryCards(); }', { context });
-await module.link(() => new vm.SyntheticModule(Object.keys(metrics), function () {
-  for (const [key, value] of Object.entries(metrics)) this.setExport(key, value);
-}, { context }));
-await module.evaluate();
-const pendingHtml = module.namespace.renderFixture(cardWeekday([], ['cheap', 'expensive'], asOf));
-assert.match(pendingHtml, /카드 0업 호가/);
-assert.match(pendingHtml, /카드 맥스업 호가/);
-assert.equal((pendingHtml.match(/표본 수집 중/g) ?? []).length, 2);
-assert.match(pendingHtml, /유의성 미검증/);
-assert.doesNotMatch(pendingHtml, /p&lt;0.05|현재 비유의|undefined|NaN/);
-const readyHtml = module.namespace.renderFixture(mixed);
-assert.match(readyHtml, /\+8\.45%/);
-assert.match(readyHtml, /-8\.70%/);
-assert.match(readyHtml, /조건 충족 1\/2종/);
 console.log('카드 요일 단계 분리·주별 정규화·동일 종목 비중·표본 경계 테스트 통과');

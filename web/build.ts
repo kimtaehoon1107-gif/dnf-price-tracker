@@ -15,6 +15,8 @@ import { holmAdjusted, longestCompleteHours, varianceRatio } from '../src/market
 import { legendarySeries, type LegendarySnapshot } from '../src/legendary.ts';
 import { cardWeekday, type CardWeekdayDay } from '../src/card-weekday.ts';
 import { researchExport } from '../src/research-export.ts';
+import { weekdayTrend, WEEKDAY_MIN_WEEKS } from '../src/weekday-trend.ts';
+import { summarizeWeekdays } from './metrics.js';
 
 const client = await pool.connect();
 const query = <T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => client.query<T>(text, params);
@@ -425,6 +427,16 @@ const cardWeekdaySummary = cardWeekday(cardWeekdayDays,
 const forecasts = new Map<string, Forecast>();
 const todayKst = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
 const completeDay = new Date(quality.through).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+const weekdayBefore = [todayKst, completeDay].sort()[0];
+const weekdayProfiles = items.flatMap((it) => (it.category === '카드' ? ['ask0', 'askMax'] : ['trade']).map((basis) => {
+  const days = basis === 'trade'
+    ? (dailyBy.get(it.item_id) ?? []).filter((p) => p.n >= 5).map((p) => ({ d: p.d, price: p.vwap }))
+    : cardWeekdayDays.filter((p) => p.item_id === it.item_id && p.basis === basis && p.hours >= 18);
+  return { item_id: it.item_id, basis, ...weekdayTrend(days, weekdayBefore) };
+}));
+const weekdayTrends = { before: weekdayBefore, minWeeks: WEEKDAY_MIN_WEEKS, minTradesPerDay: 5, minCardHours: 18,
+  items: weekdayProfiles,
+  groups: ['trade', 'ask0', 'askMax'].map((basis) => summarizeWeekdays(weekdayProfiles, items.map((it) => it.item_id), basis)) };
 // 과거 평가일마다 당시 자격을 다시 판단한다. 현재 예측 가능한 종목만 추리면
 // 미래의 유동성·이력 정보가 공통 요일 계수에 들어가므로 전체 체결 종목을 넘긴다.
 const market = new Map(items.filter((it) => it.price_basis === 'trade').map((it) =>
@@ -631,6 +643,7 @@ writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
   priceAsOf: quality.checkedAt,
   meta, health, quality, collection, weekday, weekdaySample, randomWalk, items: withMeta, legendary, marketRanking,
   cardWeekday: cardWeekdaySummary,
+  weekdayTrends,
   margin: {
     pkg: pkg?.vwap ?? null, pkgN: pkg?.n ?? 0, parts, partsComplete,
     partsSum: parts.reduce((s, r) => s + r.vwap, 0), fee: 0.03,

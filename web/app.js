@@ -1,6 +1,6 @@
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
-import { askGap, representativePrice, matchesCategory } from './metrics.js?v=20260914-sylvan';
+import { askGap, representativePrice, matchesCategory, summarizeWeekdays } from './metrics.js?v=20260916-weekday';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
   ? '-' : Number(n).toLocaleString('ko-KR', { maximumFractionDigits: d });
@@ -161,16 +161,16 @@ function weekdayProfile(days, events) {
   };
 }
 
-function weekdaySVG(points, key, title, baselineLabel = '아이템 평균 100') {
+function weekdaySVG(points, key, title, baselineLabel = '아이템 평균 100', reference = 100) {
   const W = 420, H = 220, L = 28, R = 14, T = 34, B = 34;
   const plotW = W - L - R, plotH = H - T - B;
-  const maxDeviation = Math.max(5, ...points.map((point) => Math.abs(point[key] - 100))) * 1.2;
-  const low = 100 - maxDeviation, high = 100 + maxDeviation;
+  const maxDeviation = Math.max(5, ...points.map((point) => Math.abs((point[key] ?? reference) - reference))) * 1.2;
+  const low = reference - maxDeviation, high = reference + maxDeviation;
   const yAt = (value) => T + (high - value) / (high - low) * plotH;
-  const baseline = yAt(100);
+  const baseline = yAt(reference);
   const slot = plotW / points.length;
   const barWidth = Math.min(30, slot * 0.54);
-  const aria = points.map((point) => `${point.label}요일 ${point[key].toFixed(1)}, 표본 ${point.n}일`).join(', ');
+  const aria = points.map((point) => `${point.label}요일 ${point[key] === null ? '관측 없음' : point[key].toFixed(1)}, 표본 ${point.n}일`).join(', ');
 
   return `<div class="weekday-chart">
     <h4>${title}</h4>
@@ -178,16 +178,17 @@ function weekdaySVG(points, key, title, baselineLabel = '아이템 평균 100') 
       <title>${esc(`${title} · ${baselineLabel}`)}</title>
       <rect class="weekday-thursday" x="${L + slot * 3}" y="${T - 8}" width="${slot}" height="${plotH + 25}" rx="8"/>
       <line class="weekday-baseline" x1="${L}" y1="${baseline}" x2="${W - R}" y2="${baseline}"/>
-      <text class="weekday-axis" x="${L - 5}" y="${baseline + 4}" text-anchor="end">100</text>
+      <text class="weekday-axis" x="${L - 5}" y="${baseline + 4}" text-anchor="end">${reference}</text>
       ${points.map((point, index) => {
         const x = L + slot * index + (slot - barWidth) / 2;
+        if (point[key] === null) return `<text class="weekday-value" x="${x + barWidth / 2}" y="${baseline - 8}" text-anchor="middle">—</text><text class="weekday-label" x="${x + barWidth / 2}" y="${H - 8}" text-anchor="middle">${point.label}</text>`;
         const y = yAt(point[key]);
         const top = Math.min(y, baseline);
         const height = Math.max(2, Math.abs(y - baseline));
-        return `<rect class="weekday-bar ${point[key] >= 100 ? 'above' : 'below'}" x="${x}" y="${top}" width="${barWidth}" height="${height}" rx="4">
+        return `<rect class="weekday-bar ${point[key] >= reference ? 'above' : 'below'}" x="${x}" y="${top}" width="${barWidth}" height="${height}" rx="4">
           <title>${point.label}요일 · ${point[key].toFixed(1)} · 표본 ${point.n}일</title>
         </rect>
-        <text class="weekday-value" x="${x + barWidth / 2}" y="${point[key] >= 100 ? top - 6 : top + height + 14}" text-anchor="middle">${point[key].toFixed(1)}</text>
+        <text class="weekday-value" x="${x + barWidth / 2}" y="${point[key] >= reference ? top - 6 : top + height + 14}" text-anchor="middle">${point[key].toFixed(1)}</text>
         <text class="weekday-label${point.k === 4 ? ' thursday' : ''}" x="${x + barWidth / 2}" y="${H - 8}" text-anchor="middle">${point.label}</text>`;
       }).join('')}
     </svg>
@@ -411,6 +412,8 @@ let cardMode = 'zero';
 let detailItemId = null;
 let legendaryChart = null;
 let legendaryForecastCleanup = null;
+let weekdayBasis = 'trade';
+let weekdayExpanded = true;
 
 function renderDataStatus(now = Date.now()) {
   const time = value => Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString('ko-KR', {
@@ -524,20 +527,7 @@ function summaryCards() {
   const netMargin = mg?.pkg && mg.partsComplete
     ? (mg.partsSum * (1 - mg.fee) / mg.pkg - 1) * 100
     : null;
-  const w = DATA.weekday ?? [];
-  const thu = (() => {
-    if (!w.length) return null;
-    const mean = w.reduce((a, x) => a + x.ret, 0) / w.length;
-    const t = w.find((x) => x.k === 4);
-    return t ? { rel: (Math.exp((t.ret - mean) / 100) - 1) * 100 } : null;
-  })();
-  const cardWeekdays = DATA.cardWeekday;
-  const cardRows = (cardWeekdays?.groups ?? []).map((group) => `
-    <div class="thursday-row"><span>카드 ${group.basis === 'ask0' ? '0업' : '맥스업'} 호가</span>
-      <b class="${cls(group.thursdayPct)}">${group.thursdayPct === null ? '표본 수집 중' : pct(group.thursdayPct)}</b></div>
-    <div class="sub">${group.thursdayPct === null
-      ? `유효 일 관측 ${group.observedItems}/${group.candidates}종 · 최대 ${group.maxWeeks}/${cardWeekdays.minWeeks}주`
-      : `조건 충족 ${group.eligibleItems}/${group.candidates}종 · 종목별 주평균 대비`}</div>`).join('');
+  const trend = selectedWeekday();
 
   return `<div class="cards">
     <div class="card">
@@ -555,14 +545,68 @@ function summaryCards() {
       <div class="v ${cls(netMargin)}">${pct(netMargin)}</div>
       <div class="sub">관측 체결가 기준 · 수수료 3% 반영</div>
     </div>` : ''}
-    <div class="card thursday-card">
-      <div class="k">목요일 가격 흐름</div>
-      <div class="thursday-row"><span>일반 아이템 체결가</span><b class="${cls(thu?.rel)}">${thu ? pct(thu.rel) : '표본 수집 중'}</b></div>
-      <div class="sub">${DATA.weekdaySample?.item_count ?? 0}종 · 관측 요일 평균 대비</div>
-      ${cardRows || '<div class="sub">카드 호가 데이터 준비 중</div>'}
-      <a class="sub thursday-method" href="analysis.html#card-weekday">관측 차이 · 유의성 미검증 · 기준 보기 →</a>
-    </div>
+    <button type="button" class="card weekday-summary" data-weekday-open>
+      <span class="k">요일별 가격 트렌드</span>
+      <span class="weekday-days">${['월', '화', '수', '목', '금', '토', '일'].map(d => `<span${d === '목' ? ' class="thu"' : ''}>${d}</span>`).join('')}</span>
+      <span class="sub">${esc(tab)} · ${trend.eligibleItems ? `조건 충족 ${trend.eligibleItems}/${trend.candidates}종` : `표본 수집 중 · 최대 ${trend.maxWeeks}/4주`}</span>
+      <span class="sub">${WEEKDAY_BASES[trend.basis]} · 월~일 비교 보기 ↓</span>
+    </button>
   </div>`;
+}
+
+const WEEKDAY_BASES = { trade: '일반 아이템 체결가', ask0: '카드 0업 호가', askMax: '카드 맥스업 호가' };
+
+function weekdayGroups() {
+  const ids = (DATA.items ?? []).filter((it) => matchesCategory(it, tab)
+    && (tab !== '카드' || job === '전체' || it.job_role === job)).map((it) => it.item_id);
+  return Object.keys(WEEKDAY_BASES).map((basis) => summarizeWeekdays(DATA.weekdayTrends?.items ?? [], ids, basis))
+    .filter((g) => g.candidates > 0);
+}
+
+function selectedWeekday() {
+  const groups = weekdayGroups();
+  return groups.find((g) => g.basis === weekdayBasis) ?? groups[0]
+    ?? summarizeWeekdays([], [], tab === '카드' ? 'ask0' : 'trade');
+}
+
+function weekdayTrendHTML() {
+  const group = selectedWeekday(), groups = weekdayGroups();
+  return `<details class="panel weekday-trend" id="weekday-trend" ${weekdayExpanded ? 'open' : ''}>
+    <summary><span>요일별 가격 트렌드 <small>${esc(tab)}${tab === '카드' ? ` · ${esc(job)}` : ''}</small></span><span aria-hidden="true">⌄</span></summary>
+    <div class="weekday-bases" role="group" aria-label="요일 트렌드 가격 기준">
+      ${groups.map((g) => `<button type="button" class="chart-toggle${g.basis === group.basis ? ' on' : ''}" data-weekday-basis="${g.basis}" aria-pressed="${g.basis === group.basis}">${WEEKDAY_BASES[g.basis]}</button>`).join('')}
+    </div>
+    <p class="desc">${group.eligibleItems ? `완료 4주 이상인 ${group.eligibleItems}/${group.candidates}종 · 사용 기간 ${group.from} ~ ${group.to}`
+      : `표본 수집 중 · 완료 4주를 갖춘 종목 ${group.eligibleItems}/${group.candidates}종 · 종목당 최대 ${group.maxWeeks}/4주`}
+      ${group.basis === 'trade' ? ' · 하루 체결 5건 이상' : ' · 하루 호가 18시간 이상 관측'}</p>
+    ${group.eligibleItems ? `<div class="weekday-grid">
+      ${weekdaySVG(group.points, 'price', '요일별 가격 수준', '종목별 해당 주 평균 100')}
+      ${weekdaySVG(group.points.map((p) => ({ ...p, n: p.changeN })), 'change', '전날 대비 변화율 (%)', '실제 전날 가격 대비 변화율', 0)}
+    </div>` : `<p class="weekday-empty">월~일을 모두 관측한 주가 종목별로 4주 쌓이면 그래프가 표시됩니다. 지금은 요일별 유효 관측 수를 확인할 수 있습니다.</p>`}
+    ${group.eligibleItems ? `<div class="legendary-weekday-table"><table><thead><tr><th>요일</th><th>가격 수준<br>주평균 100</th><th>전날 대비</th><th>계산 표본<br>가격 / 변화</th><th>유효 관측</th></tr></thead><tbody>
+      ${group.points.map((p) => `<tr${p.k === 4 ? ' class="weekday-thu-row"' : ''}><th>${p.label}</th>
+        <td>${fmt(p.price, 1)}</td><td class="${cls(p.change)}">${pct(p.change)}</td>
+        <td title="가격 ${group.eligibleItems}종 · 변화 ${p.changeItems}종">${p.n} / ${p.changeN}</td><td>${p.availableN}</td></tr>`).join('')}
+    </tbody></table></div>` : `<div class="weekday-samples" role="list" aria-label="요일별 유효 관측 수">
+      ${group.points.map(p => `<div role="listitem"${p.k === 4 ? ' class="weekday-thu-row"' : ''}><span>${p.label}</span><b>${p.availableN}</b></div>`).join('')}
+    </div>`}
+    <p class="hint">가격은 각 종목의 주평균을 100으로 맞춘 뒤 종목별 요일 평균에 같은 비중을 줍니다.
+      전날 대비는 실제 전날에도 유효 관측이 있을 때만 계산하므로 가격 수준과 방향이 다를 수 있습니다.
+      표본 단위는 종목·일이며 독립 표본 수가 아닙니다. 유효 관측에는 아직 4주를 채우지 못한 종목도 포함됩니다.
+      목요일은 비교를 위한 강조입니다. 관측된 패턴이며 요일 효과의 유의성·인과관계를 검증한 결과는 아닙니다.
+      <a href="analysis.html#card-weekday">계산 기준 보기 →</a></p>
+  </details>`;
+}
+
+function bindWeekdayTrend() {
+  const panel = document.getElementById('weekday-trend');
+  panel.ontoggle = () => { weekdayExpanded = panel.open; };
+  document.querySelectorAll('[data-weekday-open]').forEach((el) => {
+    el.onclick = () => { panel.open = true; weekdayExpanded = true; panel.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
+  });
+  document.querySelectorAll('[data-weekday-basis]').forEach((el) => {
+    el.onclick = () => { weekdayBasis = el.dataset.weekdayBasis; renderList(); };
+  });
 }
 
 function categoryTabs(cats) {
@@ -604,6 +648,7 @@ function renderList() {
 
     ${categoryTabs(cats)}
     ${tab === '카드' ? cardJobTabs() : ''}
+    ${weekdayTrendHTML()}
     ${tab === '실반 하모니 박스' ? `<p class="desc">실반 멜로디 카드와 선택한 개봉 보상 4종의 시세입니다. 실반 하모니 박스는 NPC 개봉 메뉴로, 별도 거래 가격이 없습니다. <a href="https://df.nexon.com/pg/forestbandpkg" target="_blank" rel="noopener">공식 안내 ↗</a></p>` : ''}
 
     <div class="list">
@@ -667,6 +712,7 @@ function renderList() {
       <b>종결</b>은 현재 기준 최상위 아이템이며, 패치로 교체되면 갱신됩니다.
     </p>`;
 
+  bindWeekdayTrend();
   document.querySelectorAll('.tab').forEach((el) => {
     el.onclick = () => { tab = el.dataset.c; renderList(); scrollTo(0, 0); };
   });
@@ -710,6 +756,7 @@ function renderInventory(all, cats) {
     ${categoryTabs(cats)}
 
     ${cardJobTabs()}
+    ${weekdayTrendHTML()}
 
     <div class="card" style="margin-bottom:20px">
       <div class="k">${job} 종결 인챈트 풀세트</div>
@@ -751,6 +798,7 @@ function renderInventory(all, cats) {
   document.querySelectorAll('.job-sw button').forEach((el) => {
     el.onclick = () => { job = el.dataset.j; renderList(); };
   });
+  bindWeekdayTrend();
   document.querySelectorAll('.tab').forEach((el) => {
     el.onclick = () => { tab = el.dataset.c; renderList(); scrollTo(0, 0); };
   });
