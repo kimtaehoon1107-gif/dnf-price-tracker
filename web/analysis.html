@@ -18,6 +18,7 @@
       <a href="index.html">시세</a>
       <a href="ranking.html">TOP100</a>
       <a href="analysis.html" class="on">분석</a>
+      <a href="research.html">추세</a>
       <a href="guide.html">지표</a>
       <a href="feedback.html">피드백</a>
       <a href="https://github.com/kimtaehoon1107-gif/dnf-price-tracker" target="_blank" rel="noopener">GitHub</a>
@@ -170,6 +171,13 @@
 <div class="note" id="fc-explain"></div>
 <div class="table-scroll"><table id="fc-horizons"></table></div>
 <p class="method-note">평가 건수는 종목·평가일·예측 거리의 조합 수입니다. 겹치는 학습 구간과 종목 간 상관 때문에 독립 표본 수를 뜻하지 않습니다. 평가 건수가 적을수록 수치는 잠정적입니다.</p>
+
+<h3 class="sub">레전더리·종류별 예측을 발행 당시 값으로 검증하기</h3>
+<p>레전더리 0업 카드의 <b>일평균 전체 최저호가와 P10</b>, 종류별 <b>고정 구성 지수</b>는 별도의 사전 평가를 시작했습니다.
+  최근 가격 유지·지난주 같은 요일·추세와 요일 모델을 비교하며, 매일 발행한 입력과 예측을 보존합니다.
+  요일 모델은 최근 56일 안에 각 요일 관측이 4회 이상일 때만 참여합니다. 이 조건 자체가 통계적 유의성이나 예측력을 뜻하지 않습니다.</p>
+<p>위의 개별 체결가 백테스트와 표본·가격 기준·모델이 다릅니다. 아직 도착하지 않은 대상 날짜는 평가 대기로 표시합니다.
+  <a href="index.html#legendary-card">레전더리 예측·평가</a> · <a href="research.html">종류별 지수·예측</a> · <a href="research.html#package">패키지 전후 7일 관측</a></p>
 
 <h3 class="sub">해상도를 올려보면 나아지는가</h3>
 <p>

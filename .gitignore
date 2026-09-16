@@ -3,6 +3,7 @@ node_modules/
 data/*
 !data/legendary-cards.json
 !data/market-items.json
+!data/research-baskets.json
 *.db
 *.db-journal
 *.db-wal

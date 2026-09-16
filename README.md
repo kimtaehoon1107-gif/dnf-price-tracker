@@ -92,6 +92,12 @@ flowchart TD
 
 두 번째가 이 프로젝트의 특징입니다. API가 등록 수량과 잔여 수량을 따로 주기 때문에, 같은 매물을 반복 관측하면 체결 API와 별개인 매물 소진 신호를 만들 수 있습니다. 만료 전 소멸에는 취소가 섞일 수 있어 체결량과 합산하지 않습니다.
 
+## 레전더리·종류별 사전 예측
+
+[레전더리 화면](https://kimtaehoon1107-gif.github.io/dnf-price-tracker/index.html#legendary-card)에서 일평균 최저호가와 P10을 별도로 보고, [추세 화면](https://kimtaehoon1107-gif.github.io/dnf-price-tracker/research.html)에서 10개 고정 구성 지수와 구성 아이템별 흐름을 비교합니다. 체결 VWAP과 카드 단계별 호가는 분리합니다.
+
+2026-09-16부터 매일 발행한 입력·예측을 보존해 최근 가격 유지·지난주 같은 요일·추세+요일의 실제 후속 오차를 비교합니다. 요일 모델은 각 요일 관측 4회 이상일 때 참여하며, 미래 대상일은 평가 대기로 표시합니다. [패키지 분석](https://kimtaehoon1107-gif.github.io/dnf-price-tracker/research.html#package)은 고정된 전후 7일의 가격·구성품·해체 마진·관측 수량을 비교합니다. 표본 조건·사전 평가·결측 처리·실행 방법은 [방법 문서](docs/market-research.md)에 정리했습니다.
+
 ## 실행
 
 Node 24 이상이 필요하고, 런타임 의존성은 PostgreSQL 클라이언트인 **`pg` 하나**입니다.

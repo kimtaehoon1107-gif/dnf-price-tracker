@@ -9,3 +9,4 @@ import './test-card-weekday.ts';
 import './test-feedback.ts';
 import './test-api.ts';
 import './test-data-status.ts';
+import './test-research.ts';

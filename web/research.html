@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>던파 경매장 시세 추적기</title>
+<title>종류별 추세와 패키지 분석 — 던파 경매장</title>
 <meta name="description" content="던전앤파이터 경매장 시세를 아이템별 주기로 수집해 가격과 관측 거래량을 보여줍니다.">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
@@ -11,15 +11,15 @@
 <link rel="stylesheet" href="style.css?v=20260914-card-weekday">
 <link rel="stylesheet" href="research.css?v=20260916">
 </head>
-<body>
+<body class="research-page">
 <header class="top">
   <div class="inner">
     <a class="brand" href="index.html">던파 경매장</a>
     <nav>
-      <a href="index.html" class="on">시세</a>
+      <a href="index.html">시세</a>
       <a href="ranking.html">TOP100</a>
       <a href="analysis.html">분석</a>
-      <a href="research.html">추세</a>
+      <a href="research.html" class="on">추세</a>
       <a href="guide.html">지표</a>
       <a href="feedback.html">피드백</a>
       <a href="https://github.com/kimtaehoon1107-gif/dnf-price-tracker" target="_blank" rel="noopener">GitHub</a>
@@ -30,13 +30,12 @@
 </header>
 <div class="wrap">
 
-<aside class="data-notice" aria-label="데이터 기준 안내">
-  <strong id="data-asof">가격 계산 기준 시각을 확인하고 있습니다.</strong>
-  <p>사이트는 매시간 갱신됩니다. 실시간 가격이 아니며 실제 경매장 가격과 차이가 있을 수 있습니다.</p>
-  <p id="data-freshness" role="status"></p>
-</aside>
-
-<main id="view"></main>
+<h1 class="research-title">종류별 가격 흐름을 함께 봅니다</h1>
+<p class="research-intro">비슷한 아이템의 움직임을 고정 구성 지수로 비교하고, 패키지 출시·판매 종료 전후의 관측을 살펴봅니다.<br>실시간 가격이 아니며, 예측력은 발행 이후의 실제 관측으로 평가합니다.</p>
+<nav class="research-tabs" aria-label="추세 분석 구분">
+  <a href="#groups">종류별 지수·예측</a><a href="#package">패키지 이벤트</a><a href="index.html#legendary-card">레전더리 카드</a>
+</nav>
+<main id="view" aria-live="polite"><div class="panel">분석 데이터를 불러오는 중입니다.</div></main>
 
 <footer>
   본 서비스는 <b>네오플 오픈 API 서비스</b>를 이용합니다. (<a href="https://developers.neople.co.kr" target="_blank" rel="noopener">developers.neople.co.kr</a>)<br>
@@ -50,6 +49,6 @@
 
 </div>
 <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
-<script type="module" src="app.js?v=20260916-research"></script>
+<script type="module" src="research.js?v=20260916"></script>
 </body>
 </html>

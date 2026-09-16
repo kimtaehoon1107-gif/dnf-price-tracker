@@ -410,6 +410,7 @@ let sortDir = -1;
 let cardMode = 'zero';
 let detailItemId = null;
 let legendaryChart = null;
+let legendaryForecastCleanup = null;
 
 function renderDataStatus(now = Date.now()) {
   const time = value => Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString('ko-KR', {
@@ -490,6 +491,8 @@ function upgradeEconomicsHTML(it) {
 }
 
 function render() {
+  legendaryForecastCleanup?.();
+  legendaryForecastCleanup = null;
   legendaryChart?.remove();
   legendaryChart = null;
   const id = location.hash.slice(1);
@@ -832,6 +835,12 @@ async function renderLegendary() {
       <div class="chart" id="legendary-chart"></div>
       <p class="hint">빈 시간은 미관측이며 0건과 구분합니다. 현재 시간은 수집 중입니다. 가격과 매물의 동시 변화만으로 원인을 확정하지 않습니다.</p>
     </div>
+    <div class="panel research-page">
+      <label class="research-label" for="legendary-target">예측할 가격 기준</label>
+      <select class="research-select" id="legendary-target"><option value="legendary-min">전체 최저호가 · 일평균</option><option value="legendary-p10">P10 · 일평균</option></select>
+      <div id="legendary-forecast"><p class="desc">저장된 예측을 불러오는 중입니다.</p></div>
+      <div class="research-links"><a href="research.html">종류별 지수·예측 →</a><a href="research.html#package">패키지 이벤트 관측 →</a></div>
+    </div>
     <div class="panel" id="legendary-weekday">
       <h3>요일별 재료 가격 흐름</h3>
       <p class="desc">${weekday.ready
@@ -899,6 +908,25 @@ async function renderLegendary() {
   };
   document.querySelectorAll('[data-range]').forEach((button) => { button.onclick = () => setRange(button.dataset.range); });
   setRange('7');
+  try {
+    const researchResponse = await fetch('data/research.json', { cache: 'no-cache' });
+    if (!researchResponse.ok) throw new Error('예측 응답 실패');
+    const research = await researchResponse.json();
+    const { renderForecast } = await import('./research-ui.js?v=20260916');
+    if (location.hash.slice(1) !== 'legendary-card' || legendaryChart !== chart) return;
+    const drawForecast = () => {
+      legendaryForecastCleanup?.();
+      const series = research.series.find((s) => s.id === document.getElementById('legendary-target').value);
+      legendaryForecastCleanup = renderForecast(document.getElementById('legendary-forecast'), series, research);
+    };
+    document.getElementById('legendary-target').onchange = drawForecast;
+    drawForecast();
+  } catch (error) {
+    if (location.hash.slice(1) === 'legendary-card' && legendaryChart === chart) {
+      document.getElementById('legendary-forecast').textContent = '저장된 예측을 불러오지 못했습니다. 잠시 뒤 다시 시도해 주세요.';
+    }
+    console.error(error);
+  }
 }
 
 // ── 상세 ───────────────────────────────────────────────────────

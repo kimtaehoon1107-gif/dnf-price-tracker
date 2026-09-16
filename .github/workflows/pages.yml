@@ -12,6 +12,10 @@ on:
       - 'src/forecast.ts'
       - 'src/market-logic.ts'
       - 'src/legendary.ts'
+      - 'src/research*.ts'
+      - 'scripts/record-forecasts.ts'
+      - 'sql/research.sql'
+      - 'data/research-baskets.json'
       - 'src/card-weekday.ts'
       - 'src/candle-check.ts'
       - 'src/db.ts'
@@ -62,6 +66,11 @@ jobs:
           NEOPLE_API_KEY: ${{ secrets.NEOPLE_API_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: node --no-warnings scripts/legendary-floor.ts
+
+      - name: 사전 예측 기록 및 실측 확정
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node --no-warnings scripts/record-forecasts.ts
 
       - name: 사이트 빌드
         env:

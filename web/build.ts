@@ -14,6 +14,7 @@ import { forecast, type Point, type Forecast } from '../src/forecast.ts';
 import { holmAdjusted, longestCompleteHours, varianceRatio } from '../src/market-logic.ts';
 import { legendarySeries, type LegendarySnapshot } from '../src/legendary.ts';
 import { cardWeekday, type CardWeekdayDay } from '../src/card-weekday.ts';
+import { researchExport } from '../src/research-export.ts';
 
 const client = await pool.connect();
 const query = <T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => client.query<T>(text, params);
@@ -474,13 +475,16 @@ const packageEvent = (await query<{
          (SELECT to_char(MIN(c.hour) AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD')
             FROM candles_1h c JOIN items i USING (item_id)
            WHERE i.category = '유랑악단 패키지') first_seen
-  FROM events e WHERE e.type = '패키지' ORDER BY e.starts_at DESC LIMIT 1`)).rows[0] ?? null;
+  FROM events e WHERE e.type = '패키지'
+    AND 'e974d2eac46f0c8b23b83d4da389fa57' = ANY(e.related_item_ids) ORDER BY e.starts_at DESC LIMIT 1`)).rows[0] ?? null;
 
 // ── 레전더리 카드 최저가 지수 ──────────────────────────────────
 const legendaryRows = (await query<LegendarySnapshot>(`
     SELECT to_char(captured_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') captured_at,
       min_unit_price, min_item_name, p10, median, scanned, with_listings, total_listings
     FROM legendary_card_floor WHERE upgrade = 0 ORDER BY captured_at, id`)).rows;
+const research = await researchExport(client, quality.checkedAt, quality.through);
+writeFileSync(`${OUT}/data/research.json`, JSON.stringify(research));
 const legendary = legendaryRows.slice(-1);
 writeFileSync(`${OUT}/data/legendary.json`, JSON.stringify(legendarySeries(legendaryRows, quality.checkedAt)));
 
@@ -634,7 +638,7 @@ writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
   },
 }));
 
-for (const f of ['index.html', 'ranking.html', 'analysis.html', 'guide.html', 'feedback.html', 'feedback.js', 'feedback.css', 'app.js', 'metrics.js', 'ranking.js', 'style.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
+for (const f of ['index.html', 'ranking.html', 'analysis.html', 'guide.html', 'feedback.html', 'feedback.js', 'feedback.css', 'app.js', 'metrics.js', 'ranking.js', 'style.css', 'research.html', 'research.js', 'research-ui.js', 'research.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
 writeFileSync(`${OUT}/.nojekyll`, '');
 
 console.log(`빌드 완료 — ${items.length}종 · 체결 ${meta.trades.toLocaleString()}건 · 일봉 ${daily.length}행 · 예측 ${forecasts.size}종`);
