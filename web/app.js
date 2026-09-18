@@ -1019,16 +1019,6 @@ async function renderDetail(it) {
         </div>
       </details>
     </div>
-    ${isZeroCard ? '' : `<div class="panel">
-      <h3>호가–체결 갭</h3>
-      <p class="desc">최저 호가가 각 관측 시점의 직전 24시간 체결 VWAP보다 얼마나 높거나 낮은지 보여줍니다. 양수면 매물 부족 또는 상승 기대, 음수면 급매 신호일 수 있습니다.</p>
-      <div class="chart" id="c4"></div>
-    </div>`}
-    ${hasDepth ? `<div class="panel">
-      <h3>매물 사다리</h3>
-      <p class="desc">현재 매물을 낮은 호가부터 누적합니다. 최저가 한 건이 아니라 원하는 수량을 실제로 살 때의 평균 단가를 보여줍니다.</p>
-      <div id="depth">불러오는 중…</div>
-    </div>` : ''}
     <div class="panel" id="stock-panel">
       <h3>최근 7일 · ${isZeroCard ? `${cardTier} ` : ''}가격과 매물 잔량</h3>
       <p class="desc">${isZeroCard ? '선택한 단계의 시간별 평균 최저호가와' : '시간별 체결 수량 가중평균(VWAP)과'} 각 시간의 마지막 매물 잔량을 같은 시간축에서 비교합니다. 현재 시간은 수집 중입니다.</p>
@@ -1037,6 +1027,16 @@ async function renderDetail(it) {
       <div class="chart" id="stock-chart"></div>
       <p class="hint">빈 구간은 해당 자료가 없는 시간이며 0개와 구분합니다. 잔량은 신규 등록량이나 체결량이 아닙니다. 가격과 잔량의 동시 변화만으로 원인을 확정할 수는 없습니다.<br>매물 API는 최대 400건을 반환하므로 전체 물량보다 적을 수 있습니다.${isZeroCard ? ' 카드 단계는 같은 응답 안에서 구분합니다.' : ''}</p>
     </div>
+    ${isZeroCard ? '' : `<div class="panel">
+      <h3>호가–체결 갭</h3>
+      <p class="desc">각 관측 시점의 최저 호가를 직전 24시간 체결 VWAP과 비교합니다. 양수면 지금 호가가 최근 체결가보다 높고, 음수면 낮습니다. 호가와 최근 체결가의 차이일 뿐이며, 이것만으로 매수 시점이나 다음 가격 방향을 판단할 수는 없습니다.</p>
+      <div class="chart" id="c4"></div>
+    </div>`}
+    ${hasDepth ? `<div class="panel">
+      <h3>매물 사다리</h3>
+      <p class="desc">현재 매물을 낮은 호가부터 누적합니다. 최저가 한 건이 아니라 원하는 수량을 실제로 살 때의 평균 단가를 보여줍니다.</p>
+      <div id="depth">불러오는 중…</div>
+    </div>` : ''}
     ${isZeroCard ? '' : `<div class="panel" id="weekday-panel">
       <h3>아이템별 요일 프로파일</h3>
       <p class="desc" id="weekday-desc">완료된 일봉을 분석하는 중…</p>
