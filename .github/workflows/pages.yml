@@ -52,6 +52,14 @@ jobs:
           cache: npm
       - run: npm ci --omit=dev
 
+      # 긴 TOP100 집계보다 먼저 실행해 시간별 관측이 밀리지 않게 한다.
+      # 같은 시간대에 수집을 완료했다면 스크립트가 중복 스캔을 건너뛴다.
+      - name: 레전더리 카드 저가 지표 스캔
+        env:
+          NEOPLE_API_KEY: ${{ secrets.NEOPLE_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node --no-warnings scripts/legendary-floor.ts
+
       # 스태커블 시장은 하루 한 번만 전수 조회한다. 스크립트가 DB의 마지막
       # 집계 시각을 확인하므로 매시간 배포돼도 23시간 안에는 즉시 종료한다.
       - name: 거래대금 TOP100 갱신
@@ -59,14 +67,6 @@ jobs:
           NEOPLE_API_KEY: ${{ secrets.NEOPLE_API_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: node --no-warnings scripts/scan-turnover.ts
-
-      # 레전더리 카드 165종을 훑어 저가 지표를 갱신한다. 시간당 165회 호출이라
-      # 초당 1,000건 제한 대비 무시할 수준이다.
-      - name: 레전더리 카드 저가 지표 스캔
-        env:
-          NEOPLE_API_KEY: ${{ secrets.NEOPLE_API_KEY }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: node --no-warnings scripts/legendary-floor.ts
 
       - name: 사전 예측 기록 및 실측 확정
         env:

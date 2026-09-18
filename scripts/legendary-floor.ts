@@ -15,7 +15,7 @@ import { pool } from '../src/db.ts';
 
 const LOCK_KEY_1 = 20260908;
 const LOCK_KEY_2 = 1;
-const MIN_INTERVAL_MS = 55 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
 
 async function main() {
   // push 배포와 매시 pg_cron 배포가 겹쳐도 스캔은 한 프로세스만 맡는다.
@@ -53,8 +53,10 @@ async function main() {
       SELECT MAX(captured_at) AS captured_at
       FROM legendary_card_floor
       WHERE upgrade = 0`)).rows[0]?.captured_at;
-    if (!force && latest && Date.now() - new Date(latest).getTime() < MIN_INTERVAL_MS) {
-      console.log(`최근 저가 지표가 있어 건너뜁니다 — ${new Date(latest).toISOString()}`);
+    // 앞선 집계가 늦어져도 다음 시간의 관측을 건너뛰지 않는다.
+    // 차트와 같은 정시 구간으로 중복을 판단한다(UTC와 KST의 시간 경계는 같다).
+    if (!force && latest && Math.floor(new Date(latest).getTime() / HOUR_MS) === Math.floor(Date.now() / HOUR_MS)) {
+      console.log(`현재 시간대의 저가 지표가 있어 건너뜁니다 — ${new Date(latest).toISOString()}`);
       return;
     }
 
@@ -62,6 +64,7 @@ async function main() {
       itemId: string; itemName: string;
     }>;
     const found: Array<{ id: string; name: string; price: number; listings: number }> = [];
+    let failures = 0;
     for (let i = 0; i < cards.length; i += 10) {
       await Promise.all(cards.slice(i, i + 10).map(async (card) => {
         try {
@@ -71,11 +74,14 @@ async function main() {
           if (auctions.length) {
             found.push({ id: card.itemId, name: card.itemName, price: auctions[0].unitPrice, listings: auctions.length });
           }
-        } catch { /* 개별 실패는 무시 */ }
+        } catch { failures++; }
       }));
     }
 
-    if (found.length === 0) throw new Error('매물이 있는 레전더리 카드를 하나도 찾지 못했습니다.');
+    if (failures) console.warn(`레전더리 카드 API 조회 실패 ${failures}/${cards.length}종`);
+    if (found.length === 0) throw new Error(failures === cards.length
+      ? '레전더리 카드 API 조회가 모두 실패하여 이번 시간의 가격을 관측하지 못했습니다.'
+      : '정상 응답에서 0업 매물을 찾지 못했습니다. API 조회 실패 종목은 별도 로그를 확인하세요.');
 
     // 동률이면 Promise.all 완료 순서가 아니라 itemId로 고정해 결과를 재현 가능하게 한다.
     found.sort((a, b) => a.price - b.price || a.id.localeCompare(b.id));
