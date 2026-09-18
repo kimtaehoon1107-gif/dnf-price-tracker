@@ -59,9 +59,7 @@
     <a href="#event">이벤트</a>
     <a href="#weekday">요일</a>
     <a href="#gap">호가 갭</a>
-    <a href="#quadrant">4분면</a>
     <a href="#depth">매물 사다리</a>
-    <a href="#depletion">소진 속도</a>
     <a href="#hourly">시간별 데이터</a>
     <a href="#card">카드 강화</a>
   </nav>
@@ -201,20 +199,8 @@
     <p class="guide-foot">최근 24시간에 체결이 없으면 계산하지 않습니다. 호가만으로 다음 체결 방향을 확정할 수는 없습니다.</p>
   </section>
 
-  <section class="panel guide-panel" id="quadrant">
-    <h3><span class="guide-no">07</span>가격 × API 관측 거래량 4분면</h3>
-    <p class="desc">4분면은 최근 최대 30개의 완료 일봉에서 가격과 관측 수량이 각자의 평균보다 높은지 낮은지를 함께 보여줍니다.</p>
-    <div class="guide-quadrant" role="img" aria-label="가격과 거래량의 4분면 해석">
-      <div class="supply-down"><b>공급 감소</b><span>가격↑ · 수량↓</span></div>
-      <div class="demand-up"><b>수요 증가</b><span>가격↑ · 수량↑</span></div>
-      <div class="demand-down"><b>수요 감소</b><span>가격↓ · 수량↓</span></div>
-      <div class="supply-up"><b>공급 증가</b><span>가격↓ · 수량↑</span></div>
-    </div>
-    <p class="guide-foot">완료 일봉 3일 이상부터 표시합니다. 이름은 경제적 패턴을 읽기 위한 분류이며 원인을 증명하지 않습니다. 체결 API의 100건 상한 때문에 거래량 급증은 실제보다 작게 보일 수 있습니다.</p>
-  </section>
-
   <section class="panel guide-panel" id="depth">
-    <h3><span class="guide-no">08</span>매물 사다리</h3>
+    <h3><span class="guide-no">07</span>매물 사다리</h3>
     <p class="desc">매물 사다리는 낮은 호가부터 매물을 쌓아, 원하는 수량을 살 때 평균 단가가 얼마나 오르는지 보여줍니다.</p>
     <div class="kv guide-example">
       <div><div class="k">10개 구매 평균</div><div class="v">12,040<small> 골드</small></div></div>
@@ -228,25 +214,8 @@
     </div>
   </section>
 
-  <section class="panel guide-panel" id="depletion">
-    <h3><span class="guide-no">09</span>매물 소진 속도</h3>
-    <p class="desc">매물 소진 속도는 같은 매물을 반복 관측해 잔여 수량 감소와 만료 전 소멸을 시간당 수량으로 환산합니다.</p>
-    <div class="kv guide-example">
-      <div><div class="k">24h 관측 소진</div><div class="v">1,240<small> 개</small></div></div>
-      <div><div class="k">시간당 평균</div><div class="v">56<small> 개/시간</small></div></div>
-      <div><div class="k">수량 감소 확인</div><div class="v">910<small> 개</small></div></div>
-      <div><div class="k">조기 소멸 추정</div><div class="v">330<small> 개</small></div></div>
-    </div>
-    <div class="guide-copy">
-      <div><b>수량 감소 확인</b><span>수량 감소 확인값은 같은 경매번호의 잔여 수량이 실제로 줄어든 값입니다.</span></div>
-      <div><b>조기 소멸 추정</b><span>조기 소멸은 매물이 만료 전에 사라졌다는 뜻입니다. 판매와 판매 취소를 구분할 수 없어 추정치로 따로 표시합니다.</span></div>
-      <div><b>빈 구간</b><span>빈 구간은 소진량이 0인 시간이 아니라 수집되지 않은 시간입니다. 실제 관측 간격으로 나눠 시간당 속도를 계산합니다.</span></div>
-    </div>
-    <p class="guide-foot">매물 소진량은 체결 API와 같은 거래를 중복해서 볼 수 있으므로 API 관측 거래량과 합산하지 않습니다.</p>
-  </section>
-
   <section class="panel guide-panel" id="hourly">
-    <h3><span class="guide-no">10</span>시간별 가격 · 일별 관측 수량</h3>
+    <h3><span class="guide-no">08</span>시간별 가격 · 일별 관측 수량</h3>
     <p class="desc">날짜별 거래 활동은 가격 차트 아래 막대로, 짧은 시간의 가격 움직임은 최근 7일 차트로 보여줍니다.</p>
     <div class="guide-split neutral">
       <div><b>최근 7일 · 가격과 매물 잔량</b><span>가격선과 매물 잔량 막대를 같은 시간축에서 비교</span><small>왼쪽은 가격(골드), 오른쪽은 잔량(개), 시각은 KST</small></div>
@@ -261,7 +230,7 @@
   </section>
 
   <section class="panel guide-panel" id="card">
-    <h3><span class="guide-no">11</span>카드 0업 · 맥스업과 강화 기대비용</h3>
+    <h3><span class="guide-no">09</span>카드 0업 · 맥스업과 강화 기대비용</h3>
     <p class="desc">카드는 체결가 대신 현재 매물을 업그레이드 단계별로 나눠 직접 강화와 완성품 구매 비용을 비교합니다.</p>
     <div class="upgrade-sw guide-static-switch" aria-label="카드 단계 표시 예시">
       <span class="on">0업</span><span>맥스업 (2업)</span>
@@ -280,7 +249,7 @@
   </section>
 
   <section class="panel guide-panel guide-limit" id="limits">
-    <h3><span class="guide-no">12</span>모든 지표에 공통인 한계</h3>
+    <h3><span class="guide-no">10</span>모든 지표에 공통인 한계</h3>
     <ul>
       <li>체결 API는 한 번에 최근 <b>100건</b>까지만 반환하므로 API 관측 거래량은 실제 거래량보다 작을 수 있습니다.</li>
       <li>매물 API는 최대 <b>400행</b>이며, 사라진 매물이 판매됐는지 취소됐는지 완전히 구분할 수 없습니다.</li>

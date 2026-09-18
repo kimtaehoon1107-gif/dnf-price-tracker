@@ -303,20 +303,6 @@ a.ranking-row:hover { background: var(--page); }
 .depth-line { fill: none; stroke: var(--up); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .depth-axis { fill: var(--ink-3); font: 12px var(--mono); }
 
-.shock-chart { overflow-x: auto; }
-.shock-chart svg { display: block; width: 100%; min-width: 640px; }
-.shock-zone { opacity: .55; }
-.shock-zone.demand-up { fill: var(--up-bg); }
-.shock-zone.supply-up { fill: var(--blue-bg); }
-.shock-zone.supply-down { fill: var(--gold); opacity: .08; }
-.shock-zone.demand-down { fill: var(--line); }
-.shock-axis { stroke: var(--line-2); stroke-width: 1; }
-.shock-point { fill: var(--ink-2); opacity: .58; stroke: var(--card); stroke-width: 1.5; }
-.shock-point.latest { fill: var(--up); opacity: 1; stroke-width: 2; }
-.shock-label { fill: var(--ink-3); font: 600 12px var(--sans); }
-.shock-tick { fill: var(--ink-4); font: 11px var(--mono); }
-.shock-title { fill: var(--ink-3); font: 12px var(--sans); }
-
 .weekday-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .weekday-chart { min-width: 0; padding: 12px 12px 4px; background: var(--page); border-radius: 12px; overflow-x: auto; }
 .weekday-chart h4 { margin: 0 0 2px; font-size: 13px; color: var(--ink-2); }
@@ -484,18 +470,6 @@ footer b { color: var(--ink-2); }
 .guide-split b, .guide-split span, .guide-split small { display: block; }
 .guide-split span { color: var(--ink-2); font-size: 13px; }
 .guide-split small { margin-top: 4px; color: var(--ink-3); font-size: 11.5px; }
-.guide-quadrant {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 2px; overflow: hidden; margin: 14px 0; border-radius: 12px; background: var(--line);
-}
-.guide-quadrant > div { min-height: 94px; padding: 18px; }
-.guide-quadrant b, .guide-quadrant span { display: block; }
-.guide-quadrant b { font-size: 14px; }
-.guide-quadrant span { margin-top: 3px; color: var(--ink-3); font-size: 12px; }
-.guide-quadrant .supply-down { background: rgba(245,166,35,.08); }
-.guide-quadrant .demand-up { background: var(--up-bg); }
-.guide-quadrant .demand-down { background: var(--page); }
-.guide-quadrant .supply-up { background: var(--down-bg); }
 .guide-static-switch span {
   padding: 6px 20px; border-radius: 999px; color: var(--ink-3); font-size: 14px; font-weight: 600;
 }
@@ -542,7 +516,6 @@ footer b { color: var(--ink-2); }
   .guide-copy, .guide-split { grid-template-columns: 1fr; }
   .guide-weekdays { grid-template-columns: repeat(4, 1fr); }
   .guide-chart { height: 190px; }
-  .guide-quadrant > div { min-height: 82px; padding: 13px; }
   .ranking-title h1 { font-size: 23px; }
   .ranking-lh, .ranking-row { grid-template-columns: minmax(0, 1fr) 72px 68px; gap: 8px; padding: 0 12px; }
   .ranking-lh > :first-child, .ranking-row .rank, .ranking-lh .h-price, .ranking-row .h-price,
