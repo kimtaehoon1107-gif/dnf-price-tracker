@@ -82,10 +82,23 @@ header.top nav a:hover { color: var(--ink); }
 header.top .spacer { flex: 1; }
 header.top .built { font-size: 12px; color: var(--ink-4); font-variant-numeric: tabular-nums; }
 
-.data-notice { margin-bottom: 20px; padding: 14px 18px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--card); font-size: 13px; color: var(--ink-2); }
-.data-notice strong { color: var(--ink); font-weight: 600; }
-.data-notice p { margin: 4px 0 0; }
-.data-notice .stale { color: var(--up); font-weight: 600; }
+/* 데이터 기준 시각 칩. 문장 설명은 올리거나 포커스했을 때만 펼친다.
+   오래된 데이터는 금색으로 표시한다 — 빨강은 이 사이트에서 가격 상승을 뜻한다. */
+.data-status {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; flex: none;
+  padding: 4px 10px; border: 1px solid var(--line-2); border-radius: 999px;
+  font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: default;
+}
+.data-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--blue); }
+.data-status.stale { color: var(--gold); border-color: rgba(245,166,35,.45); font-weight: 600; }
+.data-status.stale .dot { background: var(--gold); }
+.data-status .tip {
+  display: none; position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; width: 290px;
+  padding: 10px 12px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--bg);
+  box-shadow: 0 4px 16px rgba(0,0,0,.12); color: var(--ink-2); font-weight: 400; line-height: 1.6; white-space: normal;
+}
+.data-status:hover .tip, .data-status:focus .tip { display: block; }
+.data-status:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 
 /* ── 요약 카드 ─────────────────────────────────── */
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 26px; }
@@ -491,6 +504,8 @@ footer b { color: var(--ink-2); }
   header.top .inner { height: 50px; padding: 0 12px; gap: 14px; }
   header.top nav { gap: 12px; font-size: 13.5px; min-width: 0; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
   header.top .built { display: none; }
+  .data-status { padding: 3px 8px; }
+  .data-status:not(.stale) .age { display: none; }
   .cards {
     display: flex; overflow-x: auto; gap: 8px; margin-bottom: 18px; padding-bottom: 4px;
     scroll-snap-type: x mandatory; scrollbar-width: none;

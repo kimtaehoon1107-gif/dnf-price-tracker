@@ -32,6 +32,7 @@ module.namespace.renderDataStatus(now);
 assert.equal(notice.stale, false);
 module.namespace.renderDataStatus(now + 60000);
 assert.equal(notice.stale, true, '열어 둔 화면에서도 3시간 경계에 도달하면 경고');
+assert.match(elements.get('data-asof')!.textContent, /⚠ 오래된 데이터/, '색만이 아니라 글자로도 경고');
 assert.match(notice.textContent, /3시간 0분 경과/);
 assert.match(notice.textContent, /표시 데이터/);
 assert(!notice.textContent.includes('수집이 중단'), '정적 기록으로 현재 수집 중단을 단정하지 않음');
@@ -44,9 +45,11 @@ for (const last of [null, 'invalid']) {
   module.namespace.renderDataStatus(now);
   assert.equal(notice.stale, true);
   assert.match(notice.textContent, /기록 없음/);
+  assert.match(elements.get('data-asof')!.textContent, /⚠ 기준 시각 확인 불가/);
 }
 module.namespace.fixture({ priceAsOf: iso(0), collection: { last_success: iso(1) } });
 module.namespace.renderDataStatus(now);
 assert.equal(notice.stale, false, '새 데이터로 경고 해제');
-assert.match(elements.get('data-asof')!.textContent, /2026.*09.*14.*15:00.*KST/);
+assert.match(elements.get('data-asof')!.textContent, /09\. 14\. 15:00 기준/, '헤더 칩은 기준 시각만 짧게 표시');
+assert.match(notice.textContent, /가격 계산 기준: 2026.*09.*14.*15:00.*KST/, '전체 기준 시각은 설명에 유지');
 console.log('메인 기준 시각·3시간 경계·누락 기록 경고 테스트 통과');

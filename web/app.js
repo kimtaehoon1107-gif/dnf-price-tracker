@@ -424,23 +424,30 @@ function renderDataStatus(now = Date.now()) {
   }) + ' KST' : '기록 없음';
   const last = DATA.collection?.last_success;
   const age = now - Date.parse(last), priceAge = now - Date.parse(DATA.priceAsOf);
-  document.getElementById('data-asof').textContent = `가격 계산 기준: ${time(DATA.priceAsOf)}`;
+  const hours = Math.max(0, Math.floor(age / 3600000)), minutes = Math.max(0, Math.floor(age / 60000) % 60);
+  const known = Number.isFinite(age) && Number.isFinite(priceAge);
+  const stale = !known || age >= 3 * 3600000 || priceAge >= 3 * 3600000;
+  // 헤더에는 기준 시각과 경과만 짧게 두고, 문장 설명은 칩에 올렸을 때 펼친다.
+  // 오래된 상태는 색만으로 전하지 않는다 — 글자로도 바로 보여준다.
+  document.getElementById('data-asof').textContent = !known ? '⚠ 기준 시각 확인 불가'
+    : stale ? '⚠ 오래된 데이터'
+    : `${new Date(DATA.priceAsOf).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })} 기준`;
+  const ageEl = document.getElementById('data-age');
+  if (ageEl) ageEl.textContent = Number.isFinite(age) ? ` · ${hours ? `${hours}시간 ` : ''}${minutes}분 전` : '';
   const status = document.getElementById('data-freshness');
-  const stale = !Number.isFinite(age) || !Number.isFinite(priceAge) || age >= 3 * 3600000 || priceAge >= 3 * 3600000;
   status.classList.toggle('stale', stale);
+  document.getElementById('data-status')?.classList.toggle('stale', stale);
   // 정적 화면에 남은 기록만으로 현재 수집기 중단을 단정하지 않는다.
-  status.textContent = `표시 데이터의 마지막 정상 수집: ${time(last)}` +
-    (Number.isFinite(age) ? ` · ${Math.max(0, Math.floor(age / 3600000))}시간 ${Math.max(0, Math.floor(age / 60000) % 60)}분 경과` : '') +
-    (stale ? ' · ⚠ 데이터가 오래됐거나 기준 시각을 확인할 수 없습니다. 새로고침해 최신 상태를 확인하세요.' : '');
+  status.textContent = `가격 계산 기준: ${time(DATA.priceAsOf)}. 표시 데이터의 마지막 정상 수집: ${time(last)}` +
+    (Number.isFinite(age) ? ` · ${hours}시간 ${minutes}분 경과` : '') +
+    (stale ? ' · ⚠ 데이터가 오래됐거나 기준 시각을 확인할 수 없습니다. 새로고침해 최신 상태를 확인하세요.'
+      : '. 사이트는 매시간 갱신되며 실시간 가격이 아닙니다.');
 }
 
 async function boot() {
   const response = await fetch('data/summary.json', { cache: 'no-cache' });
   if (!response.ok) throw new Error(`요약 데이터 HTTP ${response.status}`);
   DATA = await response.json();
-  const b = new Date(DATA.builtAt);
-  document.getElementById('built').textContent =
-    '페이지 생성 ' + b.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   renderDataStatus();
   setInterval(renderDataStatus, 60000);
   render();
@@ -1411,7 +1418,8 @@ async function renderDetail(it) {
 
 boot().catch((error) => {
   console.error(error);
-  document.getElementById('data-asof').textContent = '가격 계산 기준: 확인할 수 없음';
+  document.getElementById('data-asof').textContent = '⚠ 기준 시각 확인 불가';
+  document.getElementById('data-status').classList.add('stale');
   document.getElementById('view').innerHTML = `
     <div class="panel"><h3>데이터를 불러오지 못했습니다</h3>
     <p class="desc">잠시 뒤 새로고침해 주세요.</p></div>`;
