@@ -1067,7 +1067,7 @@ async function renderDetail(it) {
         <button class="chart-toggle" id="candle-toggle" type="button" aria-pressed="true">캔들 켜짐</button>
       </div>
       <p class="desc" id="fc-desc">불러오는 중…</p>
-      <div class="chart" id="c1"></div>
+      <div class="chart${isZeroCard ? '' : ' tall'}" id="c1"></div>
       <div class="event-rail" id="event-rail" aria-label="가격 영향 이벤트 태그" hidden></div>
       <details class="event-study" id="event-details">
         <summary><span>가격 영향 이벤트 · 이벤트 스터디</span><small id="event-count"></small><i aria-hidden="true">⌄</i></summary>
@@ -1077,6 +1077,16 @@ async function renderDetail(it) {
         </div>
       </details>
     </div>
+    ${isZeroCard ? '' : `<div class="panel">
+      <h3>호가–체결 갭</h3>
+      <p class="desc">최저 호가가 각 관측 시점의 직전 24시간 체결 VWAP보다 얼마나 높거나 낮은지 보여줍니다. 양수면 매물 부족 또는 상승 기대, 음수면 급매 신호일 수 있습니다.</p>
+      <div class="chart" id="c4"></div>
+    </div>`}
+    ${hasDepth ? `<div class="panel">
+      <h3>매물 사다리</h3>
+      <p class="desc">현재 매물을 낮은 호가부터 누적합니다. 최저가 한 건이 아니라 원하는 수량을 실제로 살 때의 평균 단가를 보여줍니다.</p>
+      <div id="depth">불러오는 중…</div>
+    </div>` : ''}
     <div class="panel" id="stock-panel">
       <h3>최근 7일 · ${isZeroCard ? `${cardTier} ` : ''}가격과 매물 잔량</h3>
       <p class="desc">${isZeroCard ? '선택한 단계의 시간별 평균 최저호가와' : '시간별 체결 수량 가중평균(VWAP)과'} 각 시간의 마지막 매물 잔량을 같은 시간축에서 비교합니다. 현재 시간은 수집 중입니다.</p>
@@ -1085,33 +1095,22 @@ async function renderDetail(it) {
       <div class="chart" id="stock-chart"></div>
       <p class="hint">빈 구간은 해당 자료가 없는 시간이며 0개와 구분합니다. 잔량은 신규 등록량이나 체결량이 아닙니다. 가격과 잔량의 동시 변화만으로 원인을 확정할 수는 없습니다.<br>매물 API는 최대 400건을 반환하므로 전체 물량보다 적을 수 있습니다.${isZeroCard ? ' 카드 단계는 같은 응답 안에서 구분합니다.' : ''}</p>
     </div>
-    ${isZeroCard ? '' : `<div class="panel" id="weekday-panel">
-      <h3>아이템별 요일 프로파일</h3>
-      <p class="desc" id="weekday-desc">완료된 일봉을 분석하는 중…</p>
-      <div id="weekday-profile"></div>
-    </div>
-    <div class="panel">
-      <h3>호가–체결 갭</h3>
-      <p class="desc">최저 호가가 각 관측 시점의 직전 24시간 체결 VWAP보다 얼마나 높거나 낮은지 보여줍니다. 양수면 매물 부족 또는 상승 기대, 음수면 급매 신호일 수 있습니다.</p>
-      <div class="chart" id="c4"></div>
-    </div>
-    <div class="panel">
+    ${isZeroCard ? '' : `<div class="panel">
       <h3>가격 × API 관측 거래량 4분면</h3>
       <p class="desc" id="shock-desc">완료된 일봉을 분석하는 중… API 100건 상한에 걸린 급증 구간은 실제보다 작게 보일 수 있습니다.</p>
       <div id="c5"></div>
     </div>`}
-    ${hasDepth ? `<div class="panel">
-      <h3>매물 사다리</h3>
-      <p class="desc">현재 매물을 낮은 호가부터 누적합니다. 최저가 한 건이 아니라 원하는 수량을 실제로 살 때의 평균 단가를 보여줍니다.</p>
-      <div id="depth">불러오는 중…</div>
-    </div>` : ''}
     <div class="panel">
       <h3>${isZeroCard ? `${cardTier} 매물 소진 속도` : '매물 소진 속도'}</h3>
       <p class="desc">최근 7일의 관측 소진량을 실제 수집 간격으로 나눠 시간당 환산합니다. 수량 감소는 직접 확인한 값이지만, 만료 전에 사라진 매물은 판매와 취소를 구분할 수 없는 추정치입니다. 빈 구간은 수집되지 않은 시간입니다.</p>
       <div class="kv depth-kv" id="depletion-kv"></div>
       <div class="chart" id="c6"></div>
     </div>
-    ${isZeroCard ? '' : '<div class="panel"><h3>일별 API 관측 체결 수량</h3><div class="chart sm" id="c2"></div></div>'}`;
+    ${isZeroCard ? '' : `<div class="panel" id="weekday-panel">
+      <h3>아이템별 요일 프로파일</h3>
+      <p class="desc" id="weekday-desc">완료된 일봉을 분석하는 중…</p>
+      <div id="weekday-profile"></div>
+    </div>`}`;
 
   document.querySelectorAll('.upgrade-sw button').forEach((button) => {
     button.onclick = () => {
@@ -1309,8 +1308,17 @@ async function renderDetail(it) {
 
   if (d.length >= 2) {
     const box1 = document.getElementById('c1');
-    const c1 = LightweightCharts.createChart(box1, { ...opts, height: 300 });
+    const c1 = LightweightCharts.createChart(box1, { ...opts, height: isZeroCard ? 300 : 340 });
     const timeline = eventTimeline(events, d, s.forecast);
+    if (!isZeroCard) {
+      // 거래량은 별도 패널 대신 가격 아래 띠에 둔다. 같은 날짜축에서 가격과 함께 읽힌다.
+      c1.priceScale('right').applyOptions({ scaleMargins: { top: 0.06, bottom: 0.24 } });
+      c1.addHistogramSeries({
+        priceScaleId: 'volume', color: css('--blue') + '40', priceLineVisible: false, lastValueVisible: false,
+        priceFormat: { type: 'custom', minMove: 1, formatter: (v) => `${fmt(v)}개` },
+      }).setData(d.map((x) => ({ time: x.d, value: x.qty })));
+      c1.priceScale('volume').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+    }
     const candleSeries = c1.addCandlestickSeries({
       upColor: css('--up'), downColor: css('--down'), borderVisible: false,
       wickUpColor: css('--up'), wickDownColor: css('--down'),
@@ -1387,17 +1395,7 @@ async function renderDetail(it) {
     });
     c1.timeScale().fitContent();
     renderEventRail(c1, timeline);
-
-    if (!isZeroCard) {
-      const box2 = document.getElementById('c2');
-      const c2 = LightweightCharts.createChart(box2, { ...opts, height: 130 });
-      c2.addHistogramSeries({ color: css('--blue') }).setData(d.map((x) => ({ time: x.d, value: x.qty })));
-      attachTooltip(c2, box2, (param) => {
-        const day = dayAt.get(param.time);
-        return day ? tipRows(param.time, [['관측 체결 수량', `${fmt(day.qty)}개`], ['체결 건수', `${fmt(day.n)}건`]]) : null;
-      });
-      c2.timeScale().fitContent();
-    }
+    if (!isZeroCard) desc.insertAdjacentHTML('beforeend', '<br>아래 막대는 일별 API 관측 체결 수량입니다. 100건 상한 때문에 실제 거래량의 하한값입니다.');
   } else {
     document.getElementById('c1').innerHTML = '<p style="color:var(--ink-3);margin:0">일봉을 그릴 만큼 데이터가 모이지 않았습니다.</p>';
     document.getElementById('candle-toggle').hidden = true;
