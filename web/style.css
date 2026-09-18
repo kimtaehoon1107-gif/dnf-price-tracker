@@ -393,6 +393,12 @@ td b { color: var(--ink); }
 
 footer { margin-top: 56px; padding-top: 22px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--ink-3); line-height: 1.9; }
 footer b { color: var(--ink-2); }
+/* 헤더에서 뺀 피드백 입구. 푸터 안에서도 한눈에 보이도록 버튼 모양으로 둔다. */
+.feedback-link {
+  display: inline-block; margin: 0 6px 8px 0; padding: 5px 12px; border-radius: 999px;
+  background: var(--blue-bg); color: var(--blue); font-weight: 600;
+}
+.feedback-link:hover { background: var(--blue); color: #fff; }
 
 /* ── 지표 설명 페이지 ─────────────────────────── */
 .guide-title .guide-icon {
