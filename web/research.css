@@ -19,3 +19,5 @@
   .research-kv { grid-template-columns: 1fr 1fr; }
   .research-page .panel-head { flex-wrap: wrap; }
 }
+.link-btn { padding: 0; border: 0; background: none; color: var(--blue); font: inherit; font-weight: 600; cursor: pointer; }
+.link-btn:hover { text-decoration: underline; }

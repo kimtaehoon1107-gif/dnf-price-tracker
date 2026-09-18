@@ -5,19 +5,31 @@ const view = document.getElementById('view');
 const clearCharts = () => { disposers.forEach((f) => f()); disposers = []; };
 const signed = (v, unit = '%') => v == null ? '관측 대기' : `${v >= 0 ? '+' : ''}${fmt(v, 2)}${unit}`;
 
+// 화면 정리 기준: 기본 목록에는 구성 4종 이상인 지수만 둔다. 1~3종 구성은 개별 아이템의 흐름에 가깝다.
+// 구성과 사전 예측 기록은 그대로 두며 "소수 구성도 보기"로 언제든 연다.
+const MIN_MEMBERS = 4;
+let showSmall = false;
+
 function groups() {
-  const groups = data.series.filter((s) => s.basket);
+  const all = data.series.filter((s) => s.basket);
+  const small = all.filter((s) => s.basket.members.length < MIN_MEMBERS);
   const selected = location.hash.split('/')[1];
+  // 링크로 소수 구성을 직접 열었으면 목록에서도 보여 준다.
+  if (small.some((g) => g.id === selected)) showSmall = true;
+  const groups = showSmall ? all : all.filter((s) => s.basket.members.length >= MIN_MEMBERS);
   const s = groups.find((g) => g.id === selected) ?? groups[0];
   const b = s.basket, lastDay = s.daily.at(-1), lastValid = s.daily.filter((p) => p.value != null).at(-1);
   const basis = { trade: '일별 체결 VWAP', ask0: '0업 일평균 최저호가', askMax: '맥스업 일평균 최저호가' }[b.basis];
   view.innerHTML = `<label class="research-label" for="group-select">비교할 종류</label>
     <select id="group-select" class="research-select">${groups.map((g) => `<option value="${g.id}" ${g.id === s.id ? 'selected' : ''}>${esc(g.label)} · ${g.basket.members.length}종</option>`).join('')}</select>
+    ${small.length ? `<p class="hint">화면 정리를 위해 기본 목록에는 구성 ${MIN_MEMBERS}종 이상인 지수만 표시합니다.
+      <button type="button" class="link-btn" id="toggle-small">${showSmall ? '기본 목록으로' : `소수 구성 ${small.length}개도 보기`}</button>
+      (${small.map((g) => `${esc(g.label)} ${g.basket.members.length}종`).join(' · ')}) 소수 구성도 발행·평가 기록은 그대로 보존합니다.</p>` : ''}
     <section class="panel"><h3>구성이 고정된 ${esc(s.label)} 지수</h3>
       <p class="desc">${esc(basis)} · 기준 주간 ${esc(b.baseDate)}의 각 종목 평균을 100으로 환산한 뒤 동일 비중으로 평균합니다.</p>
       <div class="kv research-kv"><div><div class="k">최근 유효 지수 · ${esc(lastValid?.d ?? '없음')}</div><div class="v">${fmt(lastValid?.value, 2)}</div></div>
         <div><div class="k">${esc(lastDay?.d ?? '')} 관측 구성종목</div><div class="v">${lastDay?.coverage ?? 0}<small> / ${b.members.length}종</small></div></div></div>
-      <p class="hint">${b.members.length === 1 ? '현재 1종만 포함되어 있어 개별 아이템과 같은 흐름입니다. ' : ''}매일 동일한 종목을 비교하며 하나라도 관측이 없으면 그날 지수는 공백입니다.
+      <p class="hint">${b.members.length < MIN_MEMBERS ? `구성이 ${b.members.length}종이라 개별 아이템의 흐름에 가깝습니다. ` : ''}매일 동일한 종목을 비교하며 하나라도 관측이 없으면 그날 지수는 공백입니다.
         ${b.basis === 'trade' ? '무거래일·수집 누락은 보간하지 않습니다. 적은 체결로 계산된 일평균도 포함됩니다.' : '카드 호가는 시간별 마지막 관측을 평균하며 하루 18시간 이상이어야 사용합니다.'}
         2026-09-16에 정한 구성을 과거에도 적용한 설명용 지수입니다. 당시 시장 전체를 재현한 지수나 과거 투자 성과가 아닙니다.</p>
     </section>
@@ -33,6 +45,12 @@ function groups() {
         <p class="hint">기준 주간에 유효 관측 3일 이상인 종목으로 고정했습니다. 신규 종목은 자동 편입하지 않습니다. 종결 교체 시에는 새 버전 지수로 분리해야 합니다.</p>
       </details></section>`;
   document.getElementById('group-select').onchange = (e) => { location.hash = `groups/${e.target.value}`; };
+  const toggle = document.getElementById('toggle-small');
+  if (toggle) toggle.onclick = () => {
+    showSmall = !showSmall;
+    if (!showSmall && small.some((g) => g.id === selected)) location.hash = 'groups';
+    else render();
+  };
   disposers.push(renderForecast(document.getElementById('group-forecast'), s, data));
   let disposeMember;
   const draw = () => {
