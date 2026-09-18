@@ -38,6 +38,7 @@ assert.equal(askGap({ price_basis: 'trade', min_ask: null, vwap24: 100 }), null)
 assert.equal(representativePrice({ price_basis: 'trade', vwap1h: 125, last_price: 130 }), 125);
 assert.equal(representativePrice({ price_basis: 'trade', vwap1h: null, last_price: 130 }), null);
 assert.equal(representativePrice({ price_basis: 'ask0', vwap1h: null, last_price: 100 }), 100);
+assert.equal(representativePrice({ price_basis: 'ask0', vwap1h: null, last_price: 0 }), null, '매물 없는 카드를 0골드로 표시하지 않음');
 
 const paperMoon = { item_id: '41914178e78f02589b8e2760788a9da8', category: '칭호' };
 const melody = { item_id: 'b62cd7a12de35f28cc1332b1ef609eb8', category: '실반 하모니 박스' };

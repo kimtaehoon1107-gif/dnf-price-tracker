@@ -1,6 +1,7 @@
-/** 최근 체결은 보조 정보로 남기고, 1시간 내 체결이 없으면 평균을 대체하지 않는다. */
+/** 최근 체결은 보조 정보로 남기고, 1시간 내 체결이 없으면 평균을 대체하지 않는다.
+ *  카드는 열린 매물이 없으면 빌드가 최저호가를 0으로 채우므로 가격이 없는 것으로 본다. */
 export const representativePrice = (item) => item.price_basis === 'trade'
-  ? item.vwap1h ?? null : item.last_price;
+  ? item.vwap1h ?? null : item.last_price > 0 ? item.last_price : null;
 
 /** 현재 최저 호가가 최근 24시간 체결 VWAP보다 얼마나 위·아래인지 계산한다. */
 export const askGap = (item) => item.price_basis === 'trade'

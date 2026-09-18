@@ -684,7 +684,7 @@ function renderList() {
             <b title="${r.price_basis === 'trade' ? `최근 1시간 ${fmt(r.trades1h)}건 · ${fmt(r.api_qty1h)}개로 계산` : '0업 최저호가'}">${fmt(r.display_price)}</b>
             ${r.price_basis === 'trade' ? `${r.vwap1h == null ? '<small class="flat">1h 체결 없음</small>' : ''}
               <small class="flat" title="최근 체결 ${fmt(r.last_price)}골드">체결 ${r.last_trade_at ? fmt(r.last_price) : '-'}</small>
-              <small class="flat">${priceTime(r.last_trade_at)}</small>` : ''}
+              <small class="flat">${priceTime(r.last_trade_at)}</small>` : r.display_price === null ? '<small class="flat">매물 없음</small>' : ''}
             ${r.gap === null ? '' :
               `<small class="${cls(r.gap)}" title="최저호가 ${fmt(r.min_ask)} · 24h VWAP ${fmt(r.vwap24)} 대비">호가 ${pct(r.gap)}</small>`}
           </div>
