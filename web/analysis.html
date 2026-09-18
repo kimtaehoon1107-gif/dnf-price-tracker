@@ -51,7 +51,7 @@
 
 <p>
   관측된 가격 변화에 단기적인 반전 또는 지속 신호가 있는지 살펴봅니다.
-  분산비 검정은 이 질문의 출발점입니다. 이 결과만으로 장기 평균회귀나 실제 매수 전략의 수익성을 판단하지 않습니다.
+  분산비 검정은 이 질문의 출발점입니다.
 </p>
 
 <div class="method">
@@ -103,7 +103,6 @@
 </p>
 
 <div class="table-scroll" style="margin:18px 0"><table id="vr-thickness"></table></div>
-<div class="note" id="vr-artifact">계산 중입니다.</div>
 
 <details class="detail-table">
   <summary><span>종목별 분산비 전체</span><small id="vr-count"></small><i aria-hidden="true">⌄</i></summary>
@@ -123,19 +122,11 @@
   <li><b>장기 평균회귀</b>는 가격 수준에 대한 별도 모형과 검증이 필요합니다.</li>
   <li><b>매수 판단의 유용성</b>은 수수료와 실제 체결 가능 가격을 반영한 별도 평가가 필요합니다.</li>
 </ul>
-<p>
-  다음 절에서는 현재 예측 모형을 naive와 직접 비교합니다. 분산비 결과가 그 모형의 성공이나 실패 원인을 설명한다고 가정하지 않습니다.
-</p>
 
-<div class="note quiet">
-  <b>이 절의 한계</b> — q=2 한 가지만 검정했고,
-  복수의 q에서 일관된 결과가 나오는지는 아직 확인하지 못했습니다. 관측이 축적되면 q=4·8로 확장해 검증할 수 있습니다.
-</div>
 
 
 <!-- 02 -->
 <h2 class="sec"><span class="n">02</span>가격을 예측할 수 있는가?</h2>
-<p class="method-note">실험적 예측입니다. 과거 관측 데이터를 기반으로 한 모델 추정치이며, 향후 가격이나 실제 거래 가능성을 보장하지 않습니다.</p>
 
 <div class="method">
   <h4>방법 — 분해 후 추세 외삽</h4>
@@ -214,6 +205,8 @@
       <li><b>수집 개시 이전 구간은 존재하지 않습니다.</b> 백필로 최대 1개월을 확보하지만,
         체결이 빈번한 아이템일수록 100건이 수 시간분에 그쳐 과거를 거의 확보하지 못합니다.</li>
       <li id="qty-limit"><b>관측 거래량은 하한값입니다.</b> 불러오는 중입니다.</li>
+      <li><b>카드는 체결가 검정·예측에서 제외합니다.</b> 체결 API가 업그레이드 단계를 주지 않아 0업과 맥스업을 구분할 수 없습니다.
+        2026-09-08 실측에서 2업 호가는 0업의 1.2~3.9배였습니다. 카드는 단계가 명시된 호가로 따로 추적합니다.</li>
       <li><b>체결가 분석에는 실제 거래된 가격만 들어갑니다.</b> 열린 매물은 별도로 수집하지만,
         호가와 체결가는 구분합니다. 거래된 가격의 평균이 전체 매물의 가치나 균형가를 대표한다고 보장할 수 없습니다.</li>
     </ul>
@@ -223,7 +216,7 @@
     <h4>표본이 얇아서 못 내는 답</h4>
     <ul>
       <li><b>분산비는 q=2만 검정했습니다.</b> 복수의 q에서 동일한 방향이 확인되어야
-        결론의 신뢰도가 높아집니다.</li>
+        결론의 신뢰도가 높아집니다. 관측이 쌓이면 q=4·8로 확장합니다.</li>
       <li id="pending-line"><b>표본 부족으로 보류한 분석이 있습니다.</b> 불러오는 중입니다.</li>
       <li id="uptime-limit"><b>수집 공백이 일간 집계를 왜곡할 수 있습니다.</b> 가동률을 불러오는 중입니다.</li>
     </ul>
@@ -238,31 +231,6 @@
     </ul>
   </div>
 
-</div>
-
-<h3 class="sub" id="card-weekday">요일별 가격 트렌드</h3>
-<p>메인에서 선택한 품목군의 월요일부터 일요일까지 가격 수준과 전날 대비 변화율을 비교합니다.
-  전체를 선택해도 일반 아이템 체결가·카드 0업·맥스업 호가는 별도로 표시합니다. 카드의 딜러·버퍼 선택도 반영합니다.
-  목요일 강조는 비교를 돕기 위한 표시이며, 목요일 효과를 입증했다는 뜻은 아닙니다.</p>
-<div class="table-scroll"><table id="card-weekday-status"></table></div>
-<p class="method-note">일반 아이템은 완료 일봉의 수량 가중평균을 사용하며 하루 체결 5건 이상인 날을 사용합니다.
-  카드는 시간별 마지막 최저호가를 같은 비중으로 평균하며 하루 18시간 이상 관측해야 합니다.
-  가격 기준별로 월~일의 유효 관측을 모두 갖춘 완료 주가 종목당 4주 이상이어야 그래프를 표시합니다.
-  각 주의 평균을 100으로 환산해 종목별 요일 평균을 구하고, 조건을 충족한 종목에 같은 비중을 줍니다.
-  관측 주가 길거나 가격이 높은 종목에 더 큰 비중을 주지 않습니다. 4주는 표시 조건이며 검정력의 보장이 아닙니다.</p>
-<p class="method-note">전날 대비 변화율은 실제 달력상 전날에도 유효 관측이 있을 때 계산합니다.
-  월요일의 전날이 없으면 그 변화율은 제외하며 이전 금요일 등으로 대체하지 않습니다.
-  계산 표본과 유효 관측의 단위는 종목·일입니다. 아직 4주를 채우지 못한 종목도 유효 관측 수에는 포함합니다.
-  가격 수준·변화율의 표본은 다를 수 있고, 종목마다 관측 기간도 다릅니다. 패치·이벤트나 시장 추세를 제거한 유의성 검정이 아닙니다.</p>
-<p class="method-note">위의 개별 체결가 예측 모형에 쓰는 공통 요일 계수와 별개의 관측 요약입니다.
-  레전더리 165종을 스캔한 <a href="index.html#legendary-card">P10의 요일 흐름</a>도 개별 카드 품목군과 분리해 제공합니다.</p>
-
-<div class="note quiet">
-  <b>카드가 체결가 검정·예측에서 제외된 이유</b> — 체결 API가 업그레이드 단계를 제공하지 않아 체결가만으로는
-  0업과 맥스업을 구분할 수 없습니다. <b>2026-09-08 실측</b>에서 2업 호가는 0업의 1.2~3.9배였습니다.
-  <b>그래서 카드는 단계가 명시된 호가로 따로 추적합니다.</b> 당시 열린 카드 매물은
-  <b>0업 59%, 맥스업(2업) 41%</b>로 사실상 두 단계이고, 시세 화면에서 나눠 보여줍니다.
-  앞의 분산비 검정과 예측 평가는 <b>체결가 기반</b>이므로 카드를 제외합니다. 카드 호가의 요일 관측과는 별개입니다.
 </div>
 
 </main>
@@ -363,7 +331,7 @@ fetch('data/summary.json').then(r => {
      </div>
      <div class="cap">검정 ${fmt(rw.total)}종 / 후보 ${fmt(rw.candidates)}종 · Holm 보정 후 반전 <b>${fmt(rw.negative)}종</b>, 지속 <b>${fmt(rw.positive)}종</b></div>
      <div class="say">${headline}</div>
-     <p>관측된 시간별 VWAP에 대한 탐색적 결과입니다. 장기 평균회귀와 실제 매수 판단의 유용성은 아직 검증하지 않았습니다.</p>`
+     <p>관측된 시간별 VWAP에 대한 탐색적 결과입니다. VR이 1보다 작다는 것은 인접한 시간의 수익률이 서로 상쇄되는 경향일 뿐, <b>장기 평균회귀와 실제 매수 판단의 유용성은 아직 검증하지 않았습니다.</b></p>`
     : `<div class="say">${headline}</div><p>완료 시간봉 ${rw.minBars}개가 연속으로 있는 구간이 필요하며, 분산과 표준오차도 추정 가능해야 합니다.</p>`;
 
   document.getElementById('vr-strip').innerHTML =
@@ -376,11 +344,9 @@ fetch('data/summary.json').then(r => {
   document.getElementById('vr-thickness').innerHTML = `
     <thead><tr><th>관측당 체결 수</th><th class="num">종목</th><th class="num">관측당 평균 체결</th><th class="num">VR 평균</th></tr></thead>
     <tbody>${th.map(t => `<tr><td><b>${esc(t.label)}</b></td><td class="num">${t.items}</td>
-      <td class="num">${fmt(t.perBar, 1)}건</td><td class="num"><b>${t.vr.toFixed(2)}</b></td></tr>`).join('')}</tbody>`;
+      <td class="num">${fmt(t.perBar, 1)}건</td><td class="num"><b>${t.vr.toFixed(2)}</b></td></tr>`).join('')
+      || '<tr><td colspan="4">검정 조건을 충족한 종목이 없어 그룹 비교를 표시하지 않습니다.</td></tr>'}</tbody>`;
 
-  document.getElementById('vr-artifact').textContent = th.length
-    ? '그룹 간 차이는 관측 잡음의 가능성을 살펴보는 보조 자료입니다. 평균값이 비슷하다는 이유만으로 잡음이 없다고 판정하지 않습니다.'
-    : '검정 조건을 충족한 종목이 없어 그룹 비교를 표시하지 않습니다.';
 
   document.getElementById('vr-count').textContent = `${fmt(rw.total)}종`;
   const period = (t) => new Date(t).toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).slice(0, 16);
@@ -447,15 +413,6 @@ fetch('data/summary.json').then(r => {
      <b>검증 상태</b> — 연속 구간 ${rw.total}/${rw.candidates}종 검정 · 1일 뒤 예측 ${fmt(one.count)}건 평가.<br>
      <b>아직 모르는 것</b> — 장기 평균회귀, 다음 시간의 등락률, 실제 매수 전략의 수익성.`;
 
-  const trends = D.weekdayTrends;
-  document.getElementById('card-weekday-status').innerHTML = `
-    <thead><tr><th>가격 기준 · 주평균 100</th>${['월','화','수','목','금','토','일'].map(label => `<th>${label}</th>`).join('')}<th>조건 충족 종목</th></tr></thead>
-    <tbody>${(trends?.groups ?? []).map(group => `<tr>
-      <td>${group.basis === 'trade' ? '일반 아이템 체결가' : group.basis === 'ask0' ? '0업 최저호가' : '맥스업 최저호가'}</td>
-      ${group.points.map(p => `<td${p.k === 4 ? ' class="weekday-thu-row"' : ''}>${p.price === null ? '—' : fmt(p.price, 1)}</td>`).join('')}
-      <td>${group.eligibleItems}/${group.candidates}종${group.eligibleItems ? '' : `<br>표본 수집 중 · 최대 ${group.maxWeeks}/4주`}</td>
-    </tr>`).join('') || '<tr><td colspan="9">요일 트렌드 데이터를 준비 중입니다.</td></tr>'}</tbody>`;
-
   // ── 03 한계 ──
   document.getElementById('qty-limit').innerHTML =
     `<b>관측 거래량은 하한값입니다.</b> 체결 API가 한 번에 100건까지만 주므로, 폴링 간격 사이에
@@ -465,13 +422,18 @@ fetch('data/summary.json').then(r => {
      두 값을 <b>합산하지 않습니다.</b>`;
 
   // 표본이 모자라 절을 아예 내리지 못한 분석들. 조건을 채우면 다시 올린다.
+  const TREND_BASIS = { trade: '체결가', ask0: '카드 0업', askMax: '카드 맥스업' };
   const s = D.weekdaySample;
   document.getElementById('pending-line').innerHTML =
     `<b>표본 부족으로 보류한 분석이 있습니다.</b>
      <b>요일 효과</b>는 조건(이력 ${fmt(s?.minHistoryDays ?? 14)}일 초과·체결 ${fmt(s?.minTrades ?? 25)}건 이상)을
      충족한 종목은 현재 <b>${fmt(s?.item_count ?? 0)}종</b>이고, 그 표본의 최소 탐지 가능 효과 근삿값은
      <b>±${s?.mde ? s.mde.toFixed(1) : '-'}%</b>입니다. 이 탐색적 지표는 종목·날짜 간 상관을 반영하지 않습니다.
-     독립적인 표본과 반복 주기가 더 필요합니다. <b>아이템 유형 군집</b>은 안정성을 검증하기 전까지 보류합니다.`;
+     독립적인 표본과 반복 주기가 더 필요합니다.
+     메인의 <b>요일별 가격 트렌드</b>는 월~일 완료 주 4주를 갖춘 종목이
+     ${(D.weekdayTrends?.groups ?? []).map(g => `${TREND_BASIS[g.basis]} ${fmt(g.eligibleItems)}/${fmt(g.candidates)}종`).join(' · ') || '집계 전'}입니다(종목당
+     최대 ${fmt(Math.max(0, ...(D.weekdayTrends?.groups ?? []).map(g => g.maxWeeks)))}/4주). 조건을 채운 품목군만 메인에 표시합니다.
+     <b>아이템 유형 군집</b>은 안정성을 검증하기 전까지 보류합니다.`;
 
   const rate = (p, n) => n && p !== null ? `<b>${p.toFixed(1)}%</b> (${fmt(n)}회 점검)` : '<b>관측 기록 없음</b>';
   document.getElementById('uptime-limit').innerHTML =

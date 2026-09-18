@@ -54,6 +54,7 @@ assert.match(insignificant('vr-verdict'), /유의한 단기 신호를 확인하�
 const negative = await render([item(0.6, true)]);
 assert.match(negative('vr-verdict'), /단기 반전 신호/);
 assert.doesNotMatch(negative('vr-verdict'), /매수는 유리|0.7%|평균회귀합니다/);
+assert.match(negative('vr-verdict'), /장기 평균회귀와 실제 매수 판단의 유용성은 아직 검증하지 않았습니다/, '가장 흔한 오독에 대한 한계는 결론 바로 옆에 둠');
 const positive = await render([item(1.3, true)]);
 assert.match(positive('vr-verdict'), /단기 지속 신호/);
 const mixed = await render([item(0.6, true), item(1.3, true)]);
@@ -95,11 +96,9 @@ const cards = await render([], [], { weekdayTrends: { groups: [
   { basis: 'ask0', candidates: 34, eligibleItems: 0, maxWeeks: 0, points: Array.from({length:7}, (_,i) => ({k:i+1,price:null})) },
   { basis: 'askMax', candidates: 34, eligibleItems: 2, maxWeeks: 4, points: Array.from({length:7}, (_,i) => ({k:i+1,price:i===3?95:100})) },
 ] } });
-assert.match(cards('card-weekday-status'), /0업 최저호가/);
-assert.match(cards('card-weekday-status'), /표본 수집 중/);
-assert.match(cards('card-weekday-status'), /맥스업 최저호가/);
-assert.match(cards('card-weekday-status'), /95/);
-assert.match(cards('card-weekday-status'), /2\/34종/);
-assert.doesNotMatch(cards('card-weekday-status'), /NaN|undefined|목요일 차이/);
-for (const day of ['월','화','수','목','금','토','일']) assert(cards('card-weekday-status').includes(`<th>${day}</th>`));
+assert.match(cards('pending-line'), /요일별 가격 트렌드/);
+assert.match(cards('pending-line'), /카드 0업 0\/34종 · 카드 맥스업 2\/34종/);
+assert.match(cards('pending-line'), /최대 4\/4주/);
+assert.doesNotMatch(cards('pending-line'), /NaN|undefined/);
+assert.match(empty('pending-line'), /집계 전/, '요일 트렌드 자료가 없어도 문장이 깨지지 않음');
 console.log('분석 표시 테스트 통과');
