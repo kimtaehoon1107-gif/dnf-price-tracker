@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import * as metrics from '../web/metrics.js';
+import * as packageUI from '../web/package.js';
 
 const elements = new Map<string, { textContent: string; stale: boolean; classList: { toggle: Function } }>();
 for (const id of ['data-asof', 'data-freshness']) {
@@ -14,9 +15,12 @@ const context = vm.createContext({
 });
 const module = new vm.SourceTextModule(readFileSync('web/app.js', 'utf8') +
   '\nexport {renderDataStatus}; export function fixture(data) { DATA = data; }', { context });
-await module.link(() => new vm.SyntheticModule(Object.keys(metrics), function () {
-  for (const [key, value] of Object.entries(metrics)) this.setExport(key, value);
-}, { context }));
+await module.link((name) => {
+  const exports = name.includes('package.js') ? packageUI : metrics;
+  return new vm.SyntheticModule(Object.keys(exports), function () {
+    for (const [key, value] of Object.entries(exports)) this.setExport(key, value);
+  }, { context });
+});
 await module.evaluate();
 const now = Date.parse('2026-09-14T06:00:00Z');
 const iso = (minutes: number) => new Date(now - minutes * 60000).toISOString();

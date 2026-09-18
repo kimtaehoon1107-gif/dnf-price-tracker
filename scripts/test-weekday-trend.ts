@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { weekdayTrend } from '../src/weekday-trend.ts';
 import * as metrics from '../web/metrics.js';
+import * as packageUI from '../web/package.js';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
@@ -41,9 +42,12 @@ export function renderFixture(data, category, role, basis) {
  DATA=data; tab=category; job=role; weekdayBasis=basis;
  return summaryCards()+weekdayTrendHTML();
 }`, { context });
-await module.link(() => new vm.SyntheticModule(Object.keys(metrics), function () {
-  for (const [key, value] of Object.entries(metrics)) this.setExport(key, value);
-}, { context }));
+await module.link((name) => {
+  const exports = name.includes('package.js') ? packageUI : metrics;
+  return new vm.SyntheticModule(Object.keys(exports), function () {
+    for (const [key, value] of Object.entries(exports)) this.setExport(key, value);
+  }, { context });
+});
 await module.evaluate();
 const data = { meta: { items: 3, trades: 100, lo: '2026-08-03', hi: before }, weekdayTrends: { items: profiles },
   items: [{ item_id: 'cheap', category: '소울 결정' }, { item_id: 'expensive', category: '강화·증폭' },

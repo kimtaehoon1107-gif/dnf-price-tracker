@@ -651,7 +651,7 @@ writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
   },
 }));
 
-for (const f of ['index.html', 'ranking.html', 'analysis.html', 'guide.html', 'feedback.html', 'feedback.js', 'feedback.css', 'app.js', 'metrics.js', 'ranking.js', 'style.css', 'research.html', 'research.js', 'research-ui.js', 'research.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
+for (const f of ['index.html', 'ranking.html', 'analysis.html', 'guide.html', 'feedback.html', 'feedback.js', 'feedback.css', 'app.js', 'metrics.js', 'ranking.js', 'style.css', 'research.html', 'research.js', 'research-ui.js', 'research.css', 'package.js', 'package-calc.js', 'package.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
 writeFileSync(`${OUT}/.nojekyll`, '');
 
 console.log(`빌드 완료 — ${items.length}종 · 체결 ${meta.trades.toLocaleString()}건 · 일봉 ${daily.length}행 · 예측 ${forecasts.size}종`);

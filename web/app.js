@@ -1,6 +1,7 @@
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
 import { askGap, representativePrice, matchesCategory, summarizeWeekdays } from './metrics.js?v=20260916-weekday';
+import * as packageUI from './package.js?v=20260918';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
   ? '-' : Number(n).toLocaleString('ko-KR', { maximumFractionDigits: d });
@@ -402,6 +403,7 @@ function hourlyPriceSegments(points) {
 }
 
 let DATA = null;
+const packageState = packageUI.initialPackageState();
 let tab = '전체';
 // 기본 정렬은 24h 거래대금. 변동률로 정렬하면 하루 한두 건 거래된 아이템의
 // 의미 없는 ±40%가 맨 위를 차지한다.
@@ -523,10 +525,6 @@ function render() {
 function summaryCards() {
   const m = DATA.meta;
   const lg = DATA.legendary?.[0];
-  const mg = DATA.margin;
-  const netMargin = mg?.pkg && mg.partsComplete
-    ? (mg.partsSum * (1 - mg.fee) / mg.pkg - 1) * 100
-    : null;
   const trend = selectedWeekday();
 
   return `<div class="cards">
@@ -540,11 +538,6 @@ function summaryCards() {
       <div class="v">${fmt(lg.p10)}</div>
       <div class="sub">저가 기준 P10 · 그래프 보기 →<br>최저 ${fmt(lg.min_unit_price)} · 매물 ${lg.with_listings}/${lg.scanned}종</div>
     </a>` : ''}
-    ${netMargin !== null ? `<div class="card">
-      <div class="k">패키지 해체 마진</div>
-      <div class="v ${cls(netMargin)}">${pct(netMargin)}</div>
-      <div class="sub">관측 체결가 기준 · 수수료 3% 반영</div>
-    </div>` : ''}
     <button type="button" class="card weekday-summary" data-weekday-open>
       <span class="k">요일별 가격 트렌드</span>
       <span class="weekday-days">${['월', '화', '수', '목', '금', '토', '일'].map(d => `<span${d === '목' ? ' class="thu"' : ''}>${d}</span>`).join('')}</span>
@@ -648,6 +641,7 @@ function renderList() {
 
     ${categoryTabs(cats)}
     ${tab === '카드' ? cardJobTabs() : ''}
+    ${tab === '유랑악단 패키지' ? packageUI.packagePanelHTML(DATA, packageState) : ''}
     ${weekdayTrendHTML()}
     ${tab === '실반 하모니 박스' ? `<p class="desc">실반 멜로디 카드와 선택한 개봉 보상 4종의 시세입니다. 실반 하모니 박스는 NPC 개봉 메뉴로, 별도 거래 가격이 없습니다. <a href="https://df.nexon.com/pg/forestbandpkg" target="_blank" rel="noopener">공식 안내 ↗</a></p>` : ''}
 
@@ -713,6 +707,7 @@ function renderList() {
     </p>`;
 
   bindWeekdayTrend();
+  packageUI.bindPackagePanel(DATA, packageState);
   document.querySelectorAll('.tab').forEach((el) => {
     el.onclick = () => { tab = el.dataset.c; renderList(); scrollTo(0, 0); };
   });
