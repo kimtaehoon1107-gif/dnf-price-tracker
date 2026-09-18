@@ -61,11 +61,9 @@ assert.match(html, /조건 충족 2\/2종/);
 assert.equal((html.match(/<th>[월화수목금토일]<\/th>/g) ?? []).length, 7, '7개 요일을 모두 표시');
 assert.match(render('소울 결정'), /조건 충족 1\/1종/);
 assert.match(render('카드', '딜러', 'askMax'), /카드 맥스업 호가/);
-assert.match(render('카드', '버퍼'), /0\/0종/, '역할 필터 반영');
+assert.doesNotMatch(render('카드', '버퍼'), /요일별 가격 트렌드/, '역할 필터 반영 — 후보가 없는 역할은 패널을 숨김');
 const pending = render('소울 결정', '전체', 'trade', { ...data, weekdayTrends: { items: [
   { item_id: 'cheap', basis: 'trade', ...weekdayTrend(history(1, 1), before) },
 ] } });
-assert.match(pending, /표본 수집 중/);
-assert.doesNotMatch(pending, /<svg|NaN|undefined/, '1주 관측으로 요일 그래프를 확정하지 않음');
-assert.match(pending, /<b>1<\/b>/, '표본 부족이어도 요일별 유효 관측 수 공개');
-console.log('7요일 정규화·전날 결측·동일 종목 비중·품목 및 역할 필터·표본 대기 테스트 통과');
+assert.doesNotMatch(pending, /요일별 가격 트렌드|<svg|NaN|undefined/, '조건 충족 종목이 없으면 메인에서 요일 패널과 요약 카드를 숨김');
+console.log('7요일 정규화·전날 결측·동일 종목 비중·품목 및 역할 필터·표본 대기 숨김 테스트 통과');

@@ -545,14 +545,18 @@ function summaryCards() {
       <div class="v">${fmt(lg.p10)}</div>
       <div class="sub">저가 기준 P10 · 그래프 보기 →<br>최저 ${fmt(lg.min_unit_price)} · 매물 ${lg.with_listings}/${lg.scanned}종</div>
     </a>` : ''}
-    <button type="button" class="card weekday-summary" data-weekday-open>
+    ${weekdayReady() ? `<button type="button" class="card weekday-summary" data-weekday-open>
       <span class="k">요일별 가격 트렌드</span>
       <span class="weekday-days">${['월', '화', '수', '목', '금', '토', '일'].map(d => `<span${d === '목' ? ' class="thu"' : ''}>${d}</span>`).join('')}</span>
       <span class="sub">${esc(tab)} · ${trend.eligibleItems ? `조건 충족 ${trend.eligibleItems}/${trend.candidates}종` : `표본 수집 중 · 최대 ${trend.maxWeeks}/4주`}</span>
       <span class="sub">${WEEKDAY_BASES[trend.basis]} · 월~일 비교 보기 ↓</span>
-    </button>
+    </button>` : ''}
   </div>`;
 }
+
+// 조건을 채운 종목이 하나도 없으면 첫 화면에서 자리를 차지하지 않는다.
+// 표본 대기 상태는 분석 페이지 한계 절에서 계속 공개한다.
+const weekdayReady = () => weekdayGroups().some((g) => g.eligibleItems > 0);
 
 const WEEKDAY_BASES = { trade: '일반 아이템 체결가', ask0: '카드 0업 호가', askMax: '카드 맥스업 호가' };
 
@@ -570,6 +574,7 @@ function selectedWeekday() {
 }
 
 function weekdayTrendHTML() {
+  if (!weekdayReady()) return '';
   const group = selectedWeekday(), groups = weekdayGroups();
   return `<details class="panel weekday-trend" id="weekday-trend" ${weekdayExpanded ? 'open' : ''}>
     <summary><span>요일별 가격 트렌드 <small>${esc(tab)}${tab === '카드' ? ` · ${esc(job)}` : ''}</small></span><span aria-hidden="true">⌄</span></summary>
@@ -600,6 +605,7 @@ function weekdayTrendHTML() {
 
 function bindWeekdayTrend() {
   const panel = document.getElementById('weekday-trend');
+  if (!panel) return;
   panel.ontoggle = () => { weekdayExpanded = panel.open; };
   document.querySelectorAll('[data-weekday-open]').forEach((el) => {
     el.onclick = () => { panel.open = true; weekdayExpanded = true; panel.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
