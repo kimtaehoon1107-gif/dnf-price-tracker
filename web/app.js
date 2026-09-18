@@ -1,6 +1,6 @@
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
-import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260918-position';
+import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260919-redesign';
 import * as packageUI from './package.js?v=20260918';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
