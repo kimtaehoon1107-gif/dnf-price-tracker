@@ -235,45 +235,6 @@ const askGap = (await query<{
     AND s.min_unit_price > 0 AND v.vwap > 0
   ORDER BY s.item_id, date_trunc('second', s.captured_at), s.captured_at DESC`)).rows;
 
-// 매물 소진량은 실제 판매 시각이 아니라 다음 수집에서 발견한 시각에 찍힌다.
-// 긴 수집 공백 뒤의 소진을 한 시간의 폭증으로 오해하지 않도록, 각 관측량을
-// 직전 스냅샷부터 흐른 시간으로 나눠 시간당 속도로 환산한다.
-const depletion = (await query<{
-  item_id: string; upgrade: number | null; t: string; qty: number; partial: number; vanished: number;
-  observed_min: number; rate: number;
-}>(`
-  WITH observations AS (
-    SELECT s.item_id, s.upgrade, captured_at,
-           LAG(captured_at) OVER (PARTITION BY s.item_id, s.upgrade ORDER BY captured_at) AS prev_at
-    FROM listing_snapshots s JOIN items i USING (item_id)
-    WHERE captured_at > now() - interval '8 days'
-      AND (i.category <> '카드' OR s.upgrade = 0 OR s.upgrade = s.upgrade_max)
-  ), deltas AS (
-    SELECT d.item_id, l.upgrade, observed_at,
-           COALESCE(SUM(qty_sold) FILTER (WHERE reason = 'partial'), 0)::float8 AS partial,
-           COALESCE(SUM(qty_sold) FILTER (WHERE reason = 'vanished_before_expiry'), 0)::float8 AS vanished
-    FROM listing_deltas d JOIN items i USING (item_id)
-    JOIN listings l ON l.auction_no = d.auction_no
-    WHERE observed_at > now() - interval '7 days' AND d.invalidated_at IS NULL
-      AND (i.category <> '카드' OR l.upgrade = 0 OR l.upgrade = l.upgrade_max)
-    GROUP BY d.item_id, l.upgrade, observed_at
-  )
-  SELECT o.item_id, o.upgrade,
-         to_char(date_trunc('hour', o.captured_at AT TIME ZONE 'UTC'),
-                 'YYYY-MM-DD"T"HH24:00:00"Z"') AS t,
-         SUM(COALESCE(d.partial, 0) + COALESCE(d.vanished, 0))::float8 AS qty,
-         SUM(COALESCE(d.partial, 0))::float8 AS partial,
-         SUM(COALESCE(d.vanished, 0))::float8 AS vanished,
-         (SUM(EXTRACT(EPOCH FROM o.captured_at - o.prev_at)) / 60)::float8 AS observed_min,
-         (SUM(COALESCE(d.partial, 0) + COALESCE(d.vanished, 0))
-           / NULLIF(SUM(EXTRACT(EPOCH FROM o.captured_at - o.prev_at)) / 3600, 0))::float8 AS rate
-  FROM observations o
-  LEFT JOIN deltas d ON d.item_id = o.item_id AND d.observed_at = o.captured_at
-    AND d.upgrade IS NOT DISTINCT FROM o.upgrade
-  WHERE o.captured_at > now() - interval '7 days' AND o.prev_at IS NOT NULL
-  GROUP BY o.item_id, o.upgrade, date_trunc('hour', o.captured_at AT TIME ZONE 'UTC')
-  ORDER BY o.item_id, o.upgrade, 3`)).rows;
-
 // 잔량은 반복 관측한 재고이므로 합산하지 않고 매시간 마지막 스냅샷만 쓴다.
 // 카드의 단계 미상 기록과 중간 업그레이드는 0업·맥스업에 섞지 않는다.
 const stock = (await query<{
@@ -332,8 +293,6 @@ const hourlyBy = byItem(hourly);
 const cardDailyMaxBy = byItem(cardDailyMax);
 const cardHourlyMaxBy = byItem(cardHourlyMax);
 const askGapBy = byItem(askGap);
-const depletionBy = byItem(depletion.filter((row) => row.upgrade === null || row.upgrade === 0));
-const cardDepletionMaxBy = byItem(depletion.filter((row) => row.upgrade !== null && row.upgrade > 0));
 const stockBy = byItem(stock.filter((row) => row.upgrade === null || row.upgrade === 0));
 const cardStockMaxBy = byItem(stock.filter((row) => row.upgrade !== null && row.upgrade > 0));
 const depthBy = byItem(depth);
@@ -455,13 +414,12 @@ for (const it of items) {
   if (band) bands.set(it.item_id, band);
   writeFileSync(`${OUT}/data/series/${it.item_id}.json`, JSON.stringify({
     priceBasis: it.price_basis, daily: d, hourly: hourlyBy.get(it.item_id) ?? [],
-    askGap: askGapBy.get(it.item_id) ?? [], depletion: depletionBy.get(it.item_id) ?? [],
+    askGap: askGapBy.get(it.item_id) ?? [],
     stock: stockBy.get(it.item_id) ?? [],
-    depth: depthBy.get(it.item_id) ?? [], events: eventsBy.get(it.item_id) ?? [], forecast: f,
+    depth: depthBy.get(it.item_id) ?? [], events: eventsBy.get(it.item_id) ?? [],
     max: it.category === '카드' ? {
       priceBasis: 'askMax', daily: cardDailyMaxBy.get(it.item_id) ?? [],
       hourly: cardHourlyMaxBy.get(it.item_id) ?? [],
-      depletion: cardDepletionMaxBy.get(it.item_id) ?? [],
       stock: cardStockMaxBy.get(it.item_id) ?? [],
     } : null,
   }));
