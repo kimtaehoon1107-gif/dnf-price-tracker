@@ -8,7 +8,7 @@ import {
   selectCardListings,
   varianceRatio,
 } from '../src/market-logic.ts';
-import { askGap, representativePrice, matchesCategory } from '../web/metrics.js';
+import { askGap, representativePrice, matchesCategory, pricePosition } from '../web/metrics.js';
 
 const same = { soldDate: '2026-09-08T00:00:00Z', unitPrice: 100, count: 3, reinforce: 0 };
 assert.deepEqual(duplicateSequences([
@@ -39,6 +39,14 @@ assert.equal(representativePrice({ price_basis: 'trade', vwap1h: 125, last_price
 assert.equal(representativePrice({ price_basis: 'trade', vwap1h: null, last_price: 130 }), null);
 assert.equal(representativePrice({ price_basis: 'ask0', vwap1h: null, last_price: 100 }), 100);
 assert.equal(representativePrice({ price_basis: 'ask0', vwap1h: null, last_price: 0 }), null, '매물 없는 카드를 0골드로 표시하지 않음');
+const month = Array.from({ length: 31 }, (_, i) => ({ d: `2026-08-${String(i + 1).padStart(2, '0')}`, vwap: 100 + i }));
+const position = pricePosition(month, 105, '2026-08-31');
+assert.equal(position.days, 30, '당일 미완성 일봉 제외, 최근 30일');
+assert.equal(position.percentile, 5.5 / 30 * 100, '같은 값은 절반만 아래로 셈');
+assert.equal(position.low, 100);
+assert.deepEqual([position.from, position.to], ['2026-08-01', '2026-08-30'], '실제 비교 기간을 함께 반환');
+assert.equal(pricePosition(month.slice(0, 10), 105, '2026-08-31').ready, false, '14일 미만이면 계산하지 않음');
+assert.equal(pricePosition(month, null, '2026-08-31').ready, false);
 
 const paperMoon = { item_id: '41914178e78f02589b8e2760788a9da8', category: '칭호' };
 const melody = { item_id: 'b62cd7a12de35f28cc1332b1ef609eb8', category: '실반 하모니 박스' };

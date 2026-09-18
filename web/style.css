@@ -295,6 +295,9 @@ a.ranking-row:hover { background: var(--page); }
 
 .depth-kv { margin-bottom: 16px; }
 .depth-sub { font-size: 12px; color: var(--ink-3); }
+/* 30일 가격 위치. 왼쪽이 최근 30일 최저, 오른쪽이 최고다. 색은 등락색을 피한다. */
+.pos-bar { position: relative; height: 4px; margin: 7px 0 4px; border-radius: 2px; background: var(--line-2); max-width: 140px; }
+.pos-bar i { position: absolute; top: 50%; width: 10px; height: 10px; border-radius: 50%; background: var(--ink); border: 2px solid var(--card); transform: translate(-50%, -50%); }
 .depth-chart { overflow-x: auto; }
 .depth-chart svg { display: block; width: 100%; min-width: 640px; }
 .depth-grid { stroke: var(--line); stroke-width: 1; }

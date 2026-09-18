@@ -1,6 +1,6 @@
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
-import { askGap, representativePrice, matchesCategory, summarizeWeekdays } from './metrics.js?v=20260916-weekday';
+import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260918-position';
 import * as packageUI from './package.js?v=20260918';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
@@ -994,6 +994,7 @@ async function renderDetail(it) {
       <div><div class="k">가격 기준</div><div class="v">${cardTier}만</div></div>
       <div><div class="k">이력</div><div class="v">${it.span_days >= 1 ? it.span_days.toFixed(1) + '일' : (it.span_days * 24).toFixed(0) + '시간'}</div></div>` : `
       <div><div class="k">24h VWAP</div><div class="v">${fmt(it.vwap24)}</div></div>
+      <div id="price-position"><div class="k">관측일 대비 가격 위치</div><div class="v flat">…</div></div>
       <div><div class="k">24h API 관측 수량</div><div class="v">${fmt(it.api_qty24)}</div></div>
       <div><div class="k">최저 호가</div><div class="v">${fmt(it.min_ask)}</div></div>
       <div><div class="k">등록 매물</div><div class="v">${fmt(it.listings)}</div></div>
@@ -1087,6 +1088,19 @@ async function renderDetail(it) {
 
   const d = s.daily ?? [];
   const desc = document.getElementById('fc-desc');
+  const positionEl = document.getElementById('price-position');
+  if (positionEl) {
+    const today = new Date(DATA.builtAt).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+    const pos = pricePosition(d, it.vwap24, today);
+    const md = (day) => `${Number(day.slice(5, 7))}/${Number(day.slice(8, 10))}`;
+    positionEl.innerHTML = pos.ready
+      ? `<div class="k">최근 ${pos.days}개 관측일 대비</div>
+         <div class="v">${pos.percentile <= 50 ? `하위 ${Math.max(1, Math.round(pos.percentile))}%` : `상위 ${Math.max(1, Math.round(100 - pos.percentile))}%`}</div>
+         <div class="pos-bar" title="관측일 VWAP ${fmt(pos.low)} ~ ${fmt(pos.high)}"><i style="left:${pos.percentile.toFixed(1)}%"></i></div>
+         <div class="depth-sub">24h 평균가 기준 · ${md(pos.from)}~${md(pos.to)}</div>`
+      : `<div class="k">관측일 대비 가격 위치</div><div class="v flat">${it.vwap24 > 0 ? `${pos.days}/${pos.min}개` : '-'}</div>
+         <div class="depth-sub">${it.vwap24 > 0 ? `관측일 ${pos.min}개부터 계산` : '24h 체결 없음'}</div>`;
+  }
   const stock = s.stock ?? [];
   const stockAt = bySecond(stock, 't');
   const firstDay = d[0]?.d;

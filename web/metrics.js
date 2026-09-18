@@ -10,6 +10,19 @@ export const askGap = (item) => item.price_basis === 'trade'
   ? (item.min_ask / item.vwap24 - 1) * 100
   : null;
 
+/** 24시간 평균가가 체결이 있었던 최근 완료일의 VWAP 사이에서 어디쯤인지 계산한다.
+ *  같은 "하루 평균" 단위끼리 비교한다. 위치일 뿐이며 앞으로 오르거나 내린다는 뜻은 아니다.
+ *  관측일 기준이라 중간에 공백이 있으면 달력상 기간이 길어지므로 실제 비교 기간을 함께 돌려준다. */
+export function pricePosition(days, price, today, window = 30, min = 14) {
+  const complete = days.filter((x) => x.d < today && x.vwap > 0).slice(-window);
+  if (!(price > 0) || complete.length < min) return { ready: false, days: complete.length, min };
+  const below = complete.filter((x) => x.vwap < price).length;
+  const same = complete.filter((x) => x.vwap === price).length;
+  const prices = complete.map((x) => x.vwap);
+  return { ready: true, days: complete.length, percentile: (below + same / 2) / complete.length * 100,
+    low: Math.min(...prices), high: Math.max(...prices), from: complete[0].d, to: complete.at(-1).d };
+}
+
 /** 종이달 상자의 기존 칭호 분류·이력은 유지하고 실반 탭에서도 같은 행을 보여준다. */
 export const matchesCategory = (item, category) => category === '전체' || item.category === category
   || (category === '실반 하모니 박스' && item.item_id === '41914178e78f02589b8e2760788a9da8');
