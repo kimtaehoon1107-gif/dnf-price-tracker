@@ -16,6 +16,16 @@ const priceTime = (value) => value ? new Date(value).toLocaleString('ko-KR', {
   timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
 }) : '기록 없음';
 
+// 목록의 거래 시각. 터치 화면에는 툴팁이 없으므로 화면에 직접 쓴다.
+// 기준일과 같은 날이면 시각만, 아니면 날짜만 보여 줘 폭을 아낀다.
+const tradeClock = (value, asOf) => {
+  if (!value) return '';
+  const day = (t) => new Date(t).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+  return day(value) === day(asOf)
+    ? new Date(value).toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false })
+    : day(value).slice(5).replace('-', '.');
+};
+
 // 카드 목록에서는 같은 능력치 이름을 반복하지 않고 0업→맥스업 변화만 압축한다.
 // 이름이나 순서가 달라지면 억지로 합치지 않고 두 단계의 원문을 모두 보여준다.
 function statTransition(base, max) {
@@ -666,54 +676,58 @@ function renderList() {
         <span class="r" data-k="chg">24h</span>
         <span class="r h5" data-k="turnover">관측 거래대금</span>
         <span class="r h6">14일 추이</span>
-        <span class="r h7" data-k="listings">매물</span>
+        <span class="r h7" data-k="gap" title="현재 최저 호가를 24시간 VWAP과 비교한 값">호가 갭</span>
       </div>
       ${lg && ['전체', '카드'].includes(tab) ? `<a class="row legendary-row" href="#legendary-card">
         <div class="rank r">지수</div>
         <div class="nm"><div class="legendary-icon" aria-hidden="true">0업</div><div class="t">
           <b>레전더리 카드 재료 시세<span class="tag">0업</span></b>
-          <span>종류별 최저호가의 저가 기준 P10 · 매물 확인 ${lg.with_listings}/${lg.scanned}종</span>
+          <span>종류별 최저호가의 P10 · 매물 확인 ${lg.with_listings}/${lg.scanned}종</span>
         </div></div>
         <div class="px"><b>${fmt(lg.p10)}</b><small class="flat">P10 · 골드</small></div>
-        <div class="chg flat">-</div><div class="dim c5">-</div>
-        <div class="dim c6">그래프 보기 →</div><div class="dim c7">${fmt(lg.total_listings)}</div>
+        <div class="chg flat">-</div><div class="dim c5">—</div>
+        <div class="dim c6">그래프 보기 →</div><div class="dim c7">—<small>매물 ${fmt(lg.total_listings)}</small></div>
       </a>` : ''}
       ${rows.map((r, i) => {
         const color = css(r.chg > 0 ? '--up' : r.chg < 0 ? '--down' : '--ink-4');
         const thin = r.price_basis === 'trade' && r.api_qty24 < 5 && r.chg !== null;
-        const shownStat = r.price_basis === 'ask0' ? statTransition(r.key_stat, r.key_stat_max) : r.key_stat;
-        const shownStatText = shownStat
-          ? `${r.price_basis === 'ask0' ? ' · 부여 능력치 ' : ' · '}${esc(shownStat)}` : '';
+        const isCard = r.price_basis === 'ask0';
+        const shownStat = isCard ? statTransition(r.key_stat, r.key_stat_max) : r.key_stat;
+        // 목록에는 고르는 데 필요한 것만 남긴다. 관측 수·종결 경과일은 상세 화면에 있다.
+        const sub = isCard
+          ? [r.job_role, shownStat, r.max_last_price ? `맥스업 ${fmt(r.max_last_price)}` : null]
+          : [r.item_rarity, shownStat, `${r.g}등급 · 표본 ${fmt(r.trades)}`];
         return `<a class="row" href="#${r.item_id}">
           <div class="rank r">${i + 1}</div>
           <div class="nm">
             <img src="${r.img}" alt="" loading="lazy" width="32" height="32">
             <div class="t">
-              <b>${esc(r.item_name)}${r.is_final ? '<span class="tag fin">종결</span>' : ''}${r.price_basis === 'ask0' ? '<span class="tag">0업</span>' : ''}${r.slot ? `<span class="tag">${esc(r.slot)}</span>` : ''}</b>
-              <span>${esc(r.item_rarity)}${r.job_role ? ' · ' + esc(r.job_role) : ''}${shownStatText}${r.price_basis === 'ask0' ? ` · 0업 호가 관측 ${fmt(r.trades)}${r.max_last_price ? ` · 맥스업 ${fmt(r.max_last_price)}` : ''}` : ` · 표본 ${fmt(r.trades)} · ${r.g}등급`}${r.is_final && r.final_since ? ` · 종결${r.category === '칭호' ? ' 성능' : ''} D+${sinceDays(r.final_since)}` : ''}</span>
+              <b>${esc(r.item_name)}${r.is_final ? '<span class="tag fin">종결</span>' : ''}${isCard ? '<span class="tag">0업</span>' : ''}${r.slot ? `<span class="tag">${esc(r.slot)}</span>` : ''}</b>
+              <span>${sub.filter(Boolean).map(esc).join(' · ')}</span>
             </div>
           </div>
-          <div class="px">
-            <b title="${r.price_basis === 'trade' ? `최근 1시간 ${fmt(r.trades1h)}건 · ${fmt(r.api_qty1h)}개로 계산` : '0업 최저호가'}">${fmt(r.display_price)}</b>
-            ${r.price_basis === 'trade' ? `${r.vwap1h == null ? '<small class="flat">1h 체결 없음</small>' : ''}
-              <small class="flat" title="최근 체결 ${fmt(r.last_price)}골드">체결 ${r.last_trade_at ? fmt(r.last_price) : '-'}</small>
-              <small class="flat">${priceTime(r.last_trade_at)}</small>` : r.display_price === null ? '<small class="flat">매물 없음</small>' : ''}
-            ${r.gap === null ? '' :
-              `<small class="${cls(r.gap)}" title="최저호가 ${fmt(r.min_ask)} · 24h VWAP ${fmt(r.vwap24)} 대비">호가 ${pct(r.gap)}</small>`}
+          <div class="px">${isCard
+            ? `<b title="0업 최저호가">${r.display_price === null ? '-' : fmt(r.display_price)}</b>${r.display_price === null ? '<small class="flat">매물 없음</small>' : ''}`
+            : r.vwap1h == null
+              ? `<b class="flat nov" title="최근 1시간 관측 체결이 없어 평균을 표시하지 않습니다">1h 체결 없음</b>
+                 <small class="flat" title="${priceTime(r.last_trade_at)} KST">최근 ${r.last_trade_at ? `${fmt(r.last_price)} · ${tradeClock(r.last_trade_at, DATA.priceAsOf)}` : '-'}</small>`
+              : `<b title="최근 1시간 ${fmt(r.trades1h)}건 · ${fmt(r.api_qty1h)}개로 계산">${fmt(r.display_price)}</b>
+                 <small class="flat" title="${priceTime(r.last_trade_at)} KST">체결 ${fmt(r.last_price)} · ${tradeClock(r.last_trade_at, DATA.priceAsOf)}</small>`}
           </div>
           <div class="chg ${thin ? 'flat' : cls(r.chg)}"${thin ? ' title="24h 표본 5개 미만 — 신뢰하기 어렵습니다"' : ''}>${pct(r.chg)}${thin ? '<span style="color:var(--ink-4)">?</span>' : ''}</div>
-          <div class="dim c5">${won(r.turnover)}</div>
+          <div class="dim c5">${isCard ? '—' : won(r.turnover)}</div>
           <div class="c6">${sparkSVG(r.spark, color)}</div>
-          <div class="dim c7">${fmt(r.listings)}</div>
+          <div class="dim c7">${r.gap === null ? '—'
+            : `<b class="${cls(r.gap)}" title="최저호가 ${fmt(r.min_ask)} · 24h VWAP ${fmt(r.vwap24)} 대비">${pct(r.gap)}</b>`}<small>매물 ${fmt(r.listings)}</small></div>
         </a>`;
       }).join('')}
     </div>
 
     <p class="hint">
-      <b>1h VWAP</b>은 ${priceTime(DATA.priceAsOf)} KST 기준 직전 60분의 총 거래금액을 총수량으로 나눈 값입니다. 1시간 내 관측 체결이 없으면 평균은 표시하지 않으며, 아래에는 최근 체결가와 거래 시각(KST)을 표시합니다. 표본이 적거나 고가 대량 체결이 있으면 평균도 크게 움직일 수 있습니다.<br>
+      <b>1h VWAP</b>은 ${priceTime(DATA.priceAsOf)} KST 기준 직전 60분의 총 거래금액을 총수량으로 나눈 값입니다. 1시간 내 관측 체결이 없으면 평균을 표시하지 않고 최근 체결가를 따로 보여줍니다. 둘째 줄의 시각은 최근 체결의 KST 시각이며, 오늘이 아니면 날짜로 표시합니다. 표본이 적거나 고가 대량 체결이 있으면 평균도 크게 움직일 수 있습니다.<br>
       기본 정렬은 <b>24h 거래대금</b>입니다. 변동률로 정렬하면 하루 한두 건 거래된 아이템의 의미 없는 ±40%가 맨 위를 차지합니다.
       같은 이유로 24h 표본이 5개 미만인 변동률에는 <b>?</b>를 붙였습니다.<br>
-      <b>호가</b> 백분율은 최저 호가를 <b>24시간 VWAP</b>과 비교한 값이며, 위의 1h VWAP과 비교한 값이 아닙니다. 카드는 대표 가격 자체가 호가라 표시하지 않습니다.<br>
+      <b>호가 갭</b>은 현재 최저 호가를 <b>24시간 VWAP</b>과 비교한 값입니다. 카드는 대표 가격 자체가 호가라 표시하지 않으며, 체결가를 관측하지 않아 거래대금도 없습니다.<br>
       <b>등급</b>은 일평균 체결 건수입니다 — A ≥ 60건, B ≥ 20건, C ≥ 5건, D는 그 미만.
       <b>카드</b>는 0업 최저호가만 표시하며 체결 등급을 매기지 않습니다.
       <b>종결</b>은 현재 기준 최상위 아이템이며, 패치로 교체되면 갱신됩니다.
