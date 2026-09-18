@@ -99,6 +99,7 @@ header.top .built { font-size: 12px; color: var(--ink-4); font-variant-numeric: 
 }
 .data-status:hover .tip, .data-status:focus .tip { display: block; }
 .data-status:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.data-status .age:not(:empty)::before { content: '· '; }
 
 /* ── 요약 카드 ─────────────────────────────────── */
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 26px; }
@@ -491,7 +492,9 @@ footer b { color: var(--ink-2); }
   header.top nav { gap: 12px; font-size: 13.5px; min-width: 0; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
   header.top .built { display: none; }
   .data-status { padding: 3px 8px; }
-  .data-status:not(.stale) .age { display: none; }
+  /* 좁은 헤더에서는 평소 경과 시간만 둔다. 오래된 상태의 경고 문구는 그대로 보인다. */
+  .data-status:not(.stale) #data-asof { display: none; }
+  .data-status:not(.stale) .age::before { content: none; }
   .cards {
     display: flex; overflow-x: auto; gap: 8px; margin-bottom: 18px; padding-bottom: 4px;
     scroll-snap-type: x mandatory; scrollbar-width: none;
@@ -501,7 +504,7 @@ footer b { color: var(--ink-2); }
   .cards .card .k { margin-bottom: 2px; }
   .cards .card .v { font-size: 20px; }
   .tabs-end { margin-left: 8px; padding-left: 10px; border-left: 1px solid var(--line-2); }
-  .lh, .row { grid-template-columns: minmax(0, 1fr) 122px 54px; gap: 8px; padding: 0 12px; }
+  .lh, .row { grid-template-columns: minmax(0, 1fr) 104px 54px; gap: 8px; padding: 0 12px; }
   .lh > :first-child, .row .rank { display: none; }
   .lh .h5, .lh .h6, .lh .h7, .row .c5, .row .c6, .row .c7 { display: none; }
   .row { min-height: 60px; padding-top: 8px; padding-bottom: 8px; }
@@ -510,7 +513,9 @@ footer b { color: var(--ink-2); }
   .nm .t b { font-size: 13.5px; }
   .nm .t > span, .nm .tag { display: none; }
   .px b { font-size: 13px; }
-  .px small { font-size: 10px; }
+  .px small { font-size: 10.5px; }
+  .px .sep { display: none; }
+  .px .clock { display: block; }
   .chg { font-size: 12.5px; }
   .dh { align-items: flex-start; }
   .dh h2 { font-size: 18px; line-height: 1.4; word-break: break-word; }

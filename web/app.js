@@ -385,7 +385,7 @@ function renderDataStatus(now = Date.now()) {
     : stale ? '⚠ 오래된 데이터'
     : `${new Date(DATA.priceAsOf).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })} 기준`;
   const ageEl = document.getElementById('data-age');
-  if (ageEl) ageEl.textContent = Number.isFinite(age) ? ` · ${hours ? `${hours}시간 ` : ''}${minutes}분 전` : '';
+  if (ageEl) ageEl.textContent = Number.isFinite(age) ? `${hours ? `${hours}시간 ` : ''}${minutes}분 전` : '';
   const status = document.getElementById('data-freshness');
   status.classList.toggle('stale', stale);
   document.getElementById('data-status')?.classList.toggle('stale', stale);
@@ -634,6 +634,8 @@ function renderList() {
         const color = css(r.chg > 0 ? '--up' : r.chg < 0 ? '--down' : '--ink-4');
         const thin = r.price_basis === 'trade' && r.api_qty24 < 5 && r.chg !== null;
         const isCard = r.price_basis === 'ask0';
+        // 좁은 화면에서는 시각을 한 줄 아래로 내려 이름 칸 폭을 지킨다.
+        const clockTag = (t) => `<span class="sep"> · </span><span class="clock">${tradeClock(t, DATA.priceAsOf)}</span>`;
         const shownStat = isCard ? statTransition(r.key_stat, r.key_stat_max) : r.key_stat;
         // 목록에는 고르는 데 필요한 것만 남긴다. 관측 수·종결 경과일은 상세 화면에 있다.
         const sub = isCard
@@ -652,9 +654,9 @@ function renderList() {
             ? `<b title="0업 최저호가">${r.display_price === null ? '-' : fmt(r.display_price)}</b>${r.display_price === null ? '<small class="flat">매물 없음</small>' : ''}`
             : r.vwap1h == null
               ? `<b class="flat nov" title="최근 1시간 관측 체결이 없어 평균을 표시하지 않습니다">1h 체결 없음</b>
-                 <small class="flat" title="${priceTime(r.last_trade_at)} KST">최근 ${r.last_trade_at ? `${fmt(r.last_price)} · ${tradeClock(r.last_trade_at, DATA.priceAsOf)}` : '-'}</small>`
+                 <small class="flat" title="${priceTime(r.last_trade_at)} KST">최근 ${r.last_trade_at ? `${fmt(r.last_price)}${clockTag(r.last_trade_at)}` : '-'}</small>`
               : `<b title="최근 1시간 ${fmt(r.trades1h)}건 · ${fmt(r.api_qty1h)}개로 계산">${fmt(r.display_price)}</b>
-                 <small class="flat" title="${priceTime(r.last_trade_at)} KST">체결 ${fmt(r.last_price)} · ${tradeClock(r.last_trade_at, DATA.priceAsOf)}</small>`}
+                 <small class="flat" title="${priceTime(r.last_trade_at)} KST">체결 ${fmt(r.last_price)}${clockTag(r.last_trade_at)}</small>`}
           </div>
           <div class="chg ${thin ? 'flat' : cls(r.chg)}"${thin ? ' title="24h 표본 5개 미만 — 신뢰하기 어렵습니다"' : ''}>${pct(r.chg)}${thin ? '<span style="color:var(--ink-4)">?</span>' : ''}</div>
           <div class="dim c5">${isCard ? '—' : won(r.turnover)}</div>
