@@ -148,6 +148,81 @@ export function scoreForecasts(cases: BacktestCase[]): Score {
   };
 }
 
+// 현재가 기준 변동 범위.
+//
+// 롤링 평가에서 추세 모델이 naive보다 오차가 컸다. 상세 화면에는 방향을 예측하지 않고
+// 중심을 naive(마지막 완료 일봉 VWAP)로 둔 채, 폭만 과거 하루 변동으로 정한다.
+//   · 폭은 달력상 하루 간격인 인접 일봉의 |로그 변화| 80분위수
+//   · h일 뒤는 √h배로 넓힌다 — 하루 변화가 서로 독립이라는 가정이며, 실제 커버리지로 확인한다
+export const BAND_MIN_CHANGES = 8;
+export interface Band extends Score {
+  horizonDays: number;
+  points: Forecast['points'];
+  backtest: Forecast['backtest'];
+  method: string;
+}
+
+/** 선형 보간 분위수. 표본이 작을 때 floor 방식은 위아래 꼬리를 비대칭으로 자른다. */
+function interpolated(sorted: number[], q: number): number {
+  const at = (sorted.length - 1) * q, lo = Math.floor(at);
+  return sorted[lo] + (sorted[Math.min(lo + 1, sorted.length - 1)] - sorted[lo]) * (at - lo);
+}
+
+function bandPoints(train: Point[], horizonDays: number, startAfter: string): Forecast['points'] | null {
+  const moves = [];
+  for (let i = 1; i < train.length; i++) {
+    // 무거래일을 건너뛴 변화는 하루치가 아니므로 폭 추정에 넣지 않는다.
+    if (time(train[i].d) - time(train[i - 1].d) === DAY) moves.push(Math.abs(Math.log(train[i].vwap / train[i - 1].vwap)));
+  }
+  if (moves.length < BAND_MIN_CHANGES) return null;
+  const width = interpolated(moves.sort((a, b) => a - b), 0.8);
+  const last = train.at(-1)!;
+  const points = [];
+  for (let h = 1; h <= horizonDays; h++) {
+    const t = time(startAfter) + h * DAY;
+    const scale = Math.sqrt(Math.max(1, Math.round((t - time(last.d)) / DAY)));
+    points.push({ d: iso(t), mid: last.vwap, lo: last.vwap * Math.exp(-width * scale), hi: last.vwap * Math.exp(width * scale) });
+  }
+  return points;
+}
+
+/** 운영과 같은 자격·평가일·예측 거리로 범위의 실제 커버리지를 잰다. 다른 종목 자료는 쓰지 않는다. */
+export function rollingBands(series: Point[]): BacktestCase[] {
+  const pts = [...series].sort((a, b) => a.d.localeCompare(b.d));
+  if (pts.length < 10) return [];
+  const actuals = new Map(pts.map((p) => [p.d, p.vwap]));
+  const cases: BacktestCase[] = [];
+  for (let t = time(pts[9].d) + DAY; t < time(pts.at(-1)!.d); t += DAY) {
+    const origin = iso(t);
+    const train = pts.filter((p) => p.d < origin);
+    if (!eligible(train)) continue;
+    const points = bandPoints(train, 7, origin);
+    if (!points) continue;
+    for (const h of [1, 7]) {
+      const p = points[h - 1];
+      const actual = actuals.get(p.d);
+      if (actual === undefined) continue;
+      cases.push({ origin, ...p, horizonDays: h, naive: train.at(-1)!.vwap, actual });
+    }
+  }
+  return cases;
+}
+
+export function naiveBand(series: Point[], horizonDays = 7, startAfter?: string): Band | null {
+  if (!series.length) return null;
+  const sorted = [...series].sort((a, b) => a.d.localeCompare(b.d));
+  const origin = startAfter ?? iso(time(sorted.at(-1)!.d) + DAY);
+  const train = sorted.filter((p) => p.d < origin);
+  if (!eligible(train)) return null;
+  const points = bandPoints(train, horizonDays, origin);
+  if (!points) return null;
+  const cases = rollingBands(train);
+  const backtest = [1, 7].map((h) => ({
+    horizonDays: h, ...scoreForecasts(cases.filter((c) => c.horizonDays === h)),
+  }));
+  return { ...backtest[0], backtest, horizonDays, points, method: '마지막 완료 일봉 VWAP ± 하루 변동폭 80분위수 × √일수' };
+}
+
 /** startAfter는 빌드 날짜다. 당일은 제외하고 내일부터 예측한다. */
 export function forecast(series: Point[], market: Market, horizonDays = 7, startAfter?: string): Forecast | null {
   if (!series.length) return null;

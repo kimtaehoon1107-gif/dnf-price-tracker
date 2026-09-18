@@ -436,18 +436,17 @@ footer b { color: var(--ink-2); }
 .guide-candles line { stroke: var(--ink-3); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .guide-candles rect.up-candle { fill: var(--up); }
 .guide-candles rect.down-candle { fill: var(--down); }
-.guide-vwap, .guide-forecast-mid, .guide-forecast-band {
+.guide-vwap {
   fill: none; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round;
 }
 .guide-vwap { stroke: var(--ink); stroke-width: 2; }
-.guide-forecast-mid { stroke: var(--blue); stroke-width: 2; stroke-dasharray: 6 5; }
-.guide-forecast-band { stroke: var(--blue); stroke-width: 1; stroke-dasharray: 4 5; opacity: .75; }
+.guide-volume rect { fill: var(--blue); opacity: .25; }
 .guide-legend { display: flex; flex-wrap: wrap; gap: 9px 18px; color: var(--ink-3); font-size: 12px; }
 .guide-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .guide-legend i { width: 18px; height: 3px; display: inline-block; border-radius: 2px; }
 .guide-legend i.candle { background: linear-gradient(90deg, var(--up) 0 50%, var(--down) 50%); }
 .guide-legend i.actual { background: var(--ink); }
-.guide-legend i.forecast { border-top: 2px dashed var(--blue); }
+.guide-legend i.volume { height: 8px; background: var(--blue); opacity: .35; }
 .guide-static-toggle { pointer-events: none; }
 .guide-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
 .guide-tags .tag { margin-left: 0; }

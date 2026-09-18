@@ -66,6 +66,12 @@ const scored = await render([], [
 assert.match(scored('fc-summary'), /18%/);
 assert.match(scored('fc-horizons'), /-80\.0%/);
 assert.match(scored('fc-summary'), /naive 오차가 더 작았습니다/);
+assert.match(scored('band-horizons'), /<td class="num"><b>-<\/b><\/td>/, '범위 평가가 없으면 비워 둠');
+const banded = await render([], [
+  { band: { backtest: [{ horizonDays: 1, count: 3, coverage: 100 }, { horizonDays: 7, count: 0, coverage: null }] } },
+  { band: { backtest: [{ horizonDays: 1, count: 1, coverage: 0 }] } },
+]);
+assert.match(banded('band-horizons'), /<b>75%<\/b>/, '범위 커버리지도 평가 건수로 가중');
 const pipeline = await render([], [], {
   collection: { last_success: new Date().toISOString(), stale: ['지연 종목'] },
   quality: { checkedAt: '2026-09-09T00:00:00Z', refreshedAt: '2026-09-08T23:02:00Z',

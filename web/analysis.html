@@ -157,12 +157,8 @@
     <b>평가일로부터 정확히 1일·7일 뒤</b>의 일봉이 있을 때만 모델과 naive를 비교합니다.
     naive는 평가 시점에 알려진 마지막 완료 일봉 가격입니다. 무거래일은 다른 날짜로 대신하지 않습니다.
     당일을 제외하므로 1일 뒤 예측도 마지막 관측일에서는 최소 2일 뒤입니다.
-    아래는 현재 예측 제공 종목의 과거 평가이며, MAPE와 커버리지는 <b>평가 건수로 가중</b>해 합칩니다.
+    아래는 일평균 체결 5건 이상인 종목의 과거 평가이며, MAPE와 커버리지는 <b>평가 건수로 가중</b>해 합칩니다.
     백필을 포함한 체결 시각 기준의 과거 재구성이며, 당시 수집기가 이미 보유했던 데이터까지 재현한 평가는 아닙니다.
-  </p>
-  <p class="method-note">
-    일평균 체결 5건 미만(D등급)이거나 완료된 일간 관측이 10개 미만인 종목에는 <b>예측을 표시하지 않습니다.</b>
-    신뢰할 수 없는 예측을 제시한 뒤 주의를 덧붙이는 것보다, 표시하지 않는 편이 낫다고 판단했습니다.
   </p>
 </div>
 
@@ -171,6 +167,20 @@
 <div class="note" id="fc-explain"></div>
 <div class="table-scroll"><table id="fc-horizons"></table></div>
 <p class="method-note">평가 건수는 종목·평가일·예측 거리의 조합 수입니다. 겹치는 학습 구간과 종목 간 상관 때문에 독립 표본 수를 뜻하지 않습니다. 평가 건수가 적을수록 수치는 잠정적입니다.</p>
+
+<h3 class="sub">상세 화면에 예측을 그리지 않는 이유</h3>
+<p>
+  위 평가에서 모델 오차가 naive보다 컸습니다. 신뢰할 수 없는 예측을 그린 뒤 주의를 덧붙이는 것보다
+  <b>표시하지 않는 편이 낫다고 판단해</b> 일반 아이템 상세 화면에는 과거 가격·체결 수량과 가격 위치만 제공합니다.
+  모델 평가는 이 절에 계속 기록합니다.
+</p>
+<p>
+  방향 없이 폭만 정하는 대안도 과거 자료로 재구성해 점검했습니다. 중심은 마지막 완료 일봉 가격, 폭은 과거 하루 변동폭(|로그 변화|의
+  80분위수)에 √일수를 곱한 <b>과거 변동폭 기반 참고 범위</b>입니다. 폭을 정하는 값은 결과를 보기 전에 고정했습니다.
+  아래처럼 실제 포함률이 목표 80%에 미치지 못해, 이 범위도 화면에는 표시하지 않습니다.
+  발행 후 실제 가격으로 채점하는 평가는 별도 실험으로 진행할 예정입니다.
+</p>
+<div class="table-scroll"><table id="band-horizons"></table></div>
 
 <h3 class="sub">레전더리·종류별 예측을 발행 당시 값으로 검증하기</h3>
 <p>레전더리 0업 카드의 <b>일평균 전체 최저호가와 P10</b>, 종류별 <b>고정 구성 지수</b>는 별도의 사전 평가를 시작했습니다.
@@ -420,6 +430,18 @@ fetch('data/summary.json').then(r => {
     <tbody>${horizons.map(x => `<tr><td>${x.h}일 뒤</td><td class="num">${x.items}</td><td class="num">${fmt(x.count)}</td>
       <td class="num">${x.count ? fmt(x.mape, 2) + '%' : '-'}</td><td class="num">${x.count ? fmt(x.naive, 2) + '%' : '-'}</td>
       <td class="num">${x.improvement === null ? '-' : signed(x.improvement, 1)}</td><td class="num">${x.count ? fmt(x.coverage, 1) + '%' : '-'}</td></tr>`).join('')}</tbody>`;
+  // 상세 화면 범위의 커버리지. 범위는 하루 간격 변화 8개가 더 필요해 평가 건수가 모델과 다를 수 있다.
+  const bandRows = [1, 7].map(h => {
+    const scores = D.items.map(x => x.band?.backtest.find(b => b.horizonDays === h)).filter(x => x?.count > 0);
+    const count = scores.reduce((sum, x) => sum + x.count, 0);
+    return { h, items: scores.length, count, coverage: count ? scores.reduce((sum, x) => sum + x.coverage * x.count, 0) / count : null };
+  });
+  document.getElementById('band-horizons').innerHTML = `
+    <thead><tr><th>예측 거리 · 과거 재구성</th><th class="num">종목</th><th class="num">평가 건수</th><th class="num">참고 범위 포함률</th><th class="num">모델 구간 포함률</th></tr></thead>
+    <tbody>${bandRows.map((x, i) => `<tr><td>${x.h}일 뒤</td><td class="num">${x.items}</td><td class="num">${fmt(x.count)}</td>
+      <td class="num"><b>${x.count ? fmt(x.coverage, 1) + '%' : '-'}</b></td>
+      <td class="num">${horizons[i].count ? fmt(horizons[i].coverage, 1) + '%' : '-'}</td></tr>`).join('')}</tbody>`;
+
   document.getElementById('analysis-status').innerHTML =
     `<b>현재 관측</b> — ${headline}<br>
      <b>검증 상태</b> — 연속 구간 ${rw.total}/${rw.candidates}종 검정 · 1일 뒤 예측 ${fmt(one.count)}건 평가.<br>

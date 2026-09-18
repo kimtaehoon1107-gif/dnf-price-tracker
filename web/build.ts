@@ -10,7 +10,7 @@ import { mkdirSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
 import { pool } from '../src/db.ts';
 import type { QueryResultRow } from 'pg';
 import { checkCandles } from '../src/candle-check.ts';
-import { forecast, type Point, type Forecast } from '../src/forecast.ts';
+import { forecast, naiveBand, type Band, type Point, type Forecast } from '../src/forecast.ts';
 import { holmAdjusted, longestCompleteHours, varianceRatio } from '../src/market-logic.ts';
 import { legendarySeries, type LegendarySnapshot } from '../src/legendary.ts';
 import { cardWeekday, type CardWeekdayDay } from '../src/card-weekday.ts';
@@ -425,6 +425,7 @@ const cardWeekdaySummary = cardWeekday(cardWeekdayDays,
 
 // ── 아이템별 시계열 + 예측 ─────────────────────────────────────
 const forecasts = new Map<string, Forecast>();
+const bands = new Map<string, Band>();
 const todayKst = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
 const completeDay = new Date(quality.through).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
 const weekdayBefore = [todayKst, completeDay].sort()[0];
@@ -449,6 +450,9 @@ for (const it of items) {
     ? forecast(complete as Point[], market, 7, todayKst)
     : null;
   if (f) forecasts.set(it.item_id, f);
+  // 참고 범위는 화면에 그리지 않고 분석 페이지의 과거 재구성 평가에만 쓴다. D등급 제외 규칙은 예측과 같다.
+  const band = it.price_basis === 'trade' && tradesPerDay >= 5 ? naiveBand(complete as Point[], 7, todayKst) : null;
+  if (band) bands.set(it.item_id, band);
   writeFileSync(`${OUT}/data/series/${it.item_id}.json`, JSON.stringify({
     priceBasis: it.price_basis, daily: d, hourly: hourlyBy.get(it.item_id) ?? [],
     askGap: askGapBy.get(it.item_id) ?? [], depletion: depletionBy.get(it.item_id) ?? [],
@@ -560,6 +564,7 @@ const withMeta = items.map((it) => {
     img: `https://img-api.neople.co.kr/df/items/${it.item_id}`,
     spark: (dailyBy.get(it.item_id) ?? []).slice(-14).map((d) => d.vwap),
     fc: f ? { next: f.points[0], vsNaive: f.vsNaive, coverage: f.coverage, backtest: f.backtest } : null,
+    band: bands.has(it.item_id) ? { backtest: bands.get(it.item_id)!.backtest } : null,
   };
 });
 
@@ -654,7 +659,7 @@ writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
 for (const f of ['index.html', 'ranking.html', 'analysis.html', 'guide.html', 'feedback.html', 'feedback.js', 'feedback.css', 'app.js', 'metrics.js', 'ranking.js', 'style.css', 'research.html', 'research.js', 'research-ui.js', 'research.css', 'package.js', 'package-calc.js', 'package.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
 writeFileSync(`${OUT}/.nojekyll`, '');
 
-console.log(`빌드 완료 — ${items.length}종 · 체결 ${meta.trades.toLocaleString()}건 · 일봉 ${daily.length}행 · 예측 ${forecasts.size}종`);
+console.log(`빌드 완료 — ${items.length}종 · 체결 ${meta.trades.toLocaleString()}건 · 일봉 ${daily.length}행 · 예측 ${forecasts.size}종 · 범위 ${bands.size}종`);
 } finally {
   await client.query('ROLLBACK');
   client.release();

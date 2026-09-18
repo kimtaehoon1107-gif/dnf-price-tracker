@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { estimateWeekday, forecast, rollingForecasts, scoreForecasts } from '../src/forecast.ts';
+import { estimateWeekday, forecast, naiveBand, rollingBands, rollingForecasts, scoreForecasts } from '../src/forecast.ts';
 
 const market = new Map();
 const daily = Array.from({ length: 12 }, (_, i) => ({
@@ -66,4 +66,22 @@ assert(Math.abs(scored.mape! - 15) < 1e-10);
 assert.equal(scored.naiveMape, 10);
 assert.equal(scored.coverage, 50);
 assert.equal(scoreForecasts([]).count, 0);
+
+// 현재가 기준 범위: 중심은 마지막 완료 일봉, 폭은 하루 변동으로만 정한다.
+const band = naiveBand(history, 7, origin);
+assert(band);
+const lastKnown = history.filter((p) => p.d < origin).at(-1)!;
+assert(band.points.every((p) => p.mid === lastKnown.vwap), '중심은 방향을 예측하지 않는 naive');
+const logWidth = (p: { mid: number; hi: number; lo: number }) => Math.log(p.hi / p.mid);
+for (const p of band.points) assert(Math.abs(logWidth(p) + Math.log(p.lo / p.mid)) < 1e-12, '로그 기준 대칭');
+assert(Math.abs(logWidth(band.points[6]) / logWidth(band.points[0]) - Math.sqrt(8 / 2)) < 1e-9,
+  '마지막 관측일로부터 2일·8일 뒤이므로 폭은 √(8/2)배');
+assert.deepEqual(band, naiveBand(changed, 7, origin), '평가일 이후 자료를 바꿔도 범위와 과거 평가가 같음');
+// 무거래일을 건너뛴 변화는 하루 변동으로 세지 않는다 — 하루 간격 변화가 8개 미만이면 만들지 않는다.
+const sparse = Array.from({ length: 12 }, (_, i) => ({
+  d: new Date(Date.UTC(2026, 7, 1 + i * 2)).toISOString().slice(0, 10), vwap: 100 + i, n: 20,
+}));
+assert.equal(naiveBand(sparse, 7, '2026-08-30'), null);
+const bandCases = rollingBands(history);
+assert(bandCases.length && bandCases.every((c) => c.mid === c.naive), '범위 평가의 중심 오차는 naive와 동일');
 console.log('forecast 테스트 통과');

@@ -233,7 +233,7 @@ function eventStageStudy(stage, days, priceBasis) {
   };
 }
 
-function eventTimeline(events, days, forecast) {
+function eventTimeline(events, days) {
   if (!days.length) return [];
   // 가격선이 과거 이벤트 때문에 눌리지 않도록 이력 시작 직전의 패치만 축에 보탠다.
   const firstDate = new Date(`${days[0].d}T12:00:00Z`);
@@ -242,7 +242,7 @@ function eventTimeline(events, days, forecast) {
   const relatedFirstDate = new Date(`${days[0].d}T12:00:00Z`);
   relatedFirstDate.setUTCDate(relatedFirstDate.getUTCDate() - 45);
   const relatedFirst = relatedFirstDate.toISOString().slice(0, 10);
-  const last = forecast?.points?.at(-1)?.d ?? days.at(-1).d;
+  const last = days.at(-1).d;
   const byDate = new Map();
   for (const event of events) {
     const date = event.starts;
@@ -1005,7 +1005,7 @@ async function renderDetail(it) {
 
     <div class="panel">
       <div class="panel-head">
-        <h3>${isZeroCard ? `${cardTier} 최저호가` : '가격 · 실험적 예측'}</h3>
+        <h3>${isZeroCard ? `${cardTier} 최저호가` : '가격 · 체결 수량'}</h3>
         <button class="chart-toggle" id="candle-toggle" type="button" aria-pressed="true">캔들 켜짐</button>
       </div>
       <p class="desc" id="fc-desc">불러오는 중…</p>
@@ -1054,7 +1054,7 @@ async function renderDetail(it) {
   if (!response.ok) throw new Error(`시계열 데이터 HTTP ${response.status}`);
   const rawSeries = await response.json();
   const s = showingMax
-    ? { ...rawSeries, ...rawSeries.max, stock: rawSeries.max?.stock ?? [], events: rawSeries.events ?? [], askGap: [], forecast: null }
+    ? { ...rawSeries, ...rawSeries.max, stock: rawSeries.max?.stock ?? [], events: rawSeries.events ?? [], askGap: [] }
     : rawSeries;
   // 해시가 바뀐 사이 이전 요청이 늦게 도착하면 새 상세 화면을 덮지 않는다.
   if (location.hash.slice(1) !== it.item_id || cardMode !== (showingMax ? 'max' : 'zero')) return;
@@ -1184,7 +1184,7 @@ async function renderDetail(it) {
   if (d.length >= 2) {
     const box1 = document.getElementById('c1');
     const c1 = LightweightCharts.createChart(box1, { ...opts, height: isZeroCard ? 300 : 340 });
-    const timeline = eventTimeline(events, d, s.forecast);
+    const timeline = eventTimeline(events, d);
     if (!isZeroCard) {
       // 거래량은 별도 패널 대신 가격 아래 띠에 둔다. 같은 날짜축에서 가격과 함께 읽힌다.
       c1.priceScale('right').applyOptions({ scaleMargins: { top: 0.06, bottom: 0.24 } });
@@ -1222,35 +1222,12 @@ async function renderDetail(it) {
       }).setData(timeline.map((x) => ({ time: x.date, value: d[0].vwap })));
     }
 
-    if (s.forecast) {
-      const f = s.forecast;
-      // 검은 실선과 예측이 모두 VWAP이므로 마지막 실측값에서 자연스럽게 잇는다.
-      const last = { time: d.at(-1).d, value: d.at(-1).vwap };
-      const band = (key, w) => c1.addLineSeries({
-        color: css('--blue'), lineWidth: w, lineStyle: 2,
-        crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
-      }).setData([last, ...f.points.map((p) => ({ time: p.d, value: p[key] }))]);
-      band('hi', 1); band('lo', 1); band('mid', 2);
-
-      const p0 = f.points[0];
-      desc.innerHTML =
-        `캔들은 일별 시가·고가·저가·종가이며 오늘 봉은 수집 중입니다. 검은 실선은 일별 VWAP, 파란 점선은 <b>${f.horizonDays}일 VWAP 실험적 예측</b>입니다. ` +
-        `내일 모델 추정치 <b>${fmt(p0.mid)}</b>, 목표 80% 구간 ${fmt(p0.lo)}~${fmt(p0.hi)}. ` +
-        (f.vsNaive !== null
-          ? `1일 뒤 롤링 평가 ${f.count}건에서 naive 대비 MAPE가 <b class="${f.vsNaive > 0 ? 'up' : 'down'}">${Math.abs(f.vsNaive).toFixed(1)}%</b> ${f.vsNaive > 0 ? '개선' : '악화'}됐고 구간 커버리지는 ${f.coverage?.toFixed(0)}%입니다.`
-          : f.count ? `1일 뒤 롤링 평가 ${f.count}건에서 naive 오차가 0이라 상대 개선율을 계산하지 않습니다.`
-          : '학습 조건과 목표 날짜를 모두 충족한 평가 관측이 아직 없습니다.') +
-        `<br>과거 관측 데이터를 기반으로 한 실험 결과이며, 향후 가격이나 실제 거래 가능성을 보장하지 않습니다.` +
-        `<br><span style="color:var(--ink-4)">모델 — ${esc(f.method)}</span>`;
-    } else {
-      desc.textContent = isZeroCard
-        ? `캔들은 수집 시점별 ${cardTier} 최저호가의 일별 시가·고가·저가·종가이며, 검은 실선은 일평균 ${cardTier} 최저호가입니다. 정확한 ${cardTier} 체결가를 구분할 수 없어 예측은 표시하지 않습니다.`
-        : it.g === 'D'
-        ? '캔들은 일별 시가·고가·저가·종가이며 오늘 봉은 수집 중입니다. 검은 실선은 일별 VWAP입니다. D등급은 일평균 체결이 5건 미만이라 예측을 표시하지 않습니다.'
-        : '캔들은 일별 시가·고가·저가·종가이며 오늘 봉은 수집 중입니다. 검은 실선은 일별 VWAP입니다. 예측에는 완료 일봉 10개 이상과 학습 기간 일평균 체결 5건 이상이 필요합니다.';
-    }
+    // 롤링 평가에서 모델 오차가 naive보다 커서 가격 예측은 그리지 않는다.
+    desc.innerHTML = isZeroCard
+      ? `캔들은 수집 시점별 ${cardTier} 최저호가의 일별 시가·고가·저가·종가이며, 검은 실선은 일평균 ${cardTier} 최저호가입니다. 정확한 ${cardTier} 체결가를 구분할 수 없어 예측은 표시하지 않습니다.`
+      : '캔들은 일별 시가·고가·저가·종가이며 오늘 봉은 수집 중입니다. 검은 실선은 일별 VWAP, 아래 막대는 일별 API 관측 체결 수량입니다. 수량은 100건 상한 때문에 실제 거래량의 하한값입니다. ' +
+        '가격 예측은 표시하지 않습니다 — 과거 평가에서 모델 오차가 “마지막 가격 유지”보다 컸습니다. <a href="analysis.html">검증 보기 →</a>';
     const dayAt = new Map(d.map((x) => [x.d, x]));
-    const forecastAt = new Map((s.forecast?.points ?? []).map((p) => [p.d, p]));
     attachTooltip(c1, box1, (param) => {
       const day = dayAt.get(param.time);
       if (day) {
@@ -1261,16 +1238,10 @@ async function renderDetail(it) {
           isZeroCard ? ['관측', `${fmt(day.n)}회`] : ['체결 수량', `${fmt(day.qty)}개 · ${fmt(day.n)}건`],
         ]);
       }
-      const point = forecastAt.get(param.time);
-      if (!point) return null;
-      return tipRows(param.time, [
-        ['모델 추정치', fmt(point.mid)],
-        ['80% 구간', `${fmt(point.lo)} ~ ${fmt(point.hi)}`],
-      ]);
+      return null;
     });
     c1.timeScale().fitContent();
     renderEventRail(c1, timeline);
-    if (!isZeroCard) desc.insertAdjacentHTML('beforeend', '<br>아래 막대는 일별 API 관측 체결 수량입니다. 100건 상한 때문에 실제 거래량의 하한값입니다.');
   } else {
     document.getElementById('c1').innerHTML = '<p style="color:var(--ink-3);margin:0">일봉을 그릴 만큼 데이터가 모이지 않았습니다.</p>';
     document.getElementById('candle-toggle').hidden = true;
