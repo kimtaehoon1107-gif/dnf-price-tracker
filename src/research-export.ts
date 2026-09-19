@@ -52,6 +52,7 @@ export async function researchExport(client: PoolClient, asOf: string, through: 
     components: components.map((c) => ({ id: c.id, name: c.name, ...eventWindow(c.daily, d, data.before) })),
   })) : [];
   return { version: RESEARCH_VERSION, asOf, before: data.before,
+    methodNote: '9월 20일 카드의 시간별 마지막 무매물 상태를 반영하도록 집계를 수정했습니다. 수정 전 예측·평가 기록은 별도로 보존하며, 아래 성적은 수정 후 새 발행분입니다.',
     issuedAt: latest?.issued_at ?? null, origin: latest?.origin ?? null, dataAsOf: latest?.data_as_of ?? null,
     series, package: { id: PACKAGE_ID, event, daily, components, stages, fee: 0.03,
       benchmark: '소울 결정 고정 구성 지수', firstObserved: daily[0]?.d ?? null } };

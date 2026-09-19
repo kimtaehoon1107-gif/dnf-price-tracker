@@ -11,5 +11,6 @@ import './test-feedback.ts';
 import './test-api.ts';
 import './test-data-status.ts';
 import './test-research.ts';
+import './test-forecast-recording.ts';
 import './test-weekday-trend.ts';
 import './test-package.ts';

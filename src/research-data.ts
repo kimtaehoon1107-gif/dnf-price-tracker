@@ -1,14 +1,16 @@
 import { readFileSync } from 'node:fs';
 import type { PoolClient } from 'pg';
 import { legendarySeries, type LegendarySnapshot } from './legendary.ts';
-import { basketSeries, kstDay, type Basket, type Observation } from './research.ts';
+import { basketSeries, kstDay, LEGACY_RESEARCH_VERSION, RESEARCH_VERSION, type Basket, type Observation } from './research.ts';
 
 export const PACKAGE_ID = 'e974d2eac46f0c8b23b83d4da389fa57';
 export const PART_IDS = ['702d33e99edb55d23cac4c9970ef44ee', 'a295bdbb26984dcb946eb3a3044dcfe5',
   '33776306aa3fa6fead55ced8656be444', '329338e9ac307d34de71a48b314b19a0', 'b971992f2529a494215fdf9368cfa0dd'];
 export type ResearchSeries = { id: string; label: string; unit: string; daily: Observation[]; basket?: Basket };
 
-export async function loadResearch(client: PoolClient, asOf: string, through: string) {
+export async function loadResearch(client: PoolClient, asOf: string, through: string, version = RESEARCH_VERSION) {
+  // 이미 발행한 v1의 미확정 실측만 원래 정의로 마감한다. 새 발행에는 사용하지 않는다.
+  const legacy = version === LEGACY_RESEARCH_VERSION;
   const before = [kstDay(asOf), kstDay(through)].sort()[0];
   const trade = (await client.query<{ item_id: string; d: string; value: number; qty: number; n: number }>(`
     SELECT c.item_id, to_char(c.hour AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') d,
@@ -21,13 +23,15 @@ export async function loadResearch(client: PoolClient, asOf: string, through: st
       SELECT DISTINCT ON (s.item_id, s.upgrade, date_trunc('hour',s.captured_at))
         s.item_id, s.upgrade, s.captured_at, s.min_unit_price
       FROM listing_snapshots s JOIN items i USING(item_id)
-      WHERE i.category='카드' AND s.min_unit_price>0
+      WHERE i.category='카드' ${legacy ? 'AND s.min_unit_price>0' : ''}
         AND (s.upgrade=0 OR (s.upgrade>0 AND s.upgrade=s.upgrade_max))
         AND s.captured_at < ($1::date::timestamp AT TIME ZONE 'Asia/Seoul')
       ORDER BY s.item_id,s.upgrade,date_trunc('hour',s.captured_at),s.captured_at DESC,s.id DESC
     ) SELECT item_id, CASE WHEN upgrade=0 THEN 'ask0' ELSE 'askMax' END basis,
       to_char(captured_at AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') d,
-      CASE WHEN COUNT(*)>=18 THEN AVG(min_unit_price)::float8 ELSE NULL END value, COUNT(*)::int hours
+      CASE WHEN COUNT(*) FILTER (WHERE min_unit_price>0)>=18
+        THEN AVG(min_unit_price) FILTER (WHERE min_unit_price>0)::float8 ELSE NULL END value,
+      COUNT(*) FILTER (WHERE min_unit_price>0)::int hours
     FROM h GROUP BY 1,2,3 ORDER BY 1,2,3`, [before])).rows;
   const byBasis = new Map<string, Map<string, Observation[]>>();
   for (const basis of ['trade', 'ask0', 'askMax']) {

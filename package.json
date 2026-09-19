@@ -10,6 +10,7 @@
   "scripts": {
     "test": "node --experimental-vm-modules --no-warnings scripts/test.ts",
     "test:pipeline": "node --env-file=.env --no-warnings scripts/test-pipeline-db.ts",
+    "test:research-db": "node --env-file=.env --no-warnings scripts/test-research-data-db.ts",
     "test:locks": "node --env-file=.env --no-warnings scripts/test-collection-lock.ts",
     "test:candles": "node --env-file=.env --no-warnings scripts/test-candles.ts",
     "test:feedback": "node --env-file=.env --no-warnings scripts/test-feedback-db.ts",

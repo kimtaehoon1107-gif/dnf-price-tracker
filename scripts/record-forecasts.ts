@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { pool } from '../src/db.ts';
 import { checkCandles } from '../src/candle-check.ts';
 import { loadResearch } from '../src/research-data.ts';
-import { RESEARCH_VERSION, issueForecast, kstDay, shiftDay, type Issue } from '../src/research.ts';
+import { LEGACY_RESEARCH_VERSION, RESEARCH_VERSION, issueForecast, kstDay, shiftDay, type Issue } from '../src/research.ts';
 
 const client = await pool.connect();
 let locked = false;
@@ -29,18 +29,29 @@ try {
   }
   // 대상일 종료 후 24시간을 더 기다린 첫 정상 집계에서 실측을 고정한다.
   // 미관측은 null로 확정하며, 사후 백필로 점수를 유리하게 다시 쓰지 않는다.
-  const settled = new Set((await client.query<{ target: string }>(
-    'SELECT target FROM research_actuals WHERE version=$1', [RESEARCH_VERSION])).rows.map((r) => r.target));
-  const targets = [...new Set(batches.flatMap((b) => b.issues.flatMap((i) =>
-    i.predictions.filter((p) => p.h === 1 || p.h === 7).map((p) => p.d))))]
-    .filter((d) => d <= shiftDay(origin, -2) && d < data.before && !settled.has(d));
-  for (const target of targets) {
-    const values = Object.fromEntries(data.series.map((s) => [s.id, s.daily.find((p) => p.d === target)?.value ?? null]));
-    await client.query(`INSERT INTO research_actuals(version,target,settled_at,values)
-      VALUES($1,$2,clock_timestamp(),$3) ON CONFLICT DO NOTHING`, [RESEARCH_VERSION, target, JSON.stringify(values)]);
+  let settledCount = 0;
+  for (const version of [LEGACY_RESEARCH_VERSION, RESEARCH_VERSION]) {
+    const versionBatches = version === RESEARCH_VERSION ? batches :
+      (await client.query<{ origin: string; issues: Issue[] }>(
+        'SELECT origin,issues FROM research_forecast_batches WHERE version=$1 ORDER BY origin', [version])).rows;
+    const settled = new Set((await client.query<{ target: string }>(
+      'SELECT target FROM research_actuals WHERE version=$1', [version])).rows.map((r) => r.target));
+    const targets = [...new Set(versionBatches.flatMap((b) => b.issues.flatMap((i) =>
+      i.predictions.filter((p) => p.h === 1 || p.h === 7).map((p) => p.d))))]
+      .filter((d) => d <= shiftDay(origin, -2) && d < data.before && !settled.has(d));
+    if (!targets.length) continue;
+    // v1의 남은 예측도 원래 집계로 끝까지 평가하되 새 예측은 v2에만 발행한다.
+    const actualData = version === RESEARCH_VERSION ? data :
+      await loadResearch(client, quality.checkedAt, quality.through, version);
+    for (const target of targets) {
+      const values = Object.fromEntries(actualData.series.map((s) => [s.id, s.daily.find((p) => p.d === target)?.value ?? null]));
+      await client.query(`INSERT INTO research_actuals(version,target,settled_at,values)
+        VALUES($1,$2,clock_timestamp(),$3) ON CONFLICT DO NOTHING`, [version, target, JSON.stringify(values)]);
+      settledCount++;
+    }
   }
   await client.query('COMMIT');
-  console.log(`사전 예측 기록: ${origin} 신규 ${issued}일 · 실측 확정 ${targets.length}일`);
+  console.log(`사전 예측 기록: ${origin} 신규 ${issued}일 · 실측 확정 ${settledCount}일`);
 } catch (error) {
   await client.query('ROLLBACK');
   console.error('사전 예측 기록 실패:', (error as { code?: string }).code ?? (error as Error).name);

@@ -21,6 +21,7 @@ on:
       - 'src/candle-check.ts'
       - 'src/db.ts'
       - 'scripts/legendary-floor.ts'
+      - 'sql/legendary-scans.sql'
       - 'scripts/scan-turnover.ts'
       - 'data/market-items.json'
       - 'data/legendary-cards.json'

@@ -926,7 +926,7 @@ async function renderLegendary() {
     const researchResponse = await fetch('data/research.json', { cache: 'no-cache' });
     if (!researchResponse.ok) throw new Error('예측 응답 실패');
     const research = await researchResponse.json();
-    const { renderForecast } = await import('./research-ui.js?v=20260916');
+    const { renderForecast } = await import('./research-ui.js?v=20260920-data');
     if (location.hash.slice(1) !== 'legendary-card' || legendaryChart !== chart) return;
     const drawForecast = () => {
       legendaryForecastCleanup?.();

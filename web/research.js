@@ -1,4 +1,4 @@
-import { esc, fmt, timeText, plot, renderForecast } from './research-ui.js?v=20260916';
+import { esc, fmt, timeText, plot, renderForecast } from './research-ui.js?v=20260920-data';
 
 let data, disposers = [];
 const view = document.getElementById('view');

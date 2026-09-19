@@ -60,6 +60,7 @@ export function renderForecast(box, series, meta) {
     <div class="table-scroll"><table><thead><tr><th>비교 방식</th><th>발행일 +1일<br>${esc(predictions.find((p) => p.h === 1)?.d ?? '대기')}</th><th>발행일 +7일<br>${esc(predictions.find((p) => p.h === 7)?.d ?? '대기')}</th></tr></thead><tbody>
       ${Object.entries(MODELS).map(([key, label]) => `<tr><th>${label}</th>${[1, 7].map((h) => `<td>${fmt(predictions.find((p) => p.model === key && p.h === h)?.value, series.unit === '골드' ? 0 : 2)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
     <h4>발행 이후 실제 가격과 비교</h4>
+    ${meta.methodNote ? `<p class="hint">${esc(meta.methodNote)}</p>` : ''}
     <div class="table-scroll"><table><thead><tr><th>방식 · 거리</th><th>평가 수</th><th>MAPE</th><th>같은 사례의 최근 가격 유지</th></tr></thead><tbody>
       ${series.scores.map((s) => `<tr><th>${MODELS[s.model]} · ${s.h}일</th><td>${s.n}</td><td>${s.mape === null ? '평가 대기' : fmt(s.mape, 2) + '%'}</td><td>${s.naiveMape === null ? '—' : fmt(s.naiveMape, 2) + '%'}</td></tr>`).join('')}
     </tbody></table></div>

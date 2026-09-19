@@ -371,14 +371,14 @@ const cardWeekdayDays = (await query<CardWeekdayDay>(`
       s.item_id, CASE WHEN s.upgrade = 0 THEN 'ask0' ELSE 'askMax' END AS basis,
       s.captured_at, s.min_unit_price
     FROM listing_snapshots s JOIN items i USING (item_id)
-    WHERE i.tracked AND i.category = '카드' AND s.min_unit_price > 0
+    WHERE i.tracked AND i.category = '카드'
       AND (s.upgrade = 0 OR (s.upgrade > 0 AND s.upgrade = s.upgrade_max))
       AND s.captured_at <= $1::timestamptz
     ORDER BY s.item_id, s.upgrade, date_trunc('hour', s.captured_at), s.captured_at DESC, s.id DESC
   )
   SELECT item_id, basis, to_char(captured_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD') AS d,
     AVG(min_unit_price)::float8 AS price, COUNT(*)::int AS hours
-  FROM hourly GROUP BY 1,2,3 ORDER BY 1,2,3`, [quality.checkedAt])).rows;
+  FROM hourly WHERE min_unit_price > 0 GROUP BY 1,2,3 ORDER BY 1,2,3`, [quality.checkedAt])).rows;
 const cardWeekdaySummary = cardWeekday(cardWeekdayDays,
   items.filter((item) => item.category === '카드').map((item) => item.item_id), quality.checkedAt);
 

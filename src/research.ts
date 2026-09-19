@@ -1,5 +1,6 @@
 // 지수 구성과 예측 시점은 고정한다. 뒤늦게 들어온 관측으로 과거 발행값을 다시 쓰지 않는다.
-export const RESEARCH_VERSION = '2026-09-16-v1';
+export const LEGACY_RESEARCH_VERSION = '2026-09-16-v1';
+export const RESEARCH_VERSION = '2026-09-20-v2';
 export const DAY = 86400000;
 export const shiftDay = (d: string, n: number) => new Date(Date.parse(d + 'T00:00:00Z') + n * DAY).toISOString().slice(0, 10);
 export const kstDay = (t: string) => new Date(Date.parse(t) + 9 * 3600000).toISOString().slice(0, 10);

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { query, pool } from '../src/db.ts';
 
 await query(readFileSync('sql/schema.postgres.sql', 'utf8'));
+await query(readFileSync('sql/legendary-scans.sql', 'utf8'));
 
 // poll_interval_sec는 실측한 "100건이 덮는 시간"에서 역산했다 (2026-09-07 기준).
 // 100건 상한에 걸리면 그 사이 거래를 놓치므로, 거래가 빠른 아이템일수록 주기가 짧다.
