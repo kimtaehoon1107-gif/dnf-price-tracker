@@ -11,7 +11,7 @@ const item = (vr: number, significant = false) => ({
   z: vr < 1 ? -3 : 3, p: 0.003, adjustedP: significant ? 0.03 : 0.1,
 });
 
-async function render(rows: ReturnType<typeof item>[], forecasts: unknown[] = [], extra = {}) {
+async function render(rows: ReturnType<typeof item>[], forecasts: unknown[] = [], extra = {}, now = Date.now()) {
   const nodes = new Map([...html.matchAll(/id="([^"]+)"/g)]
     .map((m) => [m[1], { textContent: '', innerHTML: '' }]));
   const data = {
@@ -38,6 +38,7 @@ async function render(rows: ReturnType<typeof item>[], forecasts: unknown[] = []
     } },
     getComputedStyle: () => ({ getPropertyValue: () => '#123456' }),
     setInterval: () => 0,
+    Date: class extends Date { static now() { return now; } },
     console: { error: (error: unknown) => { throw error; } },
   });
   return (id: string) => nodes.get(id)!.textContent + nodes.get(id)!.innerHTML;
@@ -78,20 +79,49 @@ const pipeline = await render([], [], {
   quality: { checkedAt: '2026-09-09T00:00:00Z', refreshedAt: '2026-09-08T23:02:00Z',
     from: '2026-08-09T14:00:00Z', through: '2026-09-08T23:00:00Z', bars: 123, mismatches: 0 },
 });
-assert.match(pipeline('pipeline-status'), /원본 대조 통과/);
-assert.match(pipeline('pipeline-status'), /개별 지연 1종/);
+assert.match(pipeline('pipeline-detail'), /원본 대조 통과/);
+assert.match(pipeline('pipeline-detail'), /개별 지연 1종/);
 assert.match(pipeline('built'), /페이지 생성/);
 assert.doesNotMatch(pipeline('qty-limit'), /최근 7일|123개/);
 assert.match(pipeline('qty-limit'), /합계는 표시하지 않습니다/);
-assert.match(empty('pipeline-status'), /수집 상태 확인 필요/);
-assert.match(empty('pipeline-status'), /오래된 분석 또는 집계 기록 없음/);
+assert.match(empty('pipeline-status'), /수집 기록 확인 불가/);
+assert.match(empty('pipeline-status'), /오래된 분석 또는 기준 기록 없음/);
 const old = await render([], [], { quality: { refreshedAt: new Date(Date.now()-91*60000).toISOString(),
   maxAgeMinutes: 90, mismatches: 0, bars: 5 } });
 assert.match(old('pipeline-status'), /오래된 분석/);
-const fresh = await render([], [], { quality: { refreshedAt: new Date().toISOString(),
+const fresh = await render([], [], { priceAsOf: new Date().toISOString(), quality: { refreshedAt: new Date().toISOString(),
   maxAgeMinutes: 90, mismatches: 0, bars: 5, pendingTrades: 7, pendingBars: 1 } });
 assert.doesNotMatch(fresh('pipeline-status'), /오래된 분석/);
-assert.match(fresh('pipeline-status'), /과거 체결 7건·1봉은 다음 집계 대기/);
+assert.match(fresh('pipeline-detail'), /과거 체결 7건·1봉은 다음 집계 대기/);
+
+// 정적 페이지가 한 시간 동안 유지돼도 빌드 당시 정상 수집을 지연으로 바꾸지 않는다.
+const snapshot = Date.parse('2026-09-19T07:05:00Z');
+const iso = (minutes: number) => new Date(snapshot - minutes * 60000).toISOString();
+const statusData = {
+  builtAt: iso(-2), priceAsOf: iso(0),
+  collection: { last_success: iso(1), stale: [] },
+  quality: { refreshedAt: iso(3), maxAgeMinutes: 90, mismatches: 0, bars: 5 },
+};
+const hourLater = await render([], [], statusData, snapshot + 60 * 60000);
+assert.match(hourLater('pipeline-status'), /빌드 당시: 수집 지연 없음 · 집계 지연 없음/);
+assert.match(hourLater('pipeline-status'), /표시 데이터 60분 경과/);
+assert.doesNotMatch(hourLater('pipeline-status'), /오래된 분석|수집 상태 확인 필요/);
+const aged = await render([], [], statusData, snapshot + 91 * 60000);
+assert.match(aged('pipeline-status'), /빌드 당시: 수집 지연 없음/);
+assert.match(aged('pipeline-status'), /⚠ 오래된 분석/);
+const delayed = await render([], [], { ...statusData,
+  collection: { last_success: iso(21), stale: ['지연 종목'] },
+  quality: { ...statusData.quality, refreshedAt: iso(91), mismatches: 1 },
+}, snapshot);
+assert.match(delayed('pipeline-status'), /빌드 당시: 수집 지연 · 집계 지연 · 원본 대조 불일치/);
+const boundary = await render([], [], { ...statusData,
+  collection: { last_success: iso(20), stale: [] },
+}, snapshot);
+assert.match(boundary('pipeline-status'), /수집 지연 없음/);
+const invalid = await render([], [], { ...statusData,
+  collection: { last_success: 'invalid', stale: [] },
+}, snapshot);
+assert.match(invalid('pipeline-status'), /수집 기록 확인 불가/);
 const cards = await render([], [], { weekdayTrends: { groups: [
   { basis: 'ask0', candidates: 34, eligibleItems: 0, maxWeeks: 0, points: Array.from({length:7}, (_,i) => ({k:i+1,price:null})) },
   { basis: 'askMax', candidates: 34, eligibleItems: 2, maxWeeks: 4, points: Array.from({length:7}, (_,i) => ({k:i+1,price:i===3?95:100})) },

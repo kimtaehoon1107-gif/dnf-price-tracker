@@ -10,11 +10,14 @@ for (const id of ['data-asof', 'data-freshness']) {
   elements.set(id, element);
 }
 const context = vm.createContext({
-  console, Date, document: { getElementById: (id: string) => elements.get(id) },
-  fetch: () => new Promise(() => {}),
+  console, Date, document: { getElementById: (id: string) => id === 'view' ? view : elements.get(id), querySelectorAll: () => [] },
+  location: { hash: '#other-item' },
+  fetch: (url: string) => url.startsWith('data/series/')
+    ? Promise.resolve({ ok: true, json: async () => ({}) }) : new Promise(() => {}),
 });
+const view = { innerHTML: '' };
 const module = new vm.SourceTextModule(readFileSync('web/app.js', 'utf8') +
-  '\nexport {renderDataStatus}; export function fixture(data) { DATA = data; }', { context });
+  '\nexport {renderDataStatus, renderDetail}; export function fixture(data, mode = "zero") { DATA = data; cardMode = mode; }', { context });
 await module.link((name) => {
   const exports = name.includes('package.js') ? packageUI : metrics;
   return new vm.SyntheticModule(Object.keys(exports), function () {
@@ -52,4 +55,22 @@ module.namespace.renderDataStatus(now);
 assert.equal(notice.stale, false, '새 데이터로 경고 해제');
 assert.match(elements.get('data-asof')!.textContent, /09\. 14\. 15:00 기준/, '헤더 칩은 기준 시각만 짧게 표시');
 assert.match(notice.textContent, /가격 계산 기준: 2026.*09.*14.*15:00.*KST/, '전체 기준 시각은 설명에 유지');
+
+// 0업·맥스업 전환 시 빈 호가를 0골드나 일반적인 데이터 누락으로 보이지 않게 한다.
+const card = { item_id: 'card', category: '카드', price_basis: 'ask0', span_days: 12,
+  last_price: 100, listings: 1, chg: null, max_upgrade: 2, max_span_days: 11,
+  max_last_price: null, max_listings: 0, max_vwap24: 900, max_chg: null };
+module.namespace.fixture({}, 'max');
+await module.namespace.renderDetail(card);
+assert.match(view.innerHTML, /현재 관측 매물 없음/);
+assert.match(view.innerHTML, /<div class="bigpx">-<\/div>/);
+assert.match(view.innerHTML, /24h 평균 2업 최저호가<\/div><div class="v">900/, '현재 매물이 없어도 과거 평균은 보존');
+module.namespace.fixture({});
+await module.namespace.renderDetail({ ...card, last_price: 0, listings: 0 });
+assert.match(view.innerHTML, /현재 관측 매물 없음/);
+await module.namespace.renderDetail({ ...card, last_price: null, listings: null });
+assert.match(view.innerHTML, /현재 호가 관측 없음/, '관측 기록 없음과 매물 0개를 구분');
+await module.namespace.renderDetail(card);
+assert.match(view.innerHTML, /<div class="bigpx">100<small>골드<\/small><\/div>/);
+assert.doesNotMatch(view.innerHTML, /현재 관측 매물 없음/);
 console.log('메인 기준 시각·3시간 경계·누락 기록 경고 테스트 통과');

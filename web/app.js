@@ -981,11 +981,12 @@ async function renderDetail(it) {
       <button class="${showingMax ? 'on' : ''}" data-card-mode="max" type="button">맥스업${baseItem.max_upgrade ? ` (${baseItem.max_upgrade}업)` : ''}</button>
     </div>` : ''}
     <div class="price-meta price-basis">${isZeroCard ? `${cardTier} 최저호가` : '최근 1시간 수량 가중평균 (VWAP)'}</div>
-    <div class="bigpx">${fmt(representativePrice(it))}<small>골드</small></div>
+    <div class="bigpx">${fmt(representativePrice(it))}${representativePrice(it) == null ? '' : '<small>골드</small>'}</div>
+    ${isZeroCard && representativePrice(it) == null ? `<div class="price-meta">${it.listings === 0 ? '현재 관측 매물 없음' : '현재 호가 관측 없음'}</div>` : ''}
     ${isZeroCard ? '' : `<div class="price-meta">최근 체결 ${it.last_trade_at ? `${fmt(it.last_price)}골드 · ${priceTime(it.last_trade_at)} KST` : '기록 없음'}</div>
       <div class="price-meta">${it.vwap1h == null ? '최근 1시간 관측 체결 없음' : `최근 1시간 ${fmt(it.trades1h)}건 · ${fmt(it.api_qty1h)}개로 계산`} · ${priceTime(DATA.priceAsOf)} KST 기준</div>`}
     <div class="bigchg ${cls(it.chg)}">${it.chg === null
-      ? '데이터 없음'
+      ? (isZeroCard ? '24h 평균 변화 비교 불가' : '데이터 없음')
       : `${pct(it.chg)} <span style="color:var(--ink-3);font-weight:500">24h 평균 변화</span>`}</div>
 
     <div class="panel"><div class="kv">${isZeroCard ? `

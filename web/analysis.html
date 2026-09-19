@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="style.css?v=20260919-redesign">
+<link rel="stylesheet" href="style.css?v=20260919-review">
 </head>
 <body>
 <header class="top">
@@ -22,6 +22,17 @@
       <a href="guide.html">지표</a>
       <a href="https://github.com/kimtaehoon1107-gif/dnf-price-tracker" target="_blank" rel="noopener">GitHub</a>
     </nav>
+    <details class="mobile-menu">
+      <summary>메뉴</summary>
+      <nav aria-label="모바일 주 메뉴">
+        <a href="index.html">시세</a>
+        <a href="ranking.html">TOP100</a>
+        <a href="analysis.html" class="on">분석</a>
+        <a href="research.html">실험</a>
+        <a href="guide.html">지표</a>
+        <a href="https://github.com/kimtaehoon1107-gif/dnf-price-tracker" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </details>
     <span class="spacer"></span>
     <span class="built" id="built"></span>
   </div>
@@ -42,6 +53,10 @@
 
 <div class="note quiet" id="scope-line">데이터 범위를 불러오는 중입니다.</div>
 <div class="note quiet" id="pipeline-status" aria-live="polite">수집·집계 상태를 불러오는 중입니다.</div>
+<details class="detail-table pipeline-details">
+  <summary><span>검사 상세 보기</span><i aria-hidden="true">⌄</i></summary>
+  <p id="pipeline-detail">검사 기록을 불러오는 중입니다.</p>
+</details>
 <div class="note" id="analysis-status" aria-live="polite">검증 상태를 불러오는 중입니다.</div>
 
 
@@ -289,18 +304,30 @@ fetch('data/summary.json').then(r => {
   const q = D.quality;
   const last = D.collection?.last_success;
   const stale = D.collection?.stale ?? [];
+  const snapshot = Date.parse(D.priceAsOf ?? D.builtAt);
+  const collectionAge = (snapshot - Date.parse(last)) / 60000;
+  const collectionState = !Number.isFinite(collectionAge) ? '수집 기록 확인 불가'
+    : collectionAge > 20 ? '수집 지연' : stale.length ? `개별 수집 지연 ${stale.length}종` : '수집 지연 없음';
+  const aggregateAgeAtBuild = (snapshot - Date.parse(q?.refreshedAt)) / 60000;
+  const aggregateState = !Number.isFinite(aggregateAgeAtBuild) ? '집계 기록 확인 불가'
+    : aggregateAgeAtBuild > (q?.maxAgeMinutes ?? 90) ? '집계 지연' : '집계 지연 없음';
+  document.getElementById('pipeline-detail').textContent =
+    `데이터 기준: ${time(D.priceAsOf ?? D.builtAt)}. 마지막 성공 수집: ${time(last)} (수집 지연 기준 20분). ` +
+    `빌드 당시 개별 지연 ${stale.length}종${stale.length ? ' (' + stale.join(', ') + ')' : ''}. ` +
+    `마지막 전체 집계: ${time(q?.refreshedAt)} (집계 지연 기준 ${q?.maxAgeMinutes ?? 90}분). ` +
+    (q?.pendingTrades ? `집계 이후 들어온 과거 체결 ${fmt(q.pendingTrades)}건·${fmt(q.pendingBars)}봉은 다음 집계 대기 중입니다. ` : '') +
+    (q ? `원본 대조 ${q.mismatches === 0 ? '통과' : '불일치'}: ${fmt(q.bars)}봉, ${time(q.from)}부터 ${time(q.through)} 직전까지. ` +
+      `검사 시각: ${time(q.checkedAt)}. 마지막 집계에 포함된 원본을 대조하며, 원본이 일부 삭제된 이전 구간은 대상이 아닙니다.` : '원본 대조 기록 없음.');
   function renderPipelineStatus() {
-    const delayed = !last || Date.now() - Date.parse(last) > 20 * 60000;
+    const dataAge = (Date.now() - snapshot) / 60000;
     const aggregateAge = q?.refreshedAt ? (Date.now() - Date.parse(q.refreshedAt)) / 60000 : NaN;
     const aggregateStale = !Number.isFinite(aggregateAge) || aggregateAge > (q?.maxAgeMinutes ?? 90);
+    const elapsed = !Number.isFinite(dataAge) ? '표시 데이터 기준 시각 확인 불가'
+      : `표시 데이터 ${Math.max(0, Math.floor(dataAge))}분 경과`;
     document.getElementById('pipeline-status').textContent =
-      (aggregateStale ? '오래된 분석 또는 집계 기록 없음 — 새로고침해 최신 상태를 확인하세요. ' : '') +
-      `마지막 성공 수집: ${time(last)} · ${delayed ? '수집 상태 확인 필요' : '최근 성공 기록 있음'}` +
-      ` · 페이지 생성 당시 개별 지연 ${stale.length}종${stale.length ? ' (' + stale.join(', ') + ')' : ''}. ` +
-      `마지막 전체 집계: ${time(q?.refreshedAt)} (지연 기준 ${q?.maxAgeMinutes ?? 90}분). ` +
-      (q?.pendingTrades ? `집계 이후 들어온 과거 체결 ${fmt(q.pendingTrades)}건·${fmt(q.pendingBars)}봉은 다음 집계 대기 중입니다. ` : '') +
-      (q ? `원본 대조 ${q.mismatches === 0 ? '통과' : '불일치'}: ${fmt(q.bars)}봉, ${time(q.from)}부터 ${time(q.through)} 직전까지. ` +
-        `검사 시각: ${time(q.checkedAt)}. 마지막 집계에 포함된 원본을 대조하며, 원본이 일부 삭제된 이전 구간은 대상이 아닙니다.` : '원본 대조 기록 없음.');
+      `빌드 당시: ${collectionState} · ${aggregateState}${q && q.mismatches !== 0 ? ' · 원본 대조 불일치' : ''}. ${elapsed}.` +
+      (aggregateStale || !Number.isFinite(dataAge) || dataAge >= 180
+        ? ' ⚠ 오래된 분석 또는 기준 기록 없음 — 새로고침해 최신 데이터를 확인하세요.' : '');
   }
   renderPipelineStatus();
   // 페이지를 오래 열어 두어도 과거 검사 통과를 현재의 신선함으로 오해하지 않게 한다.
@@ -383,7 +410,7 @@ fetch('data/summary.json').then(r => {
   } else {
     fcEl.innerHTML =
       `<span class="num">${one.wins} / ${one.items}<small>종에서 naive보다 작은 오차 · 1일 뒤</small></span>
-       <div class="cap">${fmt(one.count)}건 평가 · 현재 예측 제공 종목의 과거 롤링 평가</div>
+       <div class="cap">${fmt(one.count)}건 평가 · 평가 대상 종목의 과거 롤링 평가</div>
        <div class="say">${one.mape < one.naive ? '현재 평가에서 모델 오차가 더 작았습니다.'
          : one.mape > one.naive ? '현재 평가에서 naive 오차가 더 작았습니다.' : '현재 평가에서 두 오차가 같았습니다.'}</div>
        <p>모델 MAPE <b>${fmt(one.mape, 2)}%</b> · naive <b>${fmt(one.naive, 2)}%</b>.
