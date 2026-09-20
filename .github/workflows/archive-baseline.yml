@@ -1,0 +1,100 @@
+name: R2 최초 보관·복원 검증
+
+# 최초 보관본 검증용. 전체 보관본이 매일 중복되지 않도록 예약 실행은 하지 않는다.
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/r2-first-archive]
+    paths:
+      - scripts/archive-baseline.ts
+      - .github/workflows/archive-baseline.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archive-baseline
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: archive_verify
+          POSTGRES_PASSWORD: temporary-verification-only
+          POSTGRES_DB: archive_verify
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U archive_verify -d archive_verify"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --omit=dev
+
+      - name: 동일 시점의 시세 원본·분석 기록 보관본 생성
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node --no-warnings scripts/archive-baseline.ts create archive-source
+
+      - name: R2 업로드 후 다시 다운로드
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          AWS_REQUEST_CHECKSUM_CALCULATION: WHEN_REQUIRED
+          AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          prefix="baselines/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir archive-downloaded
+          for file in market.dump manifest.json; do
+            aws s3 cp "archive-source/$file" "s3://${R2_BUCKET}/${prefix}/$file" --endpoint-url "$endpoint" --only-show-errors
+            aws s3 cp "s3://${R2_BUCKET}/${prefix}/$file" "archive-downloaded/$file" --endpoint-url "$endpoint" --only-show-errors
+          done
+          cmp archive-source/manifest.json archive-downloaded/manifest.json
+          echo "R2_ARCHIVE_PREFIX=$prefix" >> "$GITHUB_ENV"
+
+      - name: 임시 DB에 복원하고 전체 행 대조·훼손 감지 검사
+        env:
+          ARCHIVE_VERIFY_URL: postgresql://archive_verify:temporary-verification-only@127.0.0.1:55432/archive_verify
+        run: node --no-warnings scripts/archive-baseline.ts verify archive-downloaded
+
+      - name: 검증 성공 기록을 R2에 보관
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          AWS_REQUEST_CHECKSUM_CALCULATION: WHEN_REQUIRED
+          AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 cp archive-downloaded/verified.json "s3://${R2_BUCKET}/${R2_ARCHIVE_PREFIX}/verified.json" --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" --only-show-errors
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "R2 경로: ${R2_ARCHIVE_PREFIX}/" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 검증 결과 보관
+        uses: actions/upload-artifact@v4
+        with:
+          name: archive-verification
+          path: |
+            archive-downloaded/manifest.json
+            archive-downloaded/verified.json
+          retention-days: 30
