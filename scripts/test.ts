@@ -14,3 +14,4 @@ import './test-research.ts';
 import './test-forecast-recording.ts';
 import './test-weekday-trend.ts';
 import './test-package.ts';
+import './test-archive.ts';

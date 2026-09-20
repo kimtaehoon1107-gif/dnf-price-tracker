@@ -52,9 +52,89 @@ node --env-file=.env --no-warnings scripts/archive-baseline.ts create archive-so
 node --no-warnings scripts/archive-baseline.ts verify archive-downloaded
 ```
 
-## 다음 단계
+## 정기 보관과 연구용 불러오기
 
-이번 보관본만으로 DB 용량은 줄어들지 않는다. 후속 작업에서 날짜별 증분 보관, 실패 알림,
-호가 장기 집계와 기존 화면 대조, 보관 검증 여부에 연동한 원본 보존 정책을 구현해야 한다.
-현재 35일 체결 원본 정리 등 기존 예약 작업은 그대로이므로 이번 작업만으로 앞으로 쌓이는
-모든 원본의 장기 보존이 보장되지는 않는다.
+`.github/workflows/archive-research.yml`은 main 반영 후 매일 11:37 KST와 수동 실행으로
+시세 13개 테이블 및 `collection_quality`를 보관한다. GitHub 예약 실행은 지연/누락될 수 있다.
+실패는 Actions의 기본 실패 알림 대상으로 남는다. 별도 감시 서비스는 추가하지 않는다.
+기존 DB 정리 주기와 보관 기간은 변경하지 않는다.
+
+`collection_quality`는 `collection_runs`의 아이템·출처·시각·성공/실패/진행 중 상태와
+API 응답/신규 체결/포화/매물 건수를 보존한다. 오류 메시지 원문은 제외한다.
+성공 실행의 `listing_rows=0`과 실패/미관측을 구분할 수 있지만, 실행 기록이 없는 시간을
+정상으로 간주하면 안 된다. 과거 폴링 설정 변화의 정확한 이력과 이미 지워진 로그는 복원하지 못한다.
+레전더리 카드별 정상 무매물/실패는 `legendary_card_scans.observations`를 사용한다.
+
+### 저장 규칙
+
+- 운영 DB는 반복 읽기·읽기 전용 트랜잭션으로 읽는다. 수집기에는 쓰지 않는다.
+- 테이블/UTC 날짜별 gzip JSONL로 묶는다. 메타데이터 테이블은 `all`로 묶는다.
+- 모든 보존 행을 매번 다시 대조한다. 새 ID만 읽는 방식이 아니므로 늦은 커밋/백필/과거 수정도 반영한다.
+- 같은 기본키는 새 관측으로 갱신하고 운영 DB에서 사라진 행은 외부 보관본에 유지한다.
+  변경 없는 파일은 재업로드하지 않는다. 변경된 날짜의 파일은 새 해시로 저장하므로 이전 버전도 남는다.
+- 행은 PostgreSQL JSON 원문 문자열과 기본키 문자열로 보관하여 bigint/numeric/마이크로초를 보존한다.
+- 새 객체를 내려받아 SHA-256·크기·건수를 검사하고, 전체 보관본을 임시 PostgreSQL에 실제 복원해
+  모든 행을 다시 비교한다. 같은 시점의 기존 `loadResearch()` 입력도 재현한다.
+- 검증 성공 후에만 `latest.json`을 갱신한다. 발행은 공통 Actions concurrency 그룹에서 직렬화한다.
+  발행 CLI를 여러 장소에서 동시에 실행하지 않는다. 실패한 미참조 객체는 자동 삭제하지 않는다.
+- 마지막 보관과 6일 넘게 벌어지면 `continuity=gap`으로 표시하고 현재 자료 보관 후 실행을 실패 처리한다.
+  7일 후 지워지는 품질 기록을 놓쳤을 수 있으므로 그 구간을 완전한 이력이라고 부르면 안 된다.
+  최초 보관 이전과 이미 삭제된 구간은 보장하지 않는다. 이전 `.dump` 보관본은 별도 형식으로 계속 남는다.
+- 스키마가 바뀌면 자동으로 자료형을 추측하지 않고 발행을 중단한다. 형식 이전이 먼저 필요하다.
+
+R2의 비공개 `research-v1/` 아래에 다음이 쌓인다.
+
+```text
+objects/<sha256>.jsonl.gz     변경된 날짜별 시세·품질 파일
+manifests/<sha256>.json      모든 날짜의 파일 목록·스키마·코드 버전·관측 기준
+verified/<sha256>.json       실제 복원과 연구 재현 성공 기록
+latest.json                 마지막 검증 성공 manifest
+```
+
+초기 부트스트랩은 현재 DB의 모든 보존 행을 담는다. 원본의 보관 시작일은 테이블마다 다르다.
+증분 업로드이지만 검증은 전체 보관본을 대상으로 하므로 장기적으로 다운로드·검증 시간이 증가한다.
+시간 제한에 가까워지면 변경 파일 검증과 주기적인 전체 복원을 분리하는 후속 변경이 필요하다.
+
+### 분석 실행
+
+Node 24, npm 의존성, R2 접근 환경 변수와 **빈 로컬 PostgreSQL 17**이 필요하다.
+아래 예시는 운영 DB에 복원할 수 없도록 고정된 분석 전용 주소를 사용한다.
+매번 새 작업 폴더와 빈 DB를 사용한다. `archive-work`로 시작하는 출력 폴더는 gitignore된다.
+
+```sh
+docker run --rm -d --name archive-research -p 127.0.0.1:55432:5432 \
+  -e POSTGRES_USER=archive_verify -e POSTGRES_PASSWORD=temporary-verification-only \
+  -e POSTGRES_DB=archive_verify postgres:17
+export ARCHIVE_VERIFY_URL=postgresql://archive_verify:temporary-verification-only@127.0.0.1:55432/archive_verify
+
+# R2 마지막 검증본에서 한국 시각 9/1 이상, 9/20 미만의 패키지 기록을 불러온다.
+node --env-file=.env scripts/archive-research.ts load archive-work-package \
+  --from 2026-09-01T00:00:00+09:00 --to 2026-09-20T00:00:00+09:00 \
+  --items e974d2eac46f0c8b23b83d4da389fa57
+
+# 별도의 빈 DB와 새 폴더에서 실행. 최근 Supabase까지 합치려면 --live를 붙인다.
+node --env-file=.env scripts/archive-research.ts load archive-work-latest --live
+```
+
+`--items`는 쉼표로 여러 ID를 받는다. 패키지 구성품 비교에는 패키지와 구성품 ID를 모두 넣는다.
+전체 시장 지표, 레전더리 스캔, 이벤트, 발행된 모델 결과는 의미 보존을 위해 함께 남긴다.
+기간은 시작 포함/끝 제외다. 매물은 첫 관측부터 종료/만료까지 요청 기간과 겹치는 것을 포함한다.
+일별 연구 결과를 사용할 때는 KST 자정으로 기간을 지정한다. 임의 시각으로 자르면 첫날은 부분 집계다.
+
+분석 DB에는 SQL로 직접 조회할 수 있는 원본 테이블이 생긴다. 출력은 다음과 같다.
+
+- `research.json`: 기존 연구 로더가 계산한 일별 가격/품목군/레전더리 입력.
+- `dataset.json`: 원본 manifest, 최근 DB 기준 시각, 기간/아이템, 행 수, 결과 해시.
+- `manifest.json`: 실제 사용한 자료 목록. `--live`에서 새로 병합한 파일은 작업 폴더에도 보존된다.
+
+재현하려면 해당 manifest의 코드 revision으로 체크아웃하고 `--manifest manifests/<hash>.json`을
+지정한다. 고정 manifest와 `--live`는 동시에 사용하지 않는다. `--live` 출력 폴더는 원본 파일까지
+함께 보관해야 한다. 일별 보관은 수정 이력을 일별로만 고정하므로, 이 데이터는 과거 사실의
+최신 재구성이다. **각 예측 발행 당시 알고 있던 정보의 완전한 재현은 아니다.** 미래 정보 누출을
+막는 연구에서는 기존 발행 입력과 공지 당시 기록을 별도로 사용한다.
+
+## 다음 단계: DB 정리
+
+이번 변경은 DB 용량을 줄이지 않는다. 보관 검증과 연동한 보존 정책, 호가 장기 집계,
+기존 화면 대조를 완료한 후 정리 범위를 정해야 한다. 연구에 쓰는 테이블을 운영 DB에서 정리하면
+연구 재현 대조도 공통 보존 구간으로 조정해야 한다. 현재 검증 실패 상태에서 정리를 강행하지 않는다.

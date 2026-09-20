@@ -1,0 +1,84 @@
+name: R2 시세·연구 데이터 자동 보관
+
+on:
+  schedule:
+    # KST 11:37. 기존 13시대 로그 정리 전에 보관하며 지연 시 다음 실행이 다시 대조한다.
+    - cron: '37 2 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main, codex/r2-first-archive]
+    paths:
+      - src/archive.ts
+      - scripts/archive-research.ts
+      - scripts/test-archive.ts
+      - .github/workflows/archive-research.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archive-research-publisher
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: archive_verify
+          POSTGRES_PASSWORD: temporary-verification-only
+          POSTGRES_DB: archive_verify
+        ports: ['55432:5432']
+        options: >-
+          --health-cmd "pg_isready -U archive_verify -d archive_verify"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --omit=dev
+      - name: 보관 회귀 검사
+        run: node --no-warnings scripts/test-archive.ts
+      - name: 읽기 전용으로 시세·품질 기록과 기존 연구 입력 추출
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node --no-warnings scripts/archive-research.ts capture archive-work
+      - name: 변경 파일 보관·재다운로드·실제 DB 복원·연구 재현 후 발행
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          ARCHIVE_VERIFY_URL: postgresql://archive_verify:temporary-verification-only@127.0.0.1:55432/archive_verify
+        run: node --no-warnings scripts/archive-research.ts publish archive-work
+      - name: 분석용 기간·아이템 선택과 최근 DB 결합 검증
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          ARCHIVE_VERIFY_URL: postgresql://archive_verify:temporary-verification-only@127.0.0.1:55432/archive_verify
+          PGPASSWORD: temporary-verification-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          # 이 작업에서 생성한 일회성 서비스 DB만 비우고 사용자용 로더를 그대로 실행한다.
+          psql -h 127.0.0.1 -p 55432 -U archive_verify -d archive_verify -v ON_ERROR_STOP=1 -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+          from=$(node -p "new Date(Date.parse(require('./archive-work/source.json').createdAt)-7*86400000).toISOString()")
+          node --no-warnings scripts/archive-research.ts load archive-work-analysis --live --from "$from" --items e974d2eac46f0c8b23b83d4da389fa57
+      - name: 검증 결과 보관
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-archive-report
+          path: |
+            archive-work/report.json
+            archive-work-analysis/dataset.json
+          if-no-files-found: ignore
+          retention-days: 30
