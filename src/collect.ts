@@ -149,13 +149,14 @@ async function collectLocked(client: PoolClient, itemId: string, soldLimit: numb
       L.upgradeMax.push(r.upgradeMax ?? null);
     }
 
-    // 사라진 매물: 완판이거나 만료. 단 응답이 400건으로 잘렸다면
-    // 잘려나간 고가 매물을 "사라졌다"고 오판하지 않도록 가격 상한 안쪽만 본다.
+    // 예정 만료 시각이 지나고 재관측되지 않은 매물은 종료 원인을 단정하지 않고 추적을 끝낸다.
+    // 만료 전 매물은 400건 응답 밖으로 밀렸을 수 있으므로 가격 상한 안쪽만 소진을 판정한다.
     const priceCeiling = capped ? Math.max(...auction.map((r) => r.unitPrice)) : Infinity;
     const toClose: number[] = [];
     for (const [no, p] of prevByNo) {
-      if (seen.has(no) || (capped && p.unit_price >= priceCeiling)) continue;
+      if (seen.has(no)) continue;
       const expired = Date.parse(observedAt) >= p.expire_date.getTime();
+      if (!expired && capped && p.unit_price >= priceCeiling) continue;
       if (p.cur_count > 0 && !expired) {
         pushDelta(no, p.unit_price, p.cur_count, p.cur_count, 0, 'vanished_before_expiry');
         qtyObserved += p.cur_count;
