@@ -185,7 +185,11 @@ export async function combine(previous: Manifest | null, current: Manifest, oldS
     }
     shards.set(id, merged);
   }
-  return { ...current, qualityAvailableFrom: previous?.qualityAvailableFrom ?? current.qualityAvailableFrom,
+  // 최근 DB를 합치는 연구 조회에도 이미 알려진 보관 공백을 그대로 전달한다.
+  const continuity = previous ? (previous.continuity === 'gap' ||
+    Date.parse(current.createdAt) - Date.parse(previous.createdAt) > 6 * 86400000 ? 'gap' : 'ok') : 'initial';
+  return { ...current, continuity: continuity as Manifest['continuity'],
+    qualityAvailableFrom: previous?.qualityAvailableFrom ?? current.qualityAvailableFrom,
     shards: [...shards.values()].sort((a, b) => `${a.table}/${a.day}`.localeCompare(`${b.table}/${b.day}`)) };
 }
 

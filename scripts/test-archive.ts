@@ -32,6 +32,10 @@ await store.put(`objects/${shard.hash}.jsonl.gz`, bytes);
 puts = 0;
 await combine(manifest, manifest, store, store, store);
 assert.equal(puts, 0, '변경 없는 파티션은 다시 올리지 않음');
+assert.equal((await combine({ ...manifest, continuity: 'gap' }, manifest, store, store, store)).continuity,
+  'gap', '최근 DB를 합쳐도 이미 알려진 품질 공백은 사라지지 않음');
+assert.equal((await combine(manifest, { ...manifest, createdAt: '2026-09-27T00:00:00Z' }, store, store, store)).continuity,
+  'gap', '7일 정리보다 긴 보관 공백 표시');
 const nextBytes = encode([changed, late]);
 const nextShard = { ...shard, hash: hash(nextBytes), bytes: nextBytes.length };
 await store.put(`objects/${nextShard.hash}.jsonl.gz`, nextBytes);

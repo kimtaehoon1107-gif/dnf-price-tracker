@@ -60,9 +60,6 @@ if (mode === 'capture') {
   if (previous) assert(Date.parse(current.createdAt) > Date.parse(previous.manifest.createdAt), '과거 실행으로 최신 보관본을 덮을 수 없습니다');
   const manifest = await combine(previous?.manifest ?? null, current, remote, local, remote);
   manifest.parent = previous?.id ?? null;
-  // 7일 정리와 맞닿기 전에 공백을 표시한다. 이미 사라진 기록을 복구했다고 주장하지 않는다.
-  manifest.continuity = previous ? (previous.manifest.continuity === 'gap' ||
-    Date.parse(current.createdAt) - Date.parse(previous.manifest.createdAt) > 6 * 86400000 ? 'gap' : 'ok') : 'initial';
   const client = await target();
   let rows: number;
   try {
@@ -118,9 +115,11 @@ if (mode === 'capture') {
     await save('research.json', research);
     // 이 파일과 manifest를 보관하면 입력 기간/아이템/코드/관측 기준을 다시 확인할 수 있다.
     await save('dataset.json', { archive: archived.id, liveAsOf: values.live ? manifest.createdAt : null,
+      continuity: manifest.continuity, qualityAvailableFrom: manifest.qualityAvailableFrom,
       selection, rows, revision: process.env.GITHUB_SHA ?? null, researchSha256: hash(json(research)),
       meaning: 'latest-observed historical reconstruction; not point-in-time knowledge' });
     await save('manifest.json', manifest);
     console.log(`분석용 DB에 ${rows}행 준비. ${root}/research.json, dataset.json`);
+    if (manifest.continuity === 'gap') console.warn('보관 공백이 있는 자료입니다. manifest와 품질 기록을 확인하세요.');
   } finally { await client.end(); }
 }
