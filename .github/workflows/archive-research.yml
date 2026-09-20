@@ -47,6 +47,10 @@ jobs:
       - name: 읽기 전용으로 시세·품질 기록과 기존 연구 입력 추출
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: node --no-warnings scripts/archive-research.ts capture archive-work
       - name: 변경 파일 보관·재다운로드·실제 DB 복원·연구 재현 후 발행
         env:
@@ -57,6 +61,7 @@ jobs:
           ARCHIVE_VERIFY_URL: postgresql://archive_verify:temporary-verification-only@127.0.0.1:55432/archive_verify
         run: node --no-warnings scripts/archive-research.ts publish archive-work
       - name: 분석용 기간·아이템 선택과 최근 DB 결합 검증
+        if: github.event_name != 'schedule'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}

@@ -32,7 +32,7 @@ const TYPES: Record<number, string> = { 16: 'boolean', 20: 'bigint', 23: 'intege
   700: 'real', 701: 'double precision', 1009: 'text[]', 1082: 'date', 1184: 'timestamp with time zone', 1700: 'numeric', 3802: 'jsonb' };
 export type Row = { key: string; row: string };
 export type Column = { name: string; type: string };
-export type Shard = { table: string; day: string; hash: string; rows: number; bytes: number };
+export type Shard = { table: string; day: string; hash: string; rows: number; bytes: number; sourceHash?: string };
 export type Manifest = {
   format: 1; createdAt: string; revision: string | null; parent: string | null;
   qualityAvailableFrom: string | null; continuity: 'initial' | 'ok' | 'gap';
@@ -117,7 +117,7 @@ export async function readManifest(store: Store, id?: string) {
 
 // 호출자가 잡은 동일한 읽기 전용 스냅샷에서 전체 보존 행을 훑는다.
 // ID 상한/수집시각만으로 자르면 늦게 커밋된 행과 오래된 백필을 놓칠 수 있다.
-export async function capture(client: DB, store: Store): Promise<Manifest> {
+export async function capture(client: DB, store: Store, previous?: Manifest): Promise<Manifest> {
   await client.query("SET LOCAL TIME ZONE 'UTC'; SET LOCAL DateStyle='ISO,YMD'; SET LOCAL extra_float_digits=3");
   const at = (await client.query('SELECT now() AS at')).rows[0].at.toISOString();
   const manifest: Manifest = { format: 1, createdAt: at, revision: process.env.GITHUB_SHA ?? null,
@@ -128,13 +128,29 @@ export async function capture(client: DB, store: Store): Promise<Manifest> {
     manifest.columns[table] = fields.map(f => { assert(TYPES[f.dataTypeID], `지원하지 않는 자료형: ${table}.${f.name}`);
       return { name: f.name, type: TYPES[f.dataTypeID] }; });
     const day = def.time ? `to_char(${quote(def.time)} AT TIME ZONE 'UTC','YYYY-MM-DD')` : "'all'::text";
-    await client.query(`DECLARE archive_cursor NO SCROLL CURSOR FOR SELECT * FROM (SELECT ${day} AS day,
-      ${keySQL(table)} AS key, to_jsonb(t)::text AS row FROM (${query}) t) exported ORDER BY day,key COLLATE "C"`);
+    const exported = `SELECT ${day} AS day, ${keySQL(table)} AS key, to_jsonb(t)::text AS row FROM (${query}) t`;
+    // 비교를 DB 안에서 끝내야 매일 수백 MB의 원본을 전송하지 않는다.
+    // 이전 소스 해시와 비교하므로 운영에서 삭제된 행이 보관본에 남아 있어도 중복 전송하지 않는다.
+    const signatures = (await client.query(`SELECT day, COUNT(*)::int AS rows,
+      encode(sha256(convert_to(string_agg(row || chr(10), '' ORDER BY key COLLATE "C"),'UTF8')),'hex') AS hash
+      FROM (${exported}) e GROUP BY day ORDER BY day`)).rows;
+    const changedDays: string[] = [];
+    for (const sig of signatures) {
+      const old = previous?.shards.find(s => s.table === table && s.day === sig.day);
+      if (old?.sourceHash === sig.hash) manifest.shards.push(old);
+      else changedDays.push(sig.day);
+    }
+    if (!changedDays.length) { console.log(`${table}: 변경 없음`); continue; }
+    await client.query(`DECLARE archive_cursor NO SCROLL CURSOR FOR SELECT * FROM (${exported}) exported
+      WHERE day=ANY($1::text[]) ORDER BY day,key COLLATE "C"`, [changedDays]);
     let currentDay = '', rows: Row[] = [], count = 0;
     const flush = async () => {
       if (!rows.length) return;
+      assert.equal(hash(rows.map(r => r.row + '\n').join('')), signatures.find(s => s.day === currentDay).hash,
+        `DB 해시와 내려받은 원본 불일치: ${table}/${currentDay}`);
       const bytes = encode(rows);
-      const shard = { table, day: currentDay, hash: hash(bytes), rows: rows.length, bytes: bytes.length };
+      const shard = { table, day: currentDay, hash: hash(bytes), rows: rows.length, bytes: bytes.length,
+        sourceHash: signatures.find(s => s.day === currentDay).hash };
       await store.put(objectKey(shard), bytes); manifest.shards.push(shard); rows = [];
     };
     while (true) {
@@ -158,7 +174,7 @@ export async function combine(previous: Manifest | null, current: Manifest, oldS
   const shards = new Map((previous?.shards ?? []).map(s => [`${s.table}/${s.day}`, s]));
   for (const s of current.shards) {
     const id = `${s.table}/${s.day}`, old = shards.get(id);
-    if (old?.hash === s.hash) continue;
+    if (old?.hash === s.hash) { shards.set(id, s); continue; }
     const fresh = await readRows(newStore, s);
     const rows = old ? mergeRows(await readRows(oldStore, old), fresh) : fresh;
     const bytes = encode(rows), merged = { ...s, hash: hash(bytes), bytes: bytes.length, rows: rows.length };

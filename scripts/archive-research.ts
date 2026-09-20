@@ -23,12 +23,14 @@ const researchResult = (r: Awaited<ReturnType<typeof loadResearch>>) => ({
 });
 
 async function source() {
+  const previous = process.env.R2_ACCOUNT_ID ? await readManifest(r2Store()) : null;
   const { pool } = await import('../src/db.ts');
   const client = await pool.connect();
   try {
     await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
     await client.query("SET LOCAL statement_timeout='120s'");
-    const manifest = await capture(client, local);
+    const manifest = await capture(client, local, previous?.manifest);
+    manifest.parent = previous?.id ?? null;
     const research = researchResult(await loadResearch(client, manifest.createdAt, manifest.createdAt));
     await client.query('ROLLBACK');
     await save('source.json', manifest); await save('expected-research.json', research);
@@ -54,6 +56,7 @@ if (mode === 'capture') {
 } else if (mode === 'publish') {
   const current: Manifest = JSON.parse(await readFile(resolve(root, 'source.json'), 'utf8'));
   const remote = r2Store(), previous = await readManifest(remote);
+  assert.equal(current.parent, previous?.id ?? null, '추출 후 최신 보관본이 변경됐습니다. 다시 추출하세요');
   if (previous) assert(Date.parse(current.createdAt) > Date.parse(previous.manifest.createdAt), '과거 실행으로 최신 보관본을 덮을 수 없습니다');
   const manifest = await combine(previous?.manifest ?? null, current, remote, local, remote);
   manifest.parent = previous?.id ?? null;
@@ -101,6 +104,7 @@ if (mode === 'capture') {
   if (values.live) {
     const current = await source();
     assert(Date.parse(current.createdAt) >= Date.parse(manifest.createdAt));
+    assert.equal(current.parent, archived.id, '조회 중 최신 보관본이 변경됐습니다. 새 폴더에서 다시 실행하세요');
     manifest = await combine(manifest, current, remote, local, local);
     manifest.parent = archived.id;
     store = { get: async key => (await local.get(key)) ?? remote.get(key), put: local.put };
