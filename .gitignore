@@ -10,6 +10,9 @@ data/*
 *.db-shm
 
 dist/
+archive-source/
+archive-downloaded/
+archive-work*/
 
 # 로컬 작업 지침과 인계 기록
 /AGENTS.md

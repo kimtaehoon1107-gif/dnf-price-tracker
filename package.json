@@ -32,6 +32,7 @@
     "track": "node --env-file=.env --no-warnings scripts/track.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1136.0",
     "pg": "^8.23.0"
   }
 }
