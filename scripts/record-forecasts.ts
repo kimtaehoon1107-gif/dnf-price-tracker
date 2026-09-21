@@ -15,13 +15,20 @@ try {
   const quality = await checkCandles(client);
   if (quality.stale || quality.mismatches) throw new Error('집계 상태 불량');
   const origin = kstDay(quality.checkedAt);
-  const data = await loadResearch(client, quality.checkedAt, quality.through);
+  const before = [origin, kstDay(quality.through)].sort()[0];
+  // 발행·실측 확정이 없는 시간에는 과거 연구 입력을 내려받을 필요가 없다.
+  const loaded = new Map<string, Awaited<ReturnType<typeof loadResearch>>>();
+  async function getData(version = RESEARCH_VERSION) {
+    if (!loaded.has(version)) loaded.set(version, await loadResearch(client, quality.checkedAt, quality.through, version));
+    return loaded.get(version)!;
+  }
   const batches = (await client.query<{ origin: string; issues: Issue[] }>(
     'SELECT origin,issues FROM research_forecast_batches WHERE version=$1 ORDER BY origin', [RESEARCH_VERSION])).rows;
   // 전날 시간봉 집계가 끝난 KST 02시 이후 첫 실행에만 그날의 예측을 고정한다.
   const hour = new Date(Date.parse(quality.checkedAt) + 9 * 3600000).getUTCHours();
   let issued = 0;
-  if (hour >= 2 && data.before === origin && !batches.some((b) => b.origin === origin)) {
+  if (hour >= 2 && before === origin && !batches.some((b) => b.origin === origin)) {
+    const data = await getData();
     const issues = data.series.map((s) => issueForecast(s.id, s.daily, origin));
     issued = (await client.query(`INSERT INTO research_forecast_batches(version,origin,issued_at,data_as_of,issues)
       VALUES($1,$2,clock_timestamp(),$3,$4) ON CONFLICT DO NOTHING`,
@@ -38,11 +45,10 @@ try {
       'SELECT target FROM research_actuals WHERE version=$1', [version])).rows.map((r) => r.target));
     const targets = [...new Set(versionBatches.flatMap((b) => b.issues.flatMap((i) =>
       i.predictions.filter((p) => p.h === 1 || p.h === 7).map((p) => p.d))))]
-      .filter((d) => d <= shiftDay(origin, -2) && d < data.before && !settled.has(d));
+      .filter((d) => d <= shiftDay(origin, -2) && d < before && !settled.has(d));
     if (!targets.length) continue;
     // v1의 남은 예측도 원래 집계로 끝까지 평가하되 새 예측은 v2에만 발행한다.
-    const actualData = version === RESEARCH_VERSION ? data :
-      await loadResearch(client, quality.checkedAt, quality.through, version);
+    const actualData = await getData(version);
     for (const target of targets) {
       const values = Object.fromEntries(actualData.series.map((s) => [s.id, s.daily.find((p) => p.d === target)?.value ?? null]));
       await client.query(`INSERT INTO research_actuals(version,target,settled_at,values)

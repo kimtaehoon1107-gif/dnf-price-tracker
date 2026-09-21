@@ -31,6 +31,7 @@ const client = {
   release() { released++; },
 };
 for (let attempt = 0; attempt < 2; attempt++) {
+  const loadsBefore = loads.length;
   const processMock = { exitCode: 0 };
   const context = vm.createContext({ console: { log() {}, error() {} }, process: processMock, URL, Date });
   const synthetic = (values: Record<string, unknown>) => new vm.SyntheticModule(Object.keys(values), function () {
@@ -55,6 +56,7 @@ for (let attempt = 0; attempt < 2; attempt++) {
   await module.link((name) => modules[name]);
   await module.evaluate();
   assert.equal(processMock.exitCode, 0);
+  if (attempt === 1) assert.equal(loads.length, loadsBefore, '발행·확정할 일이 없는 재실행은 연구 입력을 읽지 않음');
 }
 assert.equal(JSON.stringify(batches[0]), original, 'v1 입력·예측은 불변');
 assert.equal(batches.length, 3, '중복 실행에서도 현재 발행은 한 번');
@@ -64,5 +66,6 @@ assert.equal(actuals.find((a) => a.version === legacy && a.target === '2026-09-1
 assert.equal(actuals.find((a) => a.version === current && a.target === '2026-09-18')!.values.card, null);
 assert(!actuals.some((a) => a.target === '2026-09-24'), '미래 대상일은 평가 대기');
 assert.equal(loads.filter((v) => v === legacy).length, 1, '마감할 실측이 있을 때만 기존 집계 실행');
+assert.equal(loads.filter((v) => v === current).length, 1, '현재 버전 입력은 발행·실측 확정에서 한 번만 공유');
 assert.equal(released, 2); assert.equal(ended, 2);
 console.log('연구 버전 전환·기존 예측 보존·버전별 실측·중복 발행 방지 테스트 통과');
