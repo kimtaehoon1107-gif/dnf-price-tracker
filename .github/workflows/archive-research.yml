@@ -5,13 +5,11 @@ on:
     # KST 11:37. 기존 13시대 로그 정리 전에 보관하며 지연 시 다음 실행이 다시 대조한다.
     - cron: '37 2 * * *'
   workflow_dispatch:
-  push:
-    branches: [main, codex/r2-first-archive]
-    paths:
-      - src/archive.ts
-      - scripts/archive-research.ts
-      - scripts/test-archive.ts
-      - .github/workflows/archive-research.yml
+    inputs:
+      verify_live:
+        description: '추가 Supabase 전송이 발생하는 최신 DB 결합 검증'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -61,7 +59,7 @@ jobs:
           ARCHIVE_VERIFY_URL: postgresql://archive_verify:temporary-verification-only@127.0.0.1:55432/archive_verify
         run: node --no-warnings scripts/archive-research.ts publish archive-work
       - name: 분석용 기간·아이템 선택과 최근 DB 결합 검증
-        if: github.event_name != 'schedule'
+        if: github.event_name == 'workflow_dispatch' && inputs.verify_live
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}

@@ -3,11 +3,6 @@ name: R2 최초 보관·복원 검증
 # 최초 보관본 검증용. 전체 보관본이 매일 중복되지 않도록 예약 실행은 하지 않는다.
 on:
   workflow_dispatch:
-  push:
-    branches: [codex/r2-first-archive]
-    paths:
-      - scripts/archive-baseline.ts
-      - .github/workflows/archive-baseline.yml
 
 permissions:
   contents: read

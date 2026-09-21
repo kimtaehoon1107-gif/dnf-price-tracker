@@ -41,8 +41,7 @@ GitHub Secrets에 `DATABASE_URL`, `R2_ACCOUNT_ID`, `R2_BUCKET`,
 `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`가 필요하다. R2 권한은 해당 버킷의
 Object Read & Write만 사용한다. 키 값을 코드·실행 로그·공개 산출물에 넣지 않는다.
 
-초기 검증 브랜치 `codex/r2-first-archive`의 관련 코드 push로 실행한다.
-기본 브랜치에 반영한 뒤에는 Actions에서 수동 실행할 수 있다. 예약 실행은 없다.
+최초 보관본은 Actions에서 명시적으로 수동 실행한다. 코드 push와 예약으로 실행하지 않는다.
 Linux와 Docker가 있는 환경에서 같은 동작을 재현하려면:
 
 ```sh
@@ -58,6 +57,9 @@ node --no-warnings scripts/archive-baseline.ts verify archive-downloaded
 시세 13개 테이블 및 `collection_quality`를 보관한다. GitHub 예약 실행은 지연/누락될 수 있다.
 실패는 Actions의 기본 실패 알림 대상으로 남는다. 별도 감시 서비스는 추가하지 않는다.
 기존 DB 정리 주기와 보관 기간은 변경하지 않는다.
+코드 push로 운영 보관을 반복 실행하지 않는다. 수동 실행의 `verify_live`를 선택한 경우에만
+추가 Supabase 조회가 발생하는 최신 DB 결합 검증을 실행한다. 일반 보관의 R2 재다운로드와
+임시 DB 복원 검증은 그대로 유지한다.
 
 `collection_quality`는 `collection_runs`의 아이템·출처·시각·성공/실패/진행 중 상태와
 API 응답/신규 체결/포화/매물 건수를 보존한다. 오류 메시지 원문은 제외한다.
