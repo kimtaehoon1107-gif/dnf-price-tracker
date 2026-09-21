@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import type { PoolClient } from 'pg';
+import { HistoryCache } from './history-cache.ts';
 import { legendarySeries, type LegendarySnapshot } from './legendary.ts';
 import { basketSeries, kstDay, LEGACY_RESEARCH_VERSION, RESEARCH_VERSION, type Basket, type Observation } from './research.ts';
 
@@ -8,17 +9,17 @@ export const PART_IDS = ['702d33e99edb55d23cac4c9970ef44ee', 'a295bdbb26984dcb94
   '33776306aa3fa6fead55ced8656be444', '329338e9ac307d34de71a48b314b19a0', 'b971992f2529a494215fdf9368cfa0dd'];
 export type ResearchSeries = { id: string; label: string; unit: string; daily: Observation[]; basket?: Basket };
 
-export async function loadResearch(client: PoolClient, asOf: string, through: string, version = RESEARCH_VERSION) {
+export async function loadResearch(client: PoolClient, asOf: string, through: string, version = RESEARCH_VERSION, cache = new HistoryCache(client)) {
   // 이미 발행한 v1의 미확정 실측만 원래 정의로 마감한다. 새 발행에는 사용하지 않는다.
   const legacy = version === LEGACY_RESEARCH_VERSION;
   const before = [kstDay(asOf), kstDay(through)].sort()[0];
-  const trade = (await client.query<{ item_id: string; d: string; value: number; qty: number; n: number }>(`
+  const trade = (await cache.query({ label: 'research-trade', day: 'd', order: ['item_id', 'd'] })<{ item_id: string; d: string; value: number; qty: number; n: number }>(`
     SELECT c.item_id, to_char(c.hour AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') d,
       (SUM(c.vwap*c.qty)/NULLIF(SUM(c.qty),0))::float8 value, SUM(c.qty)::float8 qty, SUM(c.n)::int n
     FROM candles_1h c JOIN items i USING(item_id)
     WHERE i.category <> '카드' AND c.hour < ($1::date::timestamp AT TIME ZONE 'Asia/Seoul')
     GROUP BY 1,2 ORDER BY 1,2`, [before])).rows;
-  const card = (await client.query<{ item_id: string; basis: string; d: string; value: number | null; hours: number }>(`
+  const card = (await cache.query({ label: 'research-card', day: 'd', order: ['item_id', 'basis', 'd'] })<{ item_id: string; basis: string; d: string; value: number | null; hours: number }>(`
     WITH h AS (
       SELECT DISTINCT ON (s.item_id, s.upgrade, date_trunc('hour',s.captured_at))
         s.item_id, s.upgrade, s.captured_at, s.min_unit_price
@@ -42,7 +43,7 @@ export async function loadResearch(client: PoolClient, asOf: string, through: st
     }
     byBasis.set(basis, map);
   }
-  const snapshots = (await client.query<LegendarySnapshot>(`
+  const snapshots = (await cache.query({ label: 'research-snapshots', day: 'captured_at', order: ['captured_at'] })<LegendarySnapshot>(`
     SELECT to_char(captured_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') captured_at,
       min_unit_price,min_item_name,p10,median,scanned,with_listings,total_listings
     FROM legendary_card_floor WHERE upgrade=0 AND captured_at <= $1::timestamptz ORDER BY captured_at,id`, [asOf])).rows;

@@ -1,9 +1,10 @@
 import type { PoolClient } from 'pg';
+import { HistoryCache } from './history-cache.ts';
 import { loadResearch, PACKAGE_ID, PART_IDS } from './research-data.ts';
 import { RESEARCH_VERSION, eventWindow, scoreIssues, type Issue } from './research.ts';
 
-export async function researchExport(client: PoolClient, asOf: string, through: string) {
-  const data = await loadResearch(client, asOf, through);
+export async function researchExport(client: PoolClient, asOf: string, through: string, cache = new HistoryCache(client)) {
+  const data = await loadResearch(client, asOf, through, RESEARCH_VERSION, cache);
   const batches = (await client.query<{ origin: string; issued_at: Date; data_as_of: Date; issues: Issue[] }>(
     'SELECT origin,issued_at,data_as_of,issues FROM research_forecast_batches WHERE version=$1 ORDER BY origin', [RESEARCH_VERSION])).rows;
   const actuals = (await client.query<{ target: string; values: Record<string, number | null> }>(
@@ -23,7 +24,7 @@ export async function researchExport(client: PoolClient, asOf: string, through: 
     SELECT name,to_char(starts_at AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') starts,
       to_char(ends_at AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') ends, source_url
     FROM events WHERE type='패키지' AND $1=ANY(related_item_ids) ORDER BY starts_at DESC LIMIT 1`, [PACKAGE_ID])).rows[0] ?? null;
-  const stock = (await client.query<{ d: string; value: number | null; hours: number }>(`
+  const stock = (await cache.query({ label: 'research-stock', day: 'd', order: ['d'] })<{ d: string; value: number | null; hours: number }>(`
     WITH h AS (
       SELECT DISTINCT ON (date_trunc('hour',captured_at)) captured_at,total_qty
       FROM listing_snapshots WHERE item_id=$1 AND upgrade IS NULL

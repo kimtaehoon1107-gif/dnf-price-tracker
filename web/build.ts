@@ -8,6 +8,8 @@
 
 import { mkdirSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
 import { pool } from '../src/db.ts';
+import { HistoryCache } from '../src/history-cache.ts';
+import { r2Store } from '../src/archive.ts';
 import type { QueryResultRow } from 'pg';
 import { checkCandles } from '../src/candle-check.ts';
 import { forecast, naiveBand, type Band, type Point, type Forecast } from '../src/forecast.ts';
@@ -19,6 +21,8 @@ import { weekdayTrend, WEEKDAY_MIN_WEEKS } from '../src/weekday-trend.ts';
 import { summarizeWeekdays } from './metrics.js';
 
 const client = await pool.connect();
+const historyCache = new HistoryCache(client, process.env.BUILD_HISTORY_CACHE === 'r2' ? r2Store() : undefined);
+const history = (label: string, day: string, order: string[]) => historyCache.query({ label, day, order });
 const query = <T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => client.query<T>(text, params);
 try {
 await query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
@@ -145,7 +149,7 @@ const items = (await query<{
   WHERE i.tracked ORDER BY i.item_name`)).rows;
 
 // ── 아이템별 일봉 / 시간봉 ─────────────────────────────────────
-const daily = (await query<{
+const daily = (await history('daily', 'd', ['item_id', 'd'])<{
   item_id: string; d: string; o: number; h: number; l: number; c: number; vwap: number; qty: number; n: number;
 }>(`
   WITH trade_daily AS (
@@ -172,7 +176,7 @@ const daily = (await query<{
   )
   SELECT * FROM trade_daily UNION ALL SELECT * FROM card_daily ORDER BY 1,2`)).rows;
 
-const hourly = (await query<{ item_id: string; t: string; vwap: number; qty: number }>(`
+const hourly = (await history('hourly', 't', ['item_id', 't'])<{ item_id: string; t: string; vwap: number; qty: number }>(`
   WITH trade_hourly AS (
     SELECT b.item_id,
          to_char(hour AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') AS t,
@@ -190,7 +194,7 @@ const hourly = (await query<{ item_id: string; t: string; vwap: number; qty: num
   )
   SELECT * FROM trade_hourly UNION ALL SELECT * FROM card_hourly ORDER BY 1,2`)).rows;
 
-const cardDailyMax = (await query<{
+const cardDailyMax = (await history('cardDailyMax', 'd', ['item_id', 'd'])<{
   item_id: string; d: string; o: number; h: number; l: number; c: number; vwap: number; qty: number; n: number;
 }>(`
   SELECT s.item_id,
@@ -204,7 +208,7 @@ const cardDailyMax = (await query<{
     AND s.min_unit_price > 0
   GROUP BY 1,2 ORDER BY 1,2`)).rows;
 
-const cardHourlyMax = (await query<{ item_id: string; t: string; vwap: number; qty: number }>(`
+const cardHourlyMax = (await history('cardHourlyMax', 't', ['item_id', 't'])<{ item_id: string; t: string; vwap: number; qty: number }>(`
   SELECT s.item_id,
          to_char(date_trunc('hour', s.captured_at AT TIME ZONE 'UTC'),'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS t,
          AVG(s.min_unit_price)::float8 AS vwap, 0::int AS qty
@@ -214,7 +218,7 @@ const cardHourlyMax = (await query<{ item_id: string; t: string; vwap: number; q
     AND s.min_unit_price > 0
   GROUP BY 1,2 ORDER BY 1,2`)).rows;
 
-const askGap = (await query<{
+const askGap = (await history('askGap', 't', ['item_id', 't'])<{
   item_id: string; t: string; min_ask: number; vwap: number; gap: number;
 }>(`
   SELECT DISTINCT ON (s.item_id, date_trunc('second', s.captured_at)) s.item_id,
@@ -237,7 +241,7 @@ const askGap = (await query<{
 
 // 잔량은 반복 관측한 재고이므로 합산하지 않고 매시간 마지막 스냅샷만 쓴다.
 // 카드의 단계 미상 기록과 중간 업그레이드는 0업·맥스업에 섞지 않는다.
-const stock = (await query<{
+const stock = (await history('stock', 't', ['item_id', 'upgrade', 't'])<{
   item_id: string; upgrade: number | null; t: string; observed_at: string;
   qty: number; listings: number; min_ask: number | null;
 }>(`
@@ -365,7 +369,7 @@ const weekdaySample = {
 
 // 같은 시간의 마지막 호가에 같은 비중을 줘 재수집 횟수가 일평균을 바꾸지 않게 한다.
 // 단계가 없는 과거 관측은 0업으로 추정하지 않는다.
-const cardWeekdayDays = (await query<CardWeekdayDay>(`
+const cardWeekdayDays = (await history('cardWeekdayDays', 'd', ['item_id', 'basis', 'd'])<CardWeekdayDay>(`
   WITH hourly AS (
     SELECT DISTINCT ON (s.item_id, s.upgrade, date_trunc('hour', s.captured_at))
       s.item_id, CASE WHEN s.upgrade = 0 THEN 'ask0' ELSE 'askMax' END AS basis,
@@ -453,11 +457,11 @@ const packageEvent = (await query<{
     AND 'e974d2eac46f0c8b23b83d4da389fa57' = ANY(e.related_item_ids) ORDER BY e.starts_at DESC LIMIT 1`)).rows[0] ?? null;
 
 // ── 레전더리 카드 최저가 지수 ──────────────────────────────────
-const legendaryRows = (await query<LegendarySnapshot>(`
+const legendaryRows = (await history('legendaryRows', 'captured_at', ['captured_at'])<LegendarySnapshot>(`
     SELECT to_char(captured_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') captured_at,
       min_unit_price, min_item_name, p10, median, scanned, with_listings, total_listings
     FROM legendary_card_floor WHERE upgrade = 0 ORDER BY captured_at, id`)).rows;
-const research = await researchExport(client, quality.checkedAt, quality.through);
+const research = await researchExport(client, quality.checkedAt, quality.through, historyCache);
 writeFileSync(`${OUT}/data/research.json`, JSON.stringify(research));
 const legendary = legendaryRows.slice(-1);
 writeFileSync(`${OUT}/data/legendary.json`, JSON.stringify(legendarySeries(legendaryRows, quality.checkedAt)));
@@ -528,7 +532,7 @@ const withMeta = items.map((it) => {
 
 // ── 랜덤워크 검정 ──────────────────────────────────────────────
 // 봉의 시각을 보존해야 공백을 1시간 수익률로 잘못 계산하지 않는다.
-const rwRows = (await query<{
+const rwRows = (await history('rwRows', 't', ['item_id', 't'])<{
   item_id: string; t: string; vwap: number; n: number;
 }>(`
   SELECT c.item_id, to_char(c.hour AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') t,
@@ -617,6 +621,7 @@ writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
 for (const f of ['index.html', 'ranking.html', 'analysis.html', 'guide.html', 'feedback.html', 'feedback.js', 'feedback.css', 'app.js', 'metrics.js', 'ranking.js', 'style.css', 'research.html', 'research.js', 'research-ui.js', 'research.css', 'package.js', 'package-calc.js', 'package.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
 writeFileSync(`${OUT}/.nojekyll`, '');
 
+console.log('[history-cache] 합계', JSON.stringify(historyCache.stats));
 console.log(`빌드 완료 — ${items.length}종 · 체결 ${meta.trades.toLocaleString()}건 · 일봉 ${daily.length}행 · 예측 ${forecasts.size}종 · 범위 ${bands.size}종`);
 } finally {
   await client.query('ROLLBACK');

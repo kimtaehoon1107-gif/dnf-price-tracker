@@ -20,6 +20,8 @@ on:
       - 'src/weekday-trend.ts'
       - 'src/candle-check.ts'
       - 'src/db.ts'
+      - 'src/history-cache.ts'
+      - 'src/archive.ts'
       - 'scripts/legendary-floor.ts'
       - 'sql/legendary-scans.sql'
       - 'scripts/scan-turnover.ts'
@@ -77,6 +79,11 @@ jobs:
       - name: 사이트 빌드
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BUILD_HISTORY_CACHE: r2
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: node --no-warnings web/build.ts
 
       - uses: actions/configure-pages@v5
