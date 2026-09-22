@@ -1,4 +1,4 @@
-const endpoint='https://ypmnadqnmadrburkrcka.supabase.co/functions/v1/feedback';
+const endpoint='https://ejtjwtlehkzuutqgzevu.supabase.co/functions/v1/feedback';
 const $=id=>document.getElementById(id);
 const categories={bug:'오류 제보',idea:'기능 제안',general:'자유 의견'};
 const statuses={open:'접수',reviewing:'검토 중',done:'반영 완료',closed:'보류'};
