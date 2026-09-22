@@ -2,6 +2,7 @@
 // 매주 한 번만 실행하며 source_url 또는 이름+적용일로 중복을 막는다.
 
 import { query, pool } from '../src/db.ts';
+import { trackedItems } from '../src/live-projects.ts';
 
 const BASE = 'https://df.nexon.com';
 const dryRun = process.argv.includes('--dry-run');
@@ -127,9 +128,7 @@ function relatedItems(title: string, items: Array<{ item_id: string; item_name: 
 
 async function shopCandidates() {
   const list = await html(`${BASE}/community/news/seriashop/list`);
-  const items = (await query<{ item_id: string; item_name: string }>(
-    'SELECT item_id, item_name FROM items WHERE tracked',
-  )).rows;
+  const items = await trackedItems();
   const candidates: Candidate[] = [];
 
   for (const row of list.matchAll(/<ul[^>]*data-id="(\d+)"[^>]*>([\s\S]*?)<\/ul>/g)) {

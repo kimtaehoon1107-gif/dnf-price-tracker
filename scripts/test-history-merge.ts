@@ -4,6 +4,7 @@ import pg from 'pg';
 import { encode, hash, readRows, type Store } from '../src/archive.ts';
 import { mergeTradeHistory, mergeSnapshotHistory, type HistoryOwner } from '../src/history-merge.ts';
 import { researchExport } from '../src/research-export.ts';
+import { unifyCollectionHealth } from '../src/build-unified.ts';
 
 // 운영 DB로 실행하지 않는다. CI의 일회성 PostgreSQL 17만 허용한다.
 const url = new URL(process.env.HISTORY_MERGE_TEST_URL!);
@@ -122,6 +123,25 @@ try {
   await transaction(async () => {
     const trade = await mergeTradeHistory(client, sources, '2026-09-21T15:05:01Z');
     assert.equal(trade.trades, 5, '기준 시각 뒤의 관측을 섞지 않음');
+  });
+  await transaction(async () => {
+    await client.query(`CREATE TEMP TABLE history_owners(item_id text,source_schema text,from_at timestamptz,to_at timestamptz);
+      INSERT INTO history_owners VALUES
+        ('stay','hist_b','2026-09-21T15:00Z',NULL),
+        ('move','hist_b','2026-09-21T15:00Z','2026-09-21T15:10Z'),
+        ('move','hist_c','2026-09-21T15:10Z',NULL);
+      CREATE TABLE hist_b.collection_health(checked_at timestamptz,gap_min numeric,stale_items int);
+      CREATE TABLE hist_c.collection_health(LIKE hist_b.collection_health);
+      INSERT INTO hist_b.collection_health VALUES
+        ('2026-09-21T15:05Z',1,0),('2026-09-21T15:10Z',2,0),
+        ('2026-09-21T15:15Z',1,0),('2026-09-21T15:20Z',NULL,0);
+      INSERT INTO hist_c.collection_health VALUES
+        ('2026-09-21T15:05Z',99,9),('2026-09-21T15:10Z',3,1),
+        ('2026-09-21T15:20Z',1,0),('2026-09-21T15:25Z',1,0)`);
+    await unifyCollectionHealth(client,['hist_b','hist_c'],'2026-09-21T15:22Z');
+    assert.deepEqual((await client.query('SELECT gap_min,stale_items FROM collection_health ORDER BY checked_at')).rows,
+      [{gap_min:'1',stale_items:0},{gap_min:'3',stale_items:1},{gap_min:null,stale_items:null},{gap_min:null,stale_items:0}],
+      'C 전 정상 이력 유지, 분할 후 빠진 점검/NULL/미래 기록은 정상으로 간주하지 않음');
   });
   console.log('병합 검증 통과: ID 충돌·중복 체결·동일키 복수 체결·정밀도·전환 시간봉·담당 관측·충돌/공백 중단·이력 쿼리 9개·연구 출력');
 } finally { await client.end(); }

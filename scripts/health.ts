@@ -1,9 +1,18 @@
 // 전역·개별 수집과 시간봉 집계를 따로 확인하고 지연 시 실패 코드로 끝낸다.
 
-import { query, pool } from '../src/db.ts';
+import { liveProjects, liveClient } from '../src/live-projects.ts';
+import assert from 'node:assert/strict';
 import { candleFreshness } from '../src/candle-check.ts';
 
-const { rows } = await query<{
+let unhealthy = false;
+for (const source of liveProjects()) {
+ const client=liveClient(source.connectionString);
+ try {
+  await client.connect();
+  console.log(`[${source.name}]`);
+  const actual=(await client.query('SELECT item_id FROM items WHERE tracked ORDER BY item_id')).rows.map(r=>r.item_id);
+  if(source.ids) assert.deepEqual(actual,[...source.ids].sort(),'수집 담당 종목 불일치');
+  const { rows } = await client.query<{
   finished_at: Date;
   source: string | null;
   item_name: string | null;
@@ -16,8 +25,6 @@ const { rows } = await query<{
   LIMIT 1`);
 
 const last = rows[0];
-let unhealthy = false;
-
 if (!last) {
   console.error('⚠ 성공한 수집 기록이 없습니다.');
   unhealthy = true;
@@ -32,7 +39,7 @@ if (!last) {
   }
 }
 
-const stale = (await query<{ item_name: string }>(`
+const stale = (await client.query<{ item_name: string }>(`
   SELECT i.item_name FROM items i
   WHERE i.tracked AND COALESCE((
     SELECT MAX(r.finished_at) FROM collection_runs r
@@ -43,7 +50,7 @@ if (stale.length) {
   console.error(`⚠ 개별 수집 지연 ${stale.length}종: ${stale.map((i) => i.item_name).join(', ')}`);
   unhealthy = true;
 }
-const aggregate = (await query<{ refreshed_at: Date | null }>(
+const aggregate = (await client.query<{ refreshed_at: Date | null }>(
   'SELECT refreshed_at FROM candle_pipeline_state WHERE singleton')).rows[0];
 const freshness = candleFreshness(aggregate?.refreshed_at ?? null);
 if (freshness.stale) {
@@ -52,5 +59,9 @@ if (freshness.stale) {
 } else {
   console.log(`시간봉 마지막 집계 ${freshness.ageMinutes!.toFixed(1)}분 전`);
 }
-await pool.end();
+ } catch(error) {
+  console.error(`[${source.name}] 점검 실패: ${error instanceof assert.AssertionError ? error.message : 'DB 연결 또는 조회 실패'}`);
+  unhealthy=true;
+ } finally {await client.end();}
+}
 if (unhealthy) process.exitCode = 1;
