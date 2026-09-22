@@ -32,7 +32,8 @@ const TYPES: Record<number, string> = { 16: 'boolean', 20: 'bigint', 23: 'intege
   700: 'real', 701: 'double precision', 1009: 'text[]', 1082: 'date', 1184: 'timestamp with time zone', 1700: 'numeric', 3802: 'jsonb' };
 export type Row = { key: string; row: string };
 export type Column = { name: string; type: string };
-export type Shard = { table: string; day: string; hash: string; rows: number; bytes: number; sourceHash?: string };
+export type Shard = { table: string; day: string; hash: string; rows: number; bytes: number; sourceHash?: string;
+  sourceObject?: {hash:string;rows:number;bytes:number} };
 export type Manifest = {
   format: 1; createdAt: string; revision: string | null; parent: string | null;
   qualityAvailableFrom: string | null; continuity: 'initial' | 'ok' | 'gap';
@@ -104,6 +105,8 @@ export function validateManifest(manifest: Manifest) {
   for (const s of manifest.shards) {
     assert(TABLES[s.table] && /^(all|\d{4}-\d{2}-\d{2})$/.test(s.day) && /^[a-f0-9]{64}$/.test(s.hash));
     assert(Number.isSafeInteger(s.rows) && s.rows > 0 && Number.isSafeInteger(s.bytes) && s.bytes > 0);
+    if(s.sourceObject) assert(/^[a-f0-9]{64}$/.test(s.sourceObject.hash) && Number.isSafeInteger(s.sourceObject.rows)
+      && s.sourceObject.rows>0 && Number.isSafeInteger(s.sourceObject.bytes) && s.sourceObject.bytes>0);
     const id = `${s.table}/${s.day}`; assert(!ids.has(id)); ids.add(id);
   }
 }
@@ -146,7 +149,7 @@ export async function capture(client: DB, store: Store, previous?: Manifest, max
     const changedDays: string[] = [];
     for (const sig of signatures) {
       const old = previous?.shards.find(s => s.table === table && s.day === sig.day);
-      if (old?.sourceHash === sig.hash) manifest.shards.push(old);
+      if (old?.sourceHash === sig.hash) manifest.shards.push({...old,...old.sourceObject});
       else { changedDays.push(sig.day); plannedBytes += sig.bytes; }
     }
     if (!changedDays.length) { console.log(`${table}: 변경 없음`); continue; }
@@ -189,10 +192,16 @@ export async function combine(previous: Manifest | null, current: Manifest, oldS
   const shards = new Map((previous?.shards ?? []).map(s => [`${s.table}/${s.day}`, s]));
   for (const s of current.shards) {
     const id = `${s.table}/${s.day}`, old = shards.get(id);
-    if (old?.hash === s.hash) { shards.set(id, s); continue; }
-    const fresh = await readRows(newStore, s);
+    const sourceObject={hash:s.hash,rows:s.rows,bytes:s.bytes};
+    if (old?.hash === s.hash) { shards.set(id, {...s,sourceObject}); continue; }
+    // 보존 기한 이후에는 전체 보관본과 현재 DB의 행 집합이 다르다. 둘 다 별도로 보존한다.
+    const fresh = await readRows({get:async key=>(await newStore.get(key))??oldStore.get(key),put:newStore.put}, s);
+    if(old?.sourceObject?.hash!==s.hash) {
+      await output.put(objectKey(s),encode(fresh));
+      await readRows(output,s);
+    }
     const rows = old ? mergeRows(await readRows(oldStore, old), fresh) : fresh;
-    const bytes = encode(rows), merged = { ...s, hash: hash(bytes), bytes: bytes.length, rows: rows.length };
+    const bytes = encode(rows), merged = { ...s, sourceObject, hash: hash(bytes), bytes: bytes.length, rows: rows.length };
     if (old?.hash !== merged.hash) {
       await output.put(objectKey(merged), bytes);
       // PUT 성공만으로 보관 성공이라 하지 않고 실제 다시 받은 바이트를 검사한다.
