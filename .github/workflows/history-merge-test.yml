@@ -12,6 +12,7 @@ on:
       - 'scripts/test-history-merge.ts'
       - 'scripts/test-build-replica.ts'
       - 'scripts/test-archive-site.ts'
+      - 'config/history-sources.json'
       - '.github/workflows/history-merge-test.yml'
 
 permissions:
@@ -74,7 +75,7 @@ jobs:
         run: node --no-warnings scripts/test-archive-site.ts
         env:
           ARCHIVE_VERIFY_URL: postgresql://archive_verify:temporary-verification-only@127.0.0.1:55432/archive_verify
-          SITE_TEST_MANIFEST: manifests/667d14eb10723832437fc68976fd4c86fb226c723005282329aca86f891945d8.json
+          SITE_TEST_MANIFEST: manifests/e4e86c683473ae16d7f260c4062b4269c3c0b51ff198624239b78490924ba7c9.json
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
