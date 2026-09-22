@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { encode, decode, hash, mergeRows, matches, selectShard, combine, readRows,
+import { encode, decode, hash, mergeRows, matches, selectShard, combine, readRows, capture,
   type Store, type Row, type Manifest } from '../src/archive.ts';
 
 const row = (key: string, value: string): Row => ({ key, row: value });
@@ -45,3 +45,14 @@ const missing: Store = { ...store, get: async () => null };
 await assert.rejects(() => combine(manifest, { ...manifest, shards: [nextShard] }, missing, store, store), /누락/);
 await assert.rejects(() => combine(manifest, { ...manifest, columns: { changed: [] } }, store, store, store), /스키마/);
 console.log('보관 테스트 통과: 정밀도·훼손·중복·수정·백필·정리 후 보존·기간/아이템 선택·재실행');
+
+let downloads = 0;
+const limitedSource = { async query(sql: string) {
+  if (sql.startsWith('SET LOCAL')) return { rows: [] };
+  if (sql === 'SELECT now() AS at') return { rows: [{ at: new Date('2026-09-22T10:00:00Z') }] };
+  if (sql.endsWith('LIMIT 0')) return { fields: [{ name: 'id', dataTypeID: 20 }] };
+  if (sql.includes('AS bytes')) return { rows: [{ day: 'all', rows: 1, bytes: 100, hash: 'a'.repeat(64) }] };
+  downloads++; throw new Error('원본 다운로드가 시작됨');
+} };
+await assert.rejects(() => capture(limitedSource as any, store, undefined, 1), /원본 다운로드 전에 중단/);
+assert.equal(downloads, 0, '전체 계획이 예산을 넘으면 어느 테이블의 원본도 받지 않음');

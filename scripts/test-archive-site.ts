@@ -74,6 +74,12 @@ try {
   await client.query("DELETE FROM hist_b.listing_snapshots WHERE captured_at<$1::timestamptz-interval '1 hour'",[cut]);
   const owners: HistoryOwner[] = ids.flatMap(itemId=>[
     {itemId,source:'hist_a',from:null,to:cut},{itemId,source:'hist_b',from:cut,to:null}]);
+  // 운영 A의 ALTER 이력과 새 B의 CREATE 순서가 달라도 값이 뒤바뀌면 안 된다.
+  for(const table of ['items','listings']) {
+    const fields=(await client.query(`SELECT * FROM hist_b.${quote(table)} LIMIT 0`)).fields.map(f=>quote(f.name)).reverse();
+    await client.query(`CREATE TABLE hist_b.reordered AS SELECT ${fields.join(',')} FROM hist_b.${quote(table)};
+      DROP TABLE hist_b.${quote(table)}; ALTER TABLE hist_b.reordered RENAME TO ${quote(table)}`);
+  }
   await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
   const report = await unifyMarket(client,['hist_a','hist_b'],owners,asOf,
     [{source:'hist_a',from:null,to:cut},{source:'hist_b',from:cut,to:null}]);

@@ -10,7 +10,7 @@ import { pool, query, tx } from '../src/db.ts';
 const CATALOG = JSON.parse(readFileSync(new URL('../data/market-items.json', import.meta.url), 'utf8')) as ItemRow[];
 const CONCURRENCY = 4;
 const DAY_MS = 24 * 60 * 60 * 1000;
-const now = Date.now();
+const now = process.env.BUILD_AS_OF ? Date.parse(process.env.BUILD_AS_OF) : Date.now();
 const cutoff = now - DAY_MS;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -107,7 +107,11 @@ console.error(`후보 ${candidates.length.toLocaleString()}종의 최근 체결�
 await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
 
 // 계속 수집 중인 품목은 짧은 표본을 24시간으로 환산하지 않고 DB 관측 합계를 쓴다.
-const collected = (await query<{
+const { buildPool, setBuildClock } = await import('../src/build-db.ts');
+const inputPool = await buildPool();
+const input = await inputPool.connect();
+await setBuildClock(input);
+const collected = await (async () => { try { return (await input.query<{
   item_id: string; item_name: string; item_rarity: string; item_type_detail: string;
   turnover_24h: number; observed_qty: number; trade_count: number; last_price: number;
 }>(`
@@ -118,6 +122,7 @@ const collected = (await query<{
   FROM trades t JOIN items i USING (item_id)
   WHERE i.tracked AND i.category <> '카드' AND t.sold_date > now() - interval '24 hours'
   GROUP BY i.item_id`)).rows;
+} finally { input.release(); if(inputPool!==pool) await inputPool.end(); } })();
 const byId = new Map(rows.map((row) => [row.itemId, row]));
 for (const row of collected) {
   byId.set(row.item_id, {
