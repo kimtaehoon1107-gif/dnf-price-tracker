@@ -33,6 +33,8 @@ try {
   await local.connect();
   const archived=await readManifest(store,config.frozen.manifest);
   assert(archived && await store.get(`verified/${archived.id.slice(10,-5)}.json`),'검증된 A 보관본 필요');
+  for(const epoch of [...config.owners,...config.globals].filter(o=>o.source==='hist_a'))
+    assert(epoch.to && Date.parse(epoch.to)<=Date.parse(archived.manifest.createdAt),'A 보관본이 담당 전환 시각까지 도달하지 못했습니다');
   await restore(local,archived.manifest,store);
   await local.query(`ALTER SCHEMA public RENAME TO hist_a; CREATE SCHEMA public;
     CREATE TABLE hist_a.collection_health(id bigint,checked_at timestamptz,last_collect_at timestamptz,gap_min numeric,stale_items integer,action text)`);
