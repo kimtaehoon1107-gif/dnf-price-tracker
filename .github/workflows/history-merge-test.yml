@@ -4,8 +4,10 @@ on:
   pull_request:
     paths:
       - 'src/history-merge.ts'
+      - 'src/build-replica.ts'
       - 'src/archive.ts'
       - 'scripts/test-history-merge.ts'
+      - 'scripts/test-build-replica.ts'
       - '.github/workflows/history-merge-test.yml'
 
 permissions:
@@ -35,5 +37,8 @@ jobs:
       - run: npm ci --omit=dev
       - run: npm test
       - run: node --no-warnings scripts/test-history-merge.ts
+        env:
+          HISTORY_MERGE_TEST_URL: postgresql://history_test:temporary-test-only@127.0.0.1:55432/history_merge_test
+      - run: node --no-warnings scripts/test-build-replica.ts
         env:
           HISTORY_MERGE_TEST_URL: postgresql://history_test:temporary-test-only@127.0.0.1:55432/history_merge_test
