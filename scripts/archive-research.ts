@@ -31,7 +31,8 @@ async function source() {
   try {
     await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
     await client.query("SET LOCAL statement_timeout='120s'");
-    const manifest = await capture(client, local, previous?.manifest);
+    const manifest = await capture(client, local, previous?.manifest,
+      process.env.ARCHIVE_MAX_FETCH_BYTES ? Number(process.env.ARCHIVE_MAX_FETCH_BYTES) : Infinity);
     manifest.parent = previous?.id ?? null;
     const research = researchResult(await loadResearch(client, manifest.createdAt, manifest.createdAt));
     await client.query('ROLLBACK');

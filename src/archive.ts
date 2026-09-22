@@ -122,11 +122,14 @@ export async function readManifest(store: Store, id?: string) {
 
 // 호출자가 잡은 동일한 읽기 전용 스냅샷에서 전체 보존 행을 훑는다.
 // ID 상한/수집시각만으로 자르면 늦게 커밋된 행과 오래된 백필을 놓칠 수 있다.
-export async function capture(client: DB, store: Store, previous?: Manifest): Promise<Manifest> {
+export async function capture(client: DB, store: Store, previous?: Manifest, maxFetchBytes = Infinity): Promise<Manifest> {
+  assert(maxFetchBytes > 0, '추출 예산은 양수여야 합니다');
   await client.query("SET LOCAL TIME ZONE 'UTC'; SET LOCAL DateStyle='ISO,YMD'; SET LOCAL extra_float_digits=3");
   const at = (await client.query('SELECT now() AS at')).rows[0].at.toISOString();
   const manifest: Manifest = { format: 1, createdAt: at, revision: process.env.GITHUB_SHA ?? null,
     parent: null, qualityAvailableFrom: null, continuity: 'initial', columns: {}, shards: [] };
+  const plans: { table: string; exported: string; signatures: any[]; changedDays: string[] }[] = [];
+  let plannedBytes = 0;
   for (const [table, def] of Object.entries(TABLES)) {
     const query = `SELECT ${def.select ?? '*'} FROM public.${quote(def.source ?? table)}`;
     const fields = (await client.query(`${query} LIMIT 0`)).fields;
@@ -137,15 +140,22 @@ export async function capture(client: DB, store: Store, previous?: Manifest): Pr
     // 비교를 DB 안에서 끝내야 매일 수백 MB의 원본을 전송하지 않는다.
     // 이전 소스 해시와 비교하므로 운영에서 삭제된 행이 보관본에 남아 있어도 중복 전송하지 않는다.
     const signatures = (await client.query(`SELECT day, COUNT(*)::int AS rows,
+      SUM(octet_length(row)+octet_length(key)+octet_length(day)+32)::float8 AS bytes,
       encode(sha256(convert_to(string_agg(row || chr(10), '' ORDER BY key COLLATE "C"),'UTF8')),'hex') AS hash
       FROM (${exported}) e GROUP BY day ORDER BY day`)).rows;
     const changedDays: string[] = [];
     for (const sig of signatures) {
       const old = previous?.shards.find(s => s.table === table && s.day === sig.day);
       if (old?.sourceHash === sig.hash) manifest.shards.push(old);
-      else changedDays.push(sig.day);
+      else { changedDays.push(sig.day); plannedBytes += sig.bytes; }
     }
     if (!changedDays.length) { console.log(`${table}: 변경 없음`); continue; }
+    plans.push({ table, exported, signatures, changedDays });
+  }
+  // 원본을 한 행도 받기 전에 전체 변경량을 계산한다. 청구량이 아닌 결과 본문 예산이다.
+  console.log(`[archive-plan] changedBodyBytes=${plannedBytes} maxFetchBytes=${maxFetchBytes}`);
+  assert(plannedBytes <= maxFetchBytes, '보관 추출 예산 초과: 원본 다운로드 전에 중단');
+  for (const { table, exported, signatures, changedDays } of plans) {
     await client.query(`DECLARE archive_cursor NO SCROLL CURSOR FOR SELECT * FROM (${exported}) exported
       WHERE day=ANY($1::text[]) ORDER BY day,key COLLATE "C"`, [changedDays]);
     let currentDay = '', rows: Row[] = [], count = 0;

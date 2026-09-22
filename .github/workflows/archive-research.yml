@@ -10,6 +10,10 @@ on:
         description: '추가 Supabase 전송이 발생하는 최신 DB 결합 검증'
         type: boolean
         default: false
+      max_fetch_bytes:
+        description: '원본 다운로드 전 확인할 결과 본문 상한 (바이트)'
+        type: string
+        default: '100000000'
 
 permissions:
   contents: read
@@ -68,6 +72,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets[matrix.source.secret] }}
           ARCHIVE_PROJECT: ${{ matrix.source.project }}
+          ARCHIVE_MAX_FETCH_BYTES: ${{ inputs.max_fetch_bytes || '100000000' }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
