@@ -5,9 +5,13 @@ on:
     paths:
       - 'src/history-merge.ts'
       - 'src/build-replica.ts'
+      - 'src/build-unified.ts'
+      - 'src/build-db.ts'
+      - 'web/build.ts'
       - 'src/archive.ts'
       - 'scripts/test-history-merge.ts'
       - 'scripts/test-build-replica.ts'
+      - 'scripts/test-archive-site.ts'
       - '.github/workflows/history-merge-test.yml'
 
 permissions:
@@ -42,3 +46,36 @@ jobs:
       - run: node --no-warnings scripts/test-build-replica.ts
         env:
           HISTORY_MERGE_TEST_URL: postgresql://history_test:temporary-test-only@127.0.0.1:55432/history_merge_test
+
+  archived-site:
+    # 같은 저장소의 검토 중인 변경만 읽기 전용 보관본 검사에 사용한다.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: archive_verify
+          POSTGRES_PASSWORD: temporary-verification-only
+          POSTGRES_DB: archive_verify
+        ports: ['55432:5432']
+        options: >-
+          --health-cmd "pg_isready -U archive_verify -d archive_verify"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --omit=dev
+      - name: R2 실자료의 전환 전후 전체 사이트 대조 (Supabase 접근 없음)
+        run: node --no-warnings scripts/test-archive-site.ts
+        env:
+          ARCHIVE_VERIFY_URL: postgresql://archive_verify:temporary-verification-only@127.0.0.1:55432/archive_verify
+          SITE_TEST_MANIFEST: manifests/667d14eb10723832437fc68976fd4c86fb226c723005282329aca86f891945d8.json
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
