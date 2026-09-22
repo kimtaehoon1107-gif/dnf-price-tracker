@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import pg from 'pg';
 import { r2Store, readManifest, restore, projectArchiveStore, quote, TABLES } from '../src/archive.ts';
-import { captureReplica, restoreReplica, publishReplica } from '../src/build-replica.ts';
+import { captureReplica, restoreReplica, publishReplica, readReplica } from '../src/build-replica.ts';
 import { unifyMarket } from '../src/build-unified.ts';
 import { checkCandles } from '../src/candle-check.ts';
 import type { HistoryOwner } from '../src/history-merge.ts';
@@ -50,7 +50,8 @@ try {
     assert(!quality.stale && !quality.mismatches,`${live.schema} 집계 상태 불량`);
     const items=(await source.query('SELECT item_id FROM items WHERE tracked ORDER BY item_id')).rows.map(r=>r.item_id);
     assert.deepEqual(items,config.owners.filter(o=>o.source===live.schema && o.to===null).map(o=>o.itemId).sort(),'수집 담당 종목 불일치');
-    const captured=await captureReplica(source,store,live.project,6_000_000);
+    const captured=await captureReplica(source,store,live.project,
+      await readReplica(store,live.project) ? 6_000_000 : 20_000_000);
     await source.query('ROLLBACK');
     pending.push(captured);
     console.log(`[build-replica] ${live.schema}`,JSON.stringify(captured.stats),'결과 본문/해시 목록 기준, 청구량 아님');
@@ -86,9 +87,10 @@ try {
   await local.query('COMMIT');
   // 발행 예측은 통합 이력으로 계산하되 저장은 전역 상태 담당 B에만 한다.
   assert.equal(new URL(process.env.DATABASE_URL!).username,`postgres.${config.live.find(s=>s.schema===config.globals.at(-1)!.source)!.project}`);
+  await run('scripts/scan-turnover.ts',asOf);
   await run('scripts/record-forecasts.ts',asOf);
   const globalSource=sources[config.live.findIndex(s=>s.schema===config.globals.at(-1)!.source)];
-  for(const table of ['research_forecast_batches','research_actuals']) {
+  for(const table of ['research_forecast_batches','research_actuals','market_rankings']) {
     const rows=(await globalSource.query(`SELECT to_jsonb(t)::text AS row FROM ${quote(table)} t`)).rows;
     await local.query(`TRUNCATE ${quote(table)}`);
     await local.query(`INSERT INTO ${quote(table)} SELECT * FROM jsonb_populate_recordset(NULL::${quote(table)},$1::jsonb)`,['['+rows.map(r=>r.row).join(',')+']']);

@@ -27,7 +27,13 @@ export async function unifyMarket(client: Client, sources: string[], owners: His
   }
   const trades = await mergeTradeHistory(client,sources,asOf);
   const snapshots = await mergeSnapshotHistory(client,sources,owners,asOf);
-  const current = (table: string) => sources.map(s => `SELECT t.* FROM ${quote(s)}.${quote(table)} t
+  // ALTER로 성장한 A와 새 스키마 B/C는 물리적 열 순서가 다를 수 있다.
+  const columns = new Map<string,string>();
+  for(const table of ['items','listings','collection_quality']) {
+    const fields=(await client.query(`SELECT * FROM ${quote(sources[0])}.${quote(table)} LIMIT 0`)).fields;
+    columns.set(table,fields.map(f=>`t.${quote(f.name)}`).join(','));
+  }
+  const current = (table: string) => sources.map(s => `SELECT ${columns.get(table)} FROM ${quote(s)}.${quote(table)} t
     JOIN history_owners o ON o.item_id=t.item_id AND o.source_schema='${s}' AND o.to_at IS NULL`).join(' UNION ALL ');
   await client.query(`CREATE TABLE public.items AS ${current('items')}; ALTER TABLE public.items ADD PRIMARY KEY(item_id)`);
   assert.equal((await client.query('SELECT count(*)::int n FROM public.items')).rows[0].n,new Set(owners.map(o=>o.itemId)).size);
