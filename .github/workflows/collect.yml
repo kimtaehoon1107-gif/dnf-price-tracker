@@ -20,9 +20,19 @@ name: 경매장 수집
 # 새 요청은 대기했다가 앞 실행이 끝나는 즉시 이어받아 공백이 생기지 않는다.
 on:
   workflow_dispatch:
+    inputs:
+      database:
+        description: '수집 대상 (전환 준비용 B/C는 별도 동시 실행 그룹)'
+        type: choice
+        options: [current, B, C]
+        default: current
+      prime:
+        description: '전환 첫 실행: 담당 아이템을 한 번 즉시 수집'
+        type: boolean
+        default: false
 
 concurrency:
-  group: collect
+  group: ${{ inputs.database == 'B' && 'collect-B' || inputs.database == 'C' && 'collect-C' || 'collect' }}
   cancel-in-progress: false
 
 jobs:
@@ -44,10 +54,18 @@ jobs:
 
       - run: npm ci --omit=dev
 
+      - name: 전환 초기 수집
+        if: inputs.prime
+        env:
+          NEOPLE_API_KEY: ${{ secrets.NEOPLE_API_KEY }}
+          DATABASE_URL: ${{ secrets[inputs.database == 'B' && 'DATABASE_URL_B' || inputs.database == 'C' && 'DATABASE_URL_C' || 'DATABASE_URL'] }}
+          COLLECT_SOURCE: actions
+        run: node --no-warnings src/run.ts --once --group ${{ matrix.group }}
+
       - name: 수집 (55분)
         env:
           NEOPLE_API_KEY: ${{ secrets.NEOPLE_API_KEY }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ secrets[inputs.database == 'B' && 'DATABASE_URL_B' || inputs.database == 'C' && 'DATABASE_URL_C' || 'DATABASE_URL'] }}
           # 이 워크플로는 pg_cron의 workflow_dispatch로만 실행된다.
           # event_name으로 분기하면 전부 manual로 잘못 기록된다.
           COLLECT_SOURCE: actions

@@ -19,7 +19,29 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  sources:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { existsSync,readFileSync,appendFileSync } from 'node:fs';
+          const path='config/history-sources.json';
+          const sources=existsSync(path)
+            ? JSON.parse(readFileSync(path,'utf8')).live.map(({secret,project})=>({secret,project}))
+            : [{secret:'DATABASE_URL',project:''}];
+          appendFileSync(process.env.GITHUB_OUTPUT,`matrix=${JSON.stringify(sources)}\n`);
+          NODE
   archive:
+    needs: sources
+    strategy:
+      fail-fast: false
+      matrix:
+        source: ${{ fromJSON(needs.sources.outputs.matrix) }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     services:
@@ -44,7 +66,8 @@ jobs:
         run: node --no-warnings scripts/test-archive.ts
       - name: 읽기 전용으로 시세·품질 기록과 기존 연구 입력 추출
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ secrets[matrix.source.secret] }}
+          ARCHIVE_PROJECT: ${{ matrix.source.project }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -52,6 +75,7 @@ jobs:
         run: node --no-warnings scripts/archive-research.ts capture archive-work
       - name: 변경 파일 보관·재다운로드·실제 DB 복원·연구 재현 후 발행
         env:
+          ARCHIVE_PROJECT: ${{ matrix.source.project }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -61,7 +85,8 @@ jobs:
       - name: 분석용 기간·아이템 선택과 최근 DB 결합 검증
         if: github.event_name == 'workflow_dispatch' && inputs.verify_live
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ secrets[matrix.source.secret] }}
+          ARCHIVE_PROJECT: ${{ matrix.source.project }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -79,7 +104,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: research-archive-report
+          name: research-archive-report-${{ matrix.source.project || 'legacy-a' }}
           path: |
             archive-work/report.json
             archive-work-analysis/dataset.json

@@ -7,7 +7,7 @@
 //   node --env-file=.env --no-warnings web/build.ts
 
 import { mkdirSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
-import { pool } from '../src/db.ts';
+import { buildPool, setBuildClock } from '../src/build-db.ts';
 import { HistoryCache } from '../src/history-cache.ts';
 import { r2Store } from '../src/archive.ts';
 import type { QueryResultRow } from 'pg';
@@ -20,11 +20,13 @@ import { researchExport } from '../src/research-export.ts';
 import { weekdayTrend, WEEKDAY_MIN_WEEKS } from '../src/weekday-trend.ts';
 import { summarizeWeekdays } from './metrics.js';
 
+const pool = await buildPool();
 const client = await pool.connect();
 const historyCache = new HistoryCache(client, process.env.BUILD_HISTORY_CACHE === 'r2' ? r2Store() : undefined);
 const history = (label: string, day: string, order: string[]) => historyCache.query({ label, day, order });
 const query = <T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => client.query<T>(text, params);
 try {
+await setBuildClock(client);
 await query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
 const quality = await checkCandles(client);
 if (quality.mismatches) throw new Error(`시간봉 정합성 불일치 ${quality.mismatches}봉 — 새 분석 배포를 중단합니다.`);
