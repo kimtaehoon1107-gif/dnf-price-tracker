@@ -15,6 +15,11 @@
 - 운영 코드·GitHub Secrets·cron·기존 R2 manifest는 변경하지 않았다.
 - `src/history-merge.ts`는 출처별로 복원한 **검증용 DB**의 체결·스냅샷만 병합하는 기반이다.
   운영 빌드에 연결하지 않았다. R2 실자료+새 DB의 전체 사이트 재현 완료를 뜻하지 않는다.
+- 초안 [PR #7](https://github.com/kimtaehoon1107-gif/dnf-price-tracker/pull/7),
+  [PostgreSQL 17 검사 35707353439](https://github.com/kimtaehoon1107-gif/dnf-price-tracker/actions/runs/35707353439)
+  2026-09-22 17:54 KST 성공. 테스트용 보관 자료의 ID 충돌·중복/복수 체결·숫자/시각 정밀도,
+  전환 시간봉·담당 관측·내용 충돌/담당 공백 중단·실제 이력 SQL 9개·연구 출력을 대조했다.
+  이 검사는 실제 새 프로젝트의 수집 성공이나 API 관측 완전성을 증명하지 않는다.
 
 ## 확인한 자료와 분배 초안
 
@@ -43,10 +48,10 @@ DB 소유자까지 바꾸게 해서는 안 된다.
 
 ## 보관본과 운영 복구의 차이
 
-확인한 최근 성공 보관은 [Actions 35576485314](https://github.com/kimtaehoon1107-gif/dnf-price-tracker/actions/runs/35576485314).
-소스 기준 2026-09-21 17:10:46 KST, 실제 복원 검증 17:14:22 KST.
-1,061,877행, 압축 30,116,622바이트, `continuity=ok`, 연구 입력 재현 성공.
-확인한 manifest: `manifests/ec4490cf8af646883749f8f6e9fdc7b07f5f1d0cf48e02464de5f76bf8ef1abb.json`.
+확인한 최근 성공 보관은 [Actions 35702050271](https://github.com/kimtaehoon1107-gif/dnf-price-tracker/actions/runs/35702050271).
+소스 기준 2026-09-22 16:55:55 KST, 실제 복원 검증 16:58:52 KST.
+1,137,311행, 압축 32,486,257바이트, `continuity=ok`, 연구 입력 재현 성공.
+확인한 manifest: `manifests/667d14eb10723832437fc68976fd4c86fb226c723005282329aca86f891945d8.json`.
 이는 해당 실행 로그에서 확인한 기록이며 전환 시점의 최신 백업을 뜻하지 않는다.
 
 R2는 운영에서 정리된 행도 남기는 연구 보관본이다. 그대로 운영 DB로 복원하면 삭제된 행이
