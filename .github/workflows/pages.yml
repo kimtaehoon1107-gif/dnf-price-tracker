@@ -21,6 +21,9 @@ on:
       - 'src/candle-check.ts'
       - 'src/db.ts'
       - 'src/history-cache.ts'
+      - 'src/build-*.ts'
+      - 'scripts/build-history-site.ts'
+      - 'config/history-sources.json'
       - 'src/archive.ts'
       - 'scripts/legendary-floor.ts'
       - 'sql/legendary-scans.sql'
@@ -47,6 +50,17 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: archive_verify
+          POSTGRES_PASSWORD: temporary-build-only
+          POSTGRES_DB: archive_verify
+        ports: ['55432:5432']
+        options: >-
+          --health-cmd "pg_isready -U archive_verify -d archive_verify"
+          --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -72,6 +86,7 @@ jobs:
         run: node --no-warnings scripts/scan-turnover.ts
 
       - name: 사전 예측 기록 및 실측 확정
+        if: hashFiles('config/history-sources.json') == ''
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: node --no-warnings scripts/record-forecasts.ts
@@ -79,12 +94,20 @@ jobs:
       - name: 사이트 빌드
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL_B: ${{ secrets.DATABASE_URL_B }}
+          DATABASE_URL_C: ${{ secrets.DATABASE_URL_C }}
+          ARCHIVE_VERIFY_URL: postgresql://archive_verify:temporary-build-only@127.0.0.1:55432/archive_verify
           BUILD_HISTORY_CACHE: r2
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        run: node --no-warnings web/build.ts
+        run: |
+          if [ -f config/history-sources.json ]; then
+            node --no-warnings scripts/build-history-site.ts
+          else
+            node --no-warnings web/build.ts
+          fi
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

@@ -5,6 +5,8 @@ import { loadResearch } from '../src/research-data.ts';
 import { LEGACY_RESEARCH_VERSION, RESEARCH_VERSION, issueForecast, kstDay, shiftDay, type Issue } from '../src/research.ts';
 
 const client = await pool.connect();
+let reader = client;
+let inputPool: typeof pool | undefined;
 let locked = false;
 try {
   // 잠금을 기다린 뒤 스냅샷을 열어 먼저 끝난 발행의 결과를 볼 수 있게 한다.
@@ -12,14 +14,20 @@ try {
   locked = true;
   await client.query(readFileSync(new URL('../sql/research.sql', import.meta.url), 'utf8'));
   await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
-  const quality = await checkCandles(client);
+  if (process.env?.BUILD_DATABASE_URL) {
+    const { buildPool, setBuildClock } = await import('../src/build-db.ts');
+    inputPool = await buildPool(); reader = await inputPool.connect();
+    await setBuildClock(reader);
+    await reader.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+  }
+  const quality = await checkCandles(reader);
   if (quality.stale || quality.mismatches) throw new Error('집계 상태 불량');
   const origin = kstDay(quality.checkedAt);
   const before = [origin, kstDay(quality.through)].sort()[0];
   // 발행·실측 확정이 없는 시간에는 과거 연구 입력을 내려받을 필요가 없다.
   const loaded = new Map<string, Awaited<ReturnType<typeof loadResearch>>>();
   async function getData(version = RESEARCH_VERSION) {
-    if (!loaded.has(version)) loaded.set(version, await loadResearch(client, quality.checkedAt, quality.through, version));
+    if (!loaded.has(version)) loaded.set(version, await loadResearch(reader, quality.checkedAt, quality.through, version));
     return loaded.get(version)!;
   }
   const batches = (await client.query<{ origin: string; issues: Issue[] }>(
@@ -63,6 +71,7 @@ try {
   console.error('사전 예측 기록 실패:', (error as { code?: string }).code ?? (error as Error).name);
   process.exitCode = 1;
 } finally {
+  if (inputPool) { await reader.query('ROLLBACK'); reader.release(); await inputPool.end(); }
   let destroy = false;
   if (locked) {
     try { destroy = !(await client.query('SELECT pg_advisory_unlock(20260916, 1) AS ok')).rows[0].ok; }

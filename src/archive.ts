@@ -63,6 +63,11 @@ export function mergeRows(old: Row[], current: Row[]) {
   return [...rows.values()];
 }
 export interface Store { get(key: string): Promise<Buffer | null>; put(key: string, bytes: Buffer): Promise<void> }
+export function projectArchiveStore(store: Store, project: string): Store {
+  assert(/^[a-z]{20}$/.test(project));
+  const prefix = `sources/${project}/`;
+  return { get: key => store.get(prefix+key), put: (key,bytes) => store.put(prefix+key,bytes) };
+}
 export function localStore(root: string): Store {
   const path = (key: string) => { assert(/^[a-zA-Z0-9/_ .-]+$/.test(key) && !key.includes('..')); return join(root, key); };
   return {

@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import pg from 'pg';
-import { capture, combine, hash, localStore, r2Store, readManifest, restore,
+import { capture, combine, hash, localStore, r2Store, projectArchiveStore, readManifest, restore,
   type Manifest, type Store } from '../src/archive.ts';
 import { loadResearch } from '../src/research-data.ts';
 
@@ -15,6 +15,7 @@ const [mode, directory] = positionals;
 assert(directory && ['capture', 'publish', 'load'].includes(mode),
   '사용법: archive-research.ts capture|publish|load <새 작업 폴더> [--from ISO --to ISO --items id,id --manifest manifests/hash.json --live]');
 const root = resolve(directory), local = localStore(root);
+const remoteArchive = () => process.env.ARCHIVE_PROJECT ? projectArchiveStore(r2Store(),process.env.ARCHIVE_PROJECT) : r2Store();
 const json = (value: unknown) => Buffer.from(JSON.stringify(value, null, 2) + '\n');
 const save = (file: string, value: unknown) => local.put(file, json(value));
 const researchResult = (r: Awaited<ReturnType<typeof loadResearch>>) => ({
@@ -23,7 +24,8 @@ const researchResult = (r: Awaited<ReturnType<typeof loadResearch>>) => ({
 });
 
 async function source() {
-  const previous = process.env.R2_ACCOUNT_ID ? await readManifest(r2Store()) : null;
+  if (process.env.ARCHIVE_PROJECT) assert.equal(new URL(process.env.DATABASE_URL!).username,`postgres.${process.env.ARCHIVE_PROJECT}`);
+  const previous = process.env.R2_ACCOUNT_ID ? await readManifest(remoteArchive()) : null;
   const { pool } = await import('../src/db.ts');
   const client = await pool.connect();
   try {
@@ -55,7 +57,7 @@ if (mode === 'capture') {
   await mkdir(root); await source();
 } else if (mode === 'publish') {
   const current: Manifest = JSON.parse(await readFile(resolve(root, 'source.json'), 'utf8'));
-  const remote = r2Store(), previous = await readManifest(remote);
+  const remote = remoteArchive(), previous = await readManifest(remote);
   assert.equal(current.parent, previous?.id ?? null, '추출 후 최신 보관본이 변경됐습니다. 다시 추출하세요');
   if (previous) assert(Date.parse(current.createdAt) > Date.parse(previous.manifest.createdAt), '과거 실행으로 최신 보관본을 덮을 수 없습니다');
   const manifest = await combine(previous?.manifest ?? null, current, remote, local, remote);
@@ -94,7 +96,7 @@ if (mode === 'capture') {
   if (values.from && values.to) assert(Date.parse(values.from) < Date.parse(values.to));
   assert(!values.live || !values.manifest, '고정 보관본 재현과 --live는 함께 사용할 수 없습니다');
   await mkdir(root);
-  const remote = r2Store(), archived = await readManifest(remote, values.manifest);
+  const remote = remoteArchive(), archived = await readManifest(remote, values.manifest);
   assert(archived, '발행된 보관본이 없습니다');
   assert(await remote.get(`verified/${archived.id.slice(10, -5)}.json`), '검증 성공 기록이 없습니다');
   let manifest = archived.manifest, store: Store = remote;
