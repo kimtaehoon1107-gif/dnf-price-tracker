@@ -1,0 +1,39 @@
+name: 과거·신규 이력 병합 검사
+
+on:
+  pull_request:
+    paths:
+      - 'src/history-merge.ts'
+      - 'src/archive.ts'
+      - 'scripts/test-history-merge.ts'
+      - '.github/workflows/history-merge-test.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  history-merge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: history_test
+          POSTGRES_PASSWORD: temporary-test-only
+          POSTGRES_DB: history_merge_test
+        ports: ['55432:5432']
+        options: >-
+          --health-cmd "pg_isready -U history_test -d history_merge_test"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --omit=dev
+      - run: npm test
+      - run: node --no-warnings scripts/test-history-merge.ts
+        env:
+          HISTORY_MERGE_TEST_URL: postgresql://history_test:temporary-test-only@127.0.0.1:55432/history_merge_test
