@@ -29,7 +29,7 @@ export async function pruneArchived(client:Client|PoolClient,store:Store,project
     // 파일 누락·훼손·예산 초과는 어느 행도 삭제하기 전에 발견한다.
     for(const table of Object.keys(keys) as Table[]) {
       const time=table==='listings'?'first_seen_at':'captured_at';
-      const days=(await client.query(`SELECT to_char(t.${time} AT TIME ZONE 'UTC','YYYY-MM-DD') day,count(*)::int n
+      const days=(await client.query(`SELECT to_char(t.${time} AT TIME ZONE 'UTC','YYYY-MM-DD') AS day,count(*)::int n
         FROM public.${table} t WHERE ${retentionPredicate(table)} GROUP BY 1 ORDER BY 1`,[cutoff])).rows;
       const proofs:{key:string;digest:string}[]=[];
       for(const day of days) {
