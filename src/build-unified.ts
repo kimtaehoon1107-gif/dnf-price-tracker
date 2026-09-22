@@ -36,7 +36,8 @@ export async function unifyMarket(client: Client, sources: string[], owners: His
   const invalid = (await client.query(`SELECT 1 FROM build_source_states WHERE raw_max_id IS NULL OR refreshed_at IS NULL LIMIT 1`)).rowCount;
   assert.equal(invalid,0,'집계 성공 경계가 없는 출처입니다');
   const activeSources = [...new Set(owners.filter(o=>o.to===null).map(o=>o.source))];
-  const state = (await client.query(`SELECT min(refreshed_at) AS refreshed_at FROM build_source_states WHERE source_schema=ANY($1)`,[activeSources])).rows[0];
+  const state = (await client.query(`SELECT min(refreshed_at) AS refreshed_at,min(raw_from) AS raw_from
+    FROM build_source_states WHERE source_schema=ANY($1)`,[activeSources])).rows[0];
   // 가장 오래된 출처의 완전한 원본 경계 전은 이미 원본이 정리된 시간봉일 수 있다.
   const rawFrom = (await client.query(`SELECT raw_from FROM build_source_states WHERE source_schema=$1`,[sources[0]])).rows[0].raw_from;
   await client.query(`CREATE TEMP TABLE build_trade_keys ON COMMIT DROP AS
@@ -55,7 +56,10 @@ export async function unifyMarket(client: Client, sources: string[], owners: His
     FROM public.trades WHERE sold_date>=$1 AND id<=$2 GROUP BY 1,2`,[rawFrom,maxId]);
   await client.query(`CREATE UNIQUE INDEX ON public.candles_1h(item_id,hour);
     CREATE TABLE public.candle_pipeline_state(singleton boolean,raw_from timestamptz,raw_max_id bigint,refreshed_at timestamptz)`);
-  await client.query('INSERT INTO public.candle_pipeline_state VALUES(true,$1,$2,$3)',[rawFrom,maxId,state.refreshed_at]);
+  await client.query('INSERT INTO public.candle_pipeline_state VALUES(true,$1,$2,$3)',[state.raw_from,maxId,state.refreshed_at]);
+  // 보관본에 남은 정리 전 원본 때문에 현재가/요일 표본의 운영 조회 창이 늘어나지 않게 한다.
+  // 장기 봉은 위에서 복원했으며 원본 전체는 출처별 분석 테이블과 R2에 그대로 남아 있다.
+  await client.query('DELETE FROM public.trades WHERE sold_date<$1',[state.raw_from]);
   await client.query(`CREATE TABLE public.listing_snapshots AS SELECT id,item_id,captured_at,min_unit_price,p10,p25,median,
     listing_count,total_qty,upgrade,upgrade_max FROM merged_listing_snapshots;
     CREATE INDEX ON public.listing_snapshots(item_id,captured_at);
