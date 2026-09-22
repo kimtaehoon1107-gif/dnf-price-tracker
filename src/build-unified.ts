@@ -9,6 +9,25 @@ export async function installBuildClock(client: Client) {
     $$ SELECT current_setting('dnf.as_of')::timestamptz $$`);
 }
 
+// C가 생기기 전 구간까지 2개 DB의 점검을 요구하면 정상인 과거가 결측으로 바뀐다.
+export async function unifyCollectionHealth(client: Client, activeSources: string[], asOf: string) {
+  await client.query(`CREATE TEMP TABLE build_health ON COMMIT DROP AS ${activeSources.map(s=>
+    `SELECT '${s}'::text AS source_schema,checked_at,gap_min,stale_items FROM ${quote(s)}.collection_health`).join(' UNION ALL ')}`);
+  await client.query(`CREATE TABLE public.collection_health AS WITH latest AS (
+      SELECT DISTINCT ON(source_schema,date_bin(interval '5 minutes',checked_at,'2000-01-01'::timestamptz)) *,
+        date_bin(interval '5 minutes',checked_at,'2000-01-01'::timestamptz) AS slot
+      FROM build_health WHERE checked_at<=$2
+      ORDER BY source_schema,date_bin(interval '5 minutes',checked_at,'2000-01-01'::timestamptz),checked_at DESC
+    ), expected AS (
+      SELECT DISTINCT s.slot,o.source_schema FROM (SELECT DISTINCT slot FROM latest) s JOIN history_owners o
+        ON tstzrange(o.from_at,o.to_at,'[)') && tstzrange(s.slot,s.slot+interval '5 minutes','[)')
+      WHERE o.source_schema=ANY($1)
+    ) SELECT coalesce(max(l.checked_at),e.slot) checked_at,
+      CASE WHEN count(l.gap_min)=count(*) THEN max(l.gap_min) ELSE NULL END gap_min,
+      CASE WHEN count(l.stale_items)=count(*) THEN sum(l.stale_items)::int ELSE NULL END stale_items
+    FROM expected e LEFT JOIN latest l USING(slot,source_schema) GROUP BY e.slot`,[activeSources,asOf]);
+}
+
 /** 호출자가 모든 입력을 복원한 뒤 repeatable read 안에서 담당 기간을 전달한다. */
 export async function unifyMarket(client: Client, sources: string[], owners: HistoryOwner[], asOf: string,
   globals: { source: string; from: string | null; to: string | null }[]) {
@@ -90,17 +109,7 @@ export async function unifyMarket(client: Client, sources: string[], owners: His
     for(const epoch of globals) await client.query(`INSERT INTO public.${quote(table)} SELECT * FROM ${quote(epoch.source)}.${quote(table)}
       WHERE tstzrange($1,$2,'[)') @> ${quote(time)} AND ${quote(time)}<=$3`,[epoch.from,epoch.to,asOf]);
   }
-  // 소스별 점검을 5분 구간에서 한 번씩 합친다. 한 출처의 점검이 빠지면 정상으로 계산하지 않는다.
-  await client.query(`CREATE TEMP TABLE build_health ON COMMIT DROP AS ${activeSources.map(s=>
-    `SELECT '${s}'::text AS source_schema,h.* FROM ${quote(s)}.collection_health h`).join(' UNION ALL ')}`);
-  await client.query(`CREATE TABLE public.collection_health AS WITH latest AS (
-      SELECT DISTINCT ON(source_schema,date_bin(interval '5 minutes',checked_at,'2000-01-01'::timestamptz)) *,
-        date_bin(interval '5 minutes',checked_at,'2000-01-01'::timestamptz) AS slot
-      FROM build_health ORDER BY source_schema,date_bin(interval '5 minutes',checked_at,'2000-01-01'::timestamptz),checked_at DESC
-    ) SELECT max(checked_at) checked_at,
-      CASE WHEN count(*)=$1 THEN max(gap_min) ELSE NULL END gap_min,
-      CASE WHEN count(*)=$1 AND count(stale_items)=$1 THEN sum(stale_items)::int ELSE NULL END stale_items
-    FROM latest GROUP BY slot`,[activeSources.length]);
+  await unifyCollectionHealth(client,activeSources,asOf);
   await installBuildClock(client);
   return { trades,snapshots,asOf,through:state.refreshed_at.toISOString() };
 }

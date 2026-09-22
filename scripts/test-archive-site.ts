@@ -58,7 +58,7 @@ try {
   const cut = new Date(Date.parse(asOf)-6*3600000).toISOString();
   const ids = (await client.query('SELECT item_id FROM items ORDER BY item_id')).rows.map(r=>r.item_id);
   const lastA = (await client.query('SELECT max(id)::text AS id FROM trades WHERE ingested_at<$1',[cut])).rows[0].id;
-  await client.query('ALTER SCHEMA public RENAME TO reference; CREATE SCHEMA public; CREATE SCHEMA hist_a; CREATE SCHEMA hist_b');
+  await client.query('ALTER SCHEMA public RENAME TO reference; CREATE SCHEMA public; CREATE SCHEMA hist_a; CREATE SCHEMA hist_b; CREATE SCHEMA hist_c');
   for(const table of [...Object.keys(TABLES),'collection_health']) {
     for(const source of ['hist_a','hist_b'])
       await client.query(`CREATE TABLE ${source}.${quote(table)} AS SELECT * FROM reference.${quote(table)}`);
@@ -72,8 +72,19 @@ try {
     UPDATE hist_b.candle_pipeline_state SET raw_max_id=(SELECT max(id) FROM hist_b.trades WHERE original_id<=(SELECT raw_max_id FROM reference.candle_pipeline_state))`);
   await client.query('DELETE FROM hist_a.listing_snapshots WHERE captured_at>=$1',[cut]);
   await client.query("DELETE FROM hist_b.listing_snapshots WHERE captured_at<$1::timestamptz-interval '1 hour'",[cut]);
+  const cutC=new Date(Date.parse(asOf)-3*3600000).toISOString(), cIds=ids.filter((_,i)=>i%2===0);
+  for(const table of [...Object.keys(TABLES),'collection_health'])
+    await client.query(`CREATE TABLE hist_c.${quote(table)} AS SELECT * FROM hist_b.${quote(table)}`);
+  for(const table of ['trades','candles_1h','listings','listing_deltas','listing_snapshots','collection_quality'])
+    await client.query(`DELETE FROM hist_c.${quote(table)} WHERE NOT(item_id=ANY($1))`,[cIds]);
+  await client.query('UPDATE hist_b.items SET tracked=NOT(item_id=ANY($1))',[cIds]);
+  await client.query('UPDATE hist_c.items SET tracked=(item_id=ANY($1))',[cIds]);
+  await client.query('DELETE FROM hist_b.trades WHERE item_id=ANY($1) AND ingested_at>=$2',[cIds,cutC]);
+  await client.query('DELETE FROM hist_b.listing_snapshots WHERE item_id=ANY($1) AND captured_at>=$2',[cIds,cutC]);
   const owners: HistoryOwner[] = ids.flatMap(itemId=>[
-    {itemId,source:'hist_a',from:null,to:cut},{itemId,source:'hist_b',from:cut,to:null}]);
+    {itemId,source:'hist_a',from:null,to:cut},
+    {itemId,source:'hist_b',from:cut,to:cIds.includes(itemId)?cutC:null},
+    ...(cIds.includes(itemId)?[{itemId,source:'hist_c',from:cutC,to:null}]:[])]);
   // 운영 A의 ALTER 이력과 새 B의 CREATE 순서가 달라도 값이 뒤바뀌면 안 된다.
   for(const table of ['items','listings']) {
     const fields=(await client.query(`SELECT * FROM hist_b.${quote(table)} LIMIT 0`)).fields.map(f=>quote(f.name)).reverse();
@@ -81,7 +92,7 @@ try {
       DROP TABLE hist_b.${quote(table)}; ALTER TABLE hist_b.reordered RENAME TO ${quote(table)}`);
   }
   await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
-  const report = await unifyMarket(client,['hist_a','hist_b'],owners,asOf,
+  const report = await unifyMarket(client,['hist_a','hist_b','hist_c'],owners,asOf,
     [{source:'hist_a',from:null,to:cut},{source:'hist_b',from:cut,to:null}]);
   await client.query('COMMIT');
   const actual = await build(asOf);

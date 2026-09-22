@@ -8,6 +8,11 @@
       "project": "ejtjwtlehkzuutqgzevu",
       "schema": "hist_b",
       "secret": "DATABASE_URL_B"
+    },
+    {
+      "project": "eixqezzwmzxrmtnfhomj",
+      "schema": "hist_c",
+      "secret": "DATABASE_URL_C"
     }
   ],
   "owners": [
@@ -33,7 +38,7 @@
       "itemId": "050b5060a003e81df20b1446d5e0ef1d",
       "source": "hist_b",
       "from": "2026-09-22T10:20:38.045Z",
-      "to": null
+      "to": "2026-09-22T13:00:34.005Z"
     },
     {
       "itemId": "0620c107b1aae1f3a6cf9eee3aaf43d7",
@@ -45,7 +50,7 @@
       "itemId": "0620c107b1aae1f3a6cf9eee3aaf43d7",
       "source": "hist_b",
       "from": "2026-09-22T10:19:04.692Z",
-      "to": null
+      "to": "2026-09-22T13:00:06.828Z"
     },
     {
       "itemId": "078630e1f610eee7c724e477d13425b2",
@@ -93,7 +98,7 @@
       "itemId": "12a4a6ce6c34b550563f9fc9bf2ec3e6",
       "source": "hist_b",
       "from": "2026-09-22T10:21:01.946Z",
-      "to": null
+      "to": "2026-09-22T13:00:31.821Z"
     },
     {
       "itemId": "157903e48399874bc18b35d276b3ef1b",
@@ -213,7 +218,7 @@
       "itemId": "33776306aa3fa6fead55ced8656be444",
       "source": "hist_b",
       "from": "2026-09-22T10:19:14.097Z",
-      "to": null
+      "to": "2026-09-22T13:00:15.001Z"
     },
     {
       "itemId": "3493ade40cfe2c70e8afaf7ad7aeca73",
@@ -297,7 +302,7 @@
       "itemId": "4a737b2ae337a57260ca4663ce6a9bb0",
       "source": "hist_b",
       "from": "2026-09-22T10:19:04.915Z",
-      "to": null
+      "to": "2026-09-22T13:00:10.583Z"
     },
     {
       "itemId": "4e15b97c37dc8d1ded9e0c88ce08a748",
@@ -345,7 +350,7 @@
       "itemId": "5538350d018cb676ecaff09fad1ed4e0",
       "source": "hist_b",
       "from": "2026-09-22T10:19:00.299Z",
-      "to": null
+      "to": "2026-09-22T13:00:21.231Z"
     },
     {
       "itemId": "55be75a1c024aac3ef84ed3bed5b8db9",
@@ -357,7 +362,7 @@
       "itemId": "55be75a1c024aac3ef84ed3bed5b8db9",
       "source": "hist_b",
       "from": "2026-09-22T10:18:58.018Z",
-      "to": null
+      "to": "2026-09-22T13:00:08.326Z"
     },
     {
       "itemId": "5f32b1f449302f13924a4a2d4405de65",
@@ -417,7 +422,7 @@
       "itemId": "702d33e99edb55d23cac4c9970ef44ee",
       "source": "hist_b",
       "from": "2026-09-22T10:19:09.372Z",
-      "to": null
+      "to": "2026-09-22T13:00:25.381Z"
     },
     {
       "itemId": "710fcee09647480e4c7135c31bbb6c8c",
@@ -525,7 +530,7 @@
       "itemId": "a295bdbb26984dcb946eb3a3044dcfe5",
       "source": "hist_b",
       "from": "2026-09-22T10:19:11.737Z",
-      "to": null
+      "to": "2026-09-22T13:00:12.791Z"
     },
     {
       "itemId": "ae1b370972f85389d77eee716ae9f6e2",
@@ -537,7 +542,7 @@
       "itemId": "ae1b370972f85389d77eee716ae9f6e2",
       "source": "hist_b",
       "from": "2026-09-22T10:20:21.402Z",
-      "to": null
+      "to": "2026-09-22T13:00:27.581Z"
     },
     {
       "itemId": "aefd43bba0bdfee5203fde4a954b6e59",
@@ -597,7 +602,7 @@
       "itemId": "b971992f2529a494215fdf9368cfa0dd",
       "source": "hist_b",
       "from": "2026-09-22T10:19:18.522Z",
-      "to": null
+      "to": "2026-09-22T13:00:17.070Z"
     },
     {
       "itemId": "bb5a6aeb6b44bbdce835679bef4335b5",
@@ -705,7 +710,7 @@
       "itemId": "c7d845c65ab9dbcff6e55dc910fbea87",
       "source": "hist_b",
       "from": "2026-09-22T10:19:11.180Z",
-      "to": null
+      "to": "2026-09-22T13:00:09.091Z"
     },
     {
       "itemId": "d288ebf406a65f4ec23d1f9c33227888",
@@ -729,7 +734,7 @@
       "itemId": "d39b0118e0d6cd3eccbaadb9797b6bac",
       "source": "hist_b",
       "from": "2026-09-22T10:19:02.537Z",
-      "to": null
+      "to": "2026-09-22T13:00:23.301Z"
     },
     {
       "itemId": "d764ad320566b4ecff5931574a148bb7",
@@ -753,7 +758,7 @@
       "itemId": "d869a5f5a2f5d9ae636763285a29a78d",
       "source": "hist_b",
       "from": "2026-09-22T10:20:50.303Z",
-      "to": null
+      "to": "2026-09-22T13:00:29.501Z"
     },
     {
       "itemId": "d8e054cca6250ae6e2698ce66992f37d",
@@ -825,7 +830,7 @@
       "itemId": "e974d2eac46f0c8b23b83d4da389fa57",
       "source": "hist_b",
       "from": "2026-09-22T10:19:20.742Z",
-      "to": null
+      "to": "2026-09-22T13:00:19.150Z"
     },
     {
       "itemId": "e9e6e8a494598dc2a54b48bb70b8f34f",
@@ -861,7 +866,7 @@
       "itemId": "f9941d3fa0b8253bb0b2567a29b1299f",
       "source": "hist_b",
       "from": "2026-09-22T10:19:17.434Z",
-      "to": null
+      "to": "2026-09-22T13:00:11.607Z"
     },
     {
       "itemId": "fac4ce61d490d3a006025c797abb5950",
@@ -873,6 +878,102 @@
       "itemId": "fac4ce61d490d3a006025c797abb5950",
       "source": "hist_b",
       "from": "2026-09-22T10:20:16.679Z",
+      "to": null
+    },
+    {
+      "itemId": "050b5060a003e81df20b1446d5e0ef1d",
+      "source": "hist_c",
+      "from": "2026-09-22T13:00:34.005Z",
+      "to": null
+    },
+    {
+      "itemId": "0620c107b1aae1f3a6cf9eee3aaf43d7",
+      "source": "hist_c",
+      "from": "2026-09-22T13:00:06.828Z",
+      "to": null
+    },
+    {
+      "itemId": "12a4a6ce6c34b550563f9fc9bf2ec3e6",
+      "source": "hist_c",
+      "from": "2026-09-22T13:00:31.821Z",
+      "to": null
+    },
+    {
+      "itemId": "33776306aa3fa6fead55ced8656be444",
+      "source": "hist_c",
+      "from": "2026-09-22T13:00:15.001Z",
+      "to": null
+    },
+    {
+      "itemId": "4a737b2ae337a57260ca4663ce6a9bb0",
+      "source": "hist_c",
+      "from": "2026-09-22T13:00:10.583Z",
+      "to": null
+    },
+    {
+      "itemId": "5538350d018cb676ecaff09fad1ed4e0",
+      "source": "hist_c",
+      "from": "2026-09-22T13:00:21.231Z",
+      "to": null
+    },
+    {
+      "itemId": "55be75a1c024aac3ef84ed3bed5b8db9",
+      "source": "hist_c",
+      "from": "2026-09-22T13:00:08.326Z",
+      "to": null
+    },
+    {
+      "itemId": "702d33e99edb55d23cac4c9970ef44ee",
+      "source": "hist_c",
+      "from": "2026-09-22T13:00:25.381Z",
+      "to": null
+    },
+    {
+      "itemId": "a295bdbb26984dcb946eb3a3044dcfe5",
+      "source": "hist_c",
+      "from": "2026-09-22T13:00:12.791Z",
+      "to": null
+    },
+    {
+      "itemId": "ae1b370972f85389d77eee716ae9f6e2",
+      "source": "hist_c",
+      "from": "2026-09-22T13:00:27.581Z",
+      "to": null
+    },
+    {
+      "itemId": "b971992f2529a494215fdf9368cfa0dd",
+      "source": "hist_c",
+      "from": "2026-09-22T13:00:17.070Z",
+      "to": null
+    },
+    {
+      "itemId": "c7d845c65ab9dbcff6e55dc910fbea87",
+      "source": "hist_c",
+      "from": "2026-09-22T13:00:09.091Z",
+      "to": null
+    },
+    {
+      "itemId": "d39b0118e0d6cd3eccbaadb9797b6bac",
+      "source": "hist_c",
+      "from": "2026-09-22T13:00:23.301Z",
+      "to": null
+    },
+    {
+      "itemId": "d869a5f5a2f5d9ae636763285a29a78d",
+      "source": "hist_c",
+      "from": "2026-09-22T13:00:29.501Z",
+      "to": null
+    },
+    {
+      "itemId": "e974d2eac46f0c8b23b83d4da389fa57",
+      "source": "hist_c",
+      "from": "2026-09-22T13:00:19.150Z",
+      "to": null
+    },
+    {
+      "itemId": "f9941d3fa0b8253bb0b2567a29b1299f",
+      "source": "hist_c",
+      "from": "2026-09-22T13:00:11.607Z",
       "to": null
     }
   ],

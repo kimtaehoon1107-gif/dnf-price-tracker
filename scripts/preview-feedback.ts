@@ -34,7 +34,7 @@ const server=createServer(async(req,res)=>{
   const file=(req.url||'/').split('?')[0].slice(1)||'feedback.html';
   if(!['feedback.html','feedback.js','feedback.css','style.css'].includes(file)){res.writeHead(404);res.end();return;}
   let body=readFileSync(`web/${file}`,'utf8');
-  if(file==='feedback.js') body=body.replace('https://ypmnadqnmadrburkrcka.supabase.co/functions/v1/feedback','/api/feedback');
+  if(file==='feedback.js') body=body.replace('https://ejtjwtlehkzuutqgzevu.supabase.co/functions/v1/feedback','/api/feedback');
   res.writeHead(200,{'Content-Type':file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html; charset=utf-8','Cache-Control':'no-store'});res.end(body);
 });
 server.listen(0,'127.0.0.1',()=>{const origin=`http://127.0.0.1:${(server.address() as any).port}`;handler=createHandler(rpc,'preview-only-pepper',origin);console.log(`격리 테스트 게시판: ${origin}/feedback.html`);});
