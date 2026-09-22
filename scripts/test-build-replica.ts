@@ -36,6 +36,9 @@ try {
   await writer.query("INSERT INTO trades(id,item_id,sold_date,unit_price,count,price) VALUES (42,'soul','2026-09-22T00:00:00Z',10,1,10)");
   const first = await capture();
   assert(first.stats.fetchedBytes > 0 && first.stats.fetchedChunks > 0);
+  assert(first.replica.chunks.filter(c=>c.table==='trades').every(c=>/^\d{4}-\d{2}-\d{2}$/.test(c.bucket)),
+    '중복 INSERT로 생긴 ID 간격 대신 체결 날짜로 묶음');
+  assert(first.replica.chunks.filter(c=>c.table==='listings').length<=1,'현재 호가를 수백 개 작은 객체로 나누지 않음');
   await restore(first.replica,'mirror_first');
   assert.equal((await local.query('SELECT 1 FROM mirror_first.trades WHERE id=42')).rowCount,0);
   await publishReplica(store,first.replica,first.previous);
