@@ -11,8 +11,10 @@ const DEFINITIONS: Record<string, Definition> = Object.fromEntries(Object.entrie
   bucket: def.key.length === 1 && def.key[0] === 'id' ? '(id/256)::text' :
     def.time ? `to_char(${quote(def.time)} AT TIME ZONE 'UTC','YYYY-MM-DD')` : "'all'::text",
 }]));
+// 체결 ID는 중복 INSERT 시도에도 증가한다. 날짜로 묶어 빈 번호 때문에 작은 객체가 폭증하지 않게 한다.
+DEFINITIONS.trades.bucket = "to_char(sold_date AT TIME ZONE 'UTC','YYYY-MM-DD')";
 // 호가 사다리는 현재 매물만 사용한다. 닫힌 매물 전체를 매시간 가져오지 않는다.
-DEFINITIONS.listings = { key: ['auction_no'], bucket: "substr(md5(auction_no::text),1,2)",
+DEFINITIONS.listings = { key: ['auction_no'], bucket: "'all'::text",
   select: '*', source: 'listings WHERE closed_at IS NULL' };
 DEFINITIONS.collection_health = { key: ['id'], bucket: '(id/256)::text',
   select: 'id,checked_at,last_collect_at,gap_min,stale_items,action', source: 'collection_health' };
@@ -83,6 +85,11 @@ export async function captureReplica(client: DB, store: Store, project: string, 
   }
   assert(stats.fetchedBytes + stats.signatureBytes <= byteBudget,
     `빌드 복제본 전송 예산 초과: 본문 ${stats.fetchedBytes} + 해시 목록 ${stats.signatureBytes} > ${byteBudget} bytes`);
+  const uploads: { key: string; bytes: Buffer }[] = [];
+  const upload = async () => {
+    const results=await Promise.allSettled(uploads.splice(0).map(o=>store.put(o.key,o.bytes)));
+    for(const result of results) if(result.status==='rejected') throw result.reason;
+  };
   for (const { table, sql, signatures } of plans) {
     if (!signatures.length) continue;
     await client.query(`DECLARE replica_rows NO SCROLL CURSOR FOR SELECT * FROM (${sql}) r
@@ -94,7 +101,8 @@ export async function captureReplica(client: DB, store: Store, project: string, 
       assert.equal(rows.length, sig.rows); assert.equal(digest(rows), sig.hash);
       const bytes = encode(rows);
       const chunk = { table, bucket, hash: hash(bytes), sourceHash: sig.hash, rows: rows.length, bytes: bytes.length };
-      await store.put(objectKey(chunk), bytes); replica.chunks.push(chunk); stats.fetchedChunks++; rows = [];
+      uploads.push({key:objectKey(chunk),bytes}); replica.chunks.push(chunk); stats.fetchedChunks++; rows = [];
+      if(uploads.length===8) await upload();
     };
     try {
       while (true) {
@@ -108,6 +116,7 @@ export async function captureReplica(client: DB, store: Store, project: string, 
       await flush();
     } finally { await client.query('CLOSE replica_rows'); }
   }
+  await upload();
   return { replica, stats, previous };
 }
 
@@ -121,8 +130,12 @@ export async function restoreReplica(client: DB, store: Store, replica: Replica,
     await client.query(`CREATE TABLE ${quote(schema)}.${quote(table)}
       (${fields.map(f => `${quote(f.name)} ${f.type}`).join(',')}, PRIMARY KEY (${DEFINITIONS[table].key.map(quote).join(',')}))`);
   }
-  for (const chunk of replica.chunks) {
-    const bytes = await store.get(objectKey(chunk)); assert(bytes, '재사용할 빌드 복제본 객체가 없습니다');
+  // 네트워크 대기는 작은 묶음으로 병렬화하고 실제 INSERT·내용 대조는 한 연결에서 순서대로 한다.
+  for(let start=0;start<replica.chunks.length;start+=8) {
+    const batch=replica.chunks.slice(start,start+8);
+    const payloads=await Promise.all(batch.map(chunk=>store.get(objectKey(chunk))));
+    for(const [index,chunk] of batch.entries()) {
+    const bytes=payloads[index]; assert(bytes, '재사용할 빌드 복제본 객체가 없습니다');
     const rows = decode(bytes, { ...chunk, day: chunk.bucket });
     const table = `${quote(schema)}.${quote(chunk.table)}`;
     const restored: Row[] = [];
@@ -133,6 +146,7 @@ export async function restoreReplica(client: DB, store: Store, replica: Replica,
       restored.push(...result.rows);
     }
     assert.equal(digest(restored), chunk.sourceHash, `빌드 복제본 실제 복원 불일치: ${chunk.table}`);
+    }
   }
 }
 

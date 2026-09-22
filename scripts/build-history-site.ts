@@ -41,6 +41,8 @@ try {
   for(const live of config.live) {
     assert(['hist_b','hist_c'].includes(live.schema));
     assert(['DATABASE_URL_B','DATABASE_URL_C'].includes(live.secret));
+    // 정기 보관과 빌드가 겹쳐도 DB 조회 시각 이후의 보관본을 섞지 않는다.
+    const archiveStore=projectArchiveStore(store,live.project), history=await readManifest(archiveStore);
     const connection=process.env[live.secret]!;
     assert.equal(new URL(connection).username,`postgres.${live.project}`);
     const source=new pg.Client({connectionString:connection,ssl,connectionTimeoutMillis:15000});sources.push(source);
@@ -58,9 +60,9 @@ try {
     await local.query('BEGIN');
     await restoreReplica(local,store,captured.replica,`live_${live.schema}`);
     await local.query('COMMIT');
-    const archiveStore=projectArchiveStore(store,live.project), history=await readManifest(archiveStore);
     if(history) {
       assert(await archiveStore.get(`verified/${history.id.slice(10,-5)}.json`),'새 DB 보관본 검증 기록 없음');
+      assert(Date.parse(history.manifest.createdAt)<=Date.parse(captured.replica.asOf),'DB 조회 시각보다 새로운 보관본');
       assert(Date.parse(captured.replica.asOf)-Date.parse(history.manifest.createdAt)<6*86400000,'새 DB 보관 공백');
       await restore(local,history.manifest,archiveStore);
       await local.query(`ALTER SCHEMA public RENAME TO ${quote(live.schema)}; CREATE SCHEMA public`);
