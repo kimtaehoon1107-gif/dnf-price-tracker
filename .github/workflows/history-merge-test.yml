@@ -9,6 +9,11 @@ on:
       - 'src/build-db.ts'
       - 'web/build.ts'
       - 'src/archive.ts'
+      - 'src/archive-retention.ts'
+      - 'scripts/archive-research.ts'
+      - 'scripts/prune-archive.ts'
+      - 'scripts/test-archive-retention.ts'
+      - '.github/workflows/archive-research.yml'
       - 'scripts/test-history-merge.ts'
       - 'scripts/test-build-replica.ts'
       - 'scripts/test-archive-site.ts'
@@ -45,6 +50,9 @@ jobs:
         env:
           HISTORY_MERGE_TEST_URL: postgresql://history_test:temporary-test-only@127.0.0.1:55432/history_merge_test
       - run: node --no-warnings scripts/test-build-replica.ts
+        env:
+          HISTORY_MERGE_TEST_URL: postgresql://history_test:temporary-test-only@127.0.0.1:55432/history_merge_test
+      - run: node --no-warnings scripts/test-archive-retention.ts
         env:
           HISTORY_MERGE_TEST_URL: postgresql://history_test:temporary-test-only@127.0.0.1:55432/history_merge_test
 

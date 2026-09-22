@@ -33,6 +33,9 @@ async function source() {
     await client.query("SET LOCAL statement_timeout='120s'");
     const manifest = await capture(client, local, previous?.manifest,
       process.env.ARCHIVE_MAX_FETCH_BYTES ? Number(process.env.ARCHIVE_MAX_FETCH_BYTES) : Infinity);
+    const usage=(await client.query(`SELECT now() AS measured_at,pg_database_size(current_database())::text AS database_bytes,
+      (SELECT jsonb_object_agg(relname,pg_total_relation_size(relid)::text) FROM pg_stat_user_tables WHERE schemaname='public') AS table_bytes`)).rows[0];
+    await save('usage.json',{project:process.env.ARCHIVE_PROJECT??null,...usage});
     manifest.parent = previous?.id ?? null;
     const research = researchResult(await loadResearch(client, manifest.createdAt, manifest.createdAt));
     await client.query('ROLLBACK');
@@ -65,11 +68,16 @@ if (mode === 'capture') {
   manifest.parent = previous?.id ?? null;
   const client = await target();
   let rows: number;
+  let archivedResearchSha256:string;
   try {
-    rows = await restore(client, manifest, remote);
+    await restore(client,current,{get:async key=>(await local.get(key))??remote.get(key),put:local.put});
     const actual = researchResult(await loadResearch(client as any, current.createdAt, current.createdAt));
     const expected = JSON.parse(await readFile(resolve(root, 'expected-research.json'), 'utf8'));
     assert.deepEqual(JSON.parse(JSON.stringify(actual)), expected, '기존 연구 입력 재현 불일치');
+    // target()이 제한한 일회성 검증 DB만 비운다. 오래된 원본이 남은 전체 보관본도 다시 복원한다.
+    await client.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public');
+    rows=await restore(client,manifest,remote);
+    archivedResearchSha256=hash(json(researchResult(await loadResearch(client as any,current.createdAt,current.createdAt))));
   } finally { await client.end(); }
   const bytes = json(manifest), id = `manifests/${hash(bytes)}.json`;
   await remote.put(id, bytes);
@@ -77,7 +85,8 @@ if (mode === 'capture') {
   const report = { manifest: id, verifiedAt: new Date().toISOString(), sourceAsOf: current.createdAt,
     rows, shards: manifest.shards.length, compressedBytes: manifest.shards.reduce((n, s) => n + s.bytes, 0),
     qualityAvailableFrom: manifest.qualityAvailableFrom, continuity: manifest.continuity,
-    researchReproduced: true, productionModified: false };
+    researchReproduced: true, currentResearchReproduced:true, archivedResearchSha256,
+    usage:JSON.parse(await readFile(resolve(root,'usage.json'),'utf8')), retentionReady:true, productionModified: false };
   await remote.put(`verified/${hash(bytes)}.json`, json(report));
   // 워크플로의 공통 concurrency 잠금 아래에서만 발행한다. 검증 실패 시 latest는 유지된다.
   assert.equal((await readManifest(remote))?.id ?? null, previous?.id ?? null, '다른 발행자가 latest를 갱신했습니다');

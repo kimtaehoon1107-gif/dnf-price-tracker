@@ -87,6 +87,15 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           ARCHIVE_VERIFY_URL: postgresql://archive_verify:temporary-verification-only@127.0.0.1:55432/archive_verify
         run: node --no-warnings scripts/archive-research.ts publish archive-work
+      - name: 검증된 14일 초과 매물·호가 원본 정리
+        env:
+          DATABASE_URL: ${{ secrets[matrix.source.secret] }}
+          ARCHIVE_PROJECT: ${{ matrix.source.project }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: node --no-warnings scripts/prune-archive.ts --apply
       - name: 분석용 기간·아이템 선택과 최근 DB 결합 검증
         if: github.event_name == 'workflow_dispatch' && inputs.verify_live
         env:
@@ -112,6 +121,7 @@ jobs:
           name: research-archive-report-${{ matrix.source.project || 'legacy-a' }}
           path: |
             archive-work/report.json
+            archive-work/retention.json
             archive-work-analysis/dataset.json
           if-no-files-found: ignore
           retention-days: 30
