@@ -12,7 +12,9 @@ const DEFINITIONS: Record<string, Definition> = Object.fromEntries(Object.entrie
     def.time ? `to_char(${quote(def.time)} AT TIME ZONE 'UTC','YYYY-MM-DD')` : "'all'::text",
 }]));
 // 체결 ID는 중복 INSERT에도 증가한다. 시간별로 묶어 완료된 시간을 재사용한다.
-DEFINITIONS.trades.bucket = "to_char(sold_date AT TIME ZONE 'UTC','YYYY-MM-DD/HH24')";
+const hourlyTimes:Record<string,string>={trades:'sold_date',legendary_card_scans:'started_at'};
+for(const [table,time] of Object.entries(hourlyTimes))
+  DEFINITIONS[table].bucket = `to_char(${time} AT TIME ZONE 'UTC','YYYY-MM-DD/HH24')`;
 // 호가 사다리는 현재 매물만 사용한다. 닫힌 매물 전체를 매시간 가져오지 않는다.
 DEFINITIONS.listings = { key: ['auction_no'], bucket: "'all'::text",
   select: '*', source: 'listings WHERE closed_at IS NULL' };
@@ -55,14 +57,14 @@ export async function captureReplica(client: DB, store: Store, project: string, 
   await client.query("SET LOCAL TIME ZONE 'UTC'; SET LOCAL DateStyle='ISO,YMD'; SET LOCAL extra_float_digits=3");
   const previous = await readReplica(store, project);
   const reusable = [...previous?.chunks ?? []];
-  // 구형 날짜 묶음은 R2 안에서 시간별로 나눈다. 운영 DB 전체를 다시 받지 않는다.
-  for (const chunk of reusable.filter(c=>c.table==='trades' && /^\d{4}-\d{2}-\d{2}$/.test(c.bucket))) {
+  // 구형 날짜/ID 묶음은 R2 안에서 시간별로 나눈다. 운영 DB 전체를 다시 받지 않는다.
+  for (const chunk of reusable.filter(c=>hourlyTimes[c.table] && !c.bucket.includes('/'))) {
     const raw=await store.get(objectKey(chunk)); assert(raw,'재사용할 빌드 복제본 객체가 없습니다');
     const rows=decode(raw,{...chunk,day:chunk.bucket});
     assert.equal(digest(rows),chunk.sourceHash);
     const hours=new Map<string,Row[]>();
     for(const row of rows) {
-      const bucket=new Date(JSON.parse(row.row).sold_date).toISOString().slice(0,13).replace('T','/');
+      const bucket=new Date(JSON.parse(row.row)[hourlyTimes[chunk.table]]).toISOString().slice(0,13).replace('T','/');
       const group=hours.get(bucket)??[];group.push(row);hours.set(bucket,group);
     }
     for(const [bucket,group] of hours) {
