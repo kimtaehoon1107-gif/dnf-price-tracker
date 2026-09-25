@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import pg from 'pg';
 import { captureReplica, restoreReplica, publishReplica, readReplica } from '../src/build-replica.ts';
-import type { Store } from '../src/archive.ts';
+import { encode,decode,hash,type Store,type Row } from '../src/archive.ts';
 
 const url = new URL(process.env.HISTORY_MERGE_TEST_URL!);
 assert.equal(url.hostname,'127.0.0.1'); assert.equal(url.port,'55432'); assert.equal(url.pathname,'/history_merge_test');
@@ -36,17 +36,36 @@ try {
   await writer.query("INSERT INTO trades(id,item_id,sold_date,unit_price,count,price) VALUES (42,'soul','2026-09-22T00:00:00Z',10,1,10)");
   const first = await capture();
   assert(first.stats.fetchedBytes > 0 && first.stats.fetchedChunks > 0);
-  assert(first.replica.chunks.filter(c=>c.table==='trades').every(c=>/^\d{4}-\d{2}-\d{2}$/.test(c.bucket)),
-    '중복 INSERT로 생긴 ID 간격 대신 체결 날짜로 묶음');
+  assert(first.replica.chunks.filter(c=>c.table==='trades').every(c=>/^\d{4}-\d{2}-\d{2}\/\d{2}$/.test(c.bucket)),
+    '체결을 시간별로 묶어 완료된 시간을 재사용');
   assert(first.replica.chunks.filter(c=>c.table==='listings').length<=1,'현재 호가를 수백 개 작은 객체로 나누지 않음');
   await restore(first.replica,'mirror_first');
   assert.equal((await local.query('SELECT 1 FROM mirror_first.trades WHERE id=42')).rowCount,0);
-  await publishReplica(store,first.replica,first.previous);
+  const legacy=structuredClone(first.replica),days=new Map<string,Row[]>();
+  for(const c of legacy.chunks.filter(c=>c.table==='trades')) {
+    const rows=decode(files.get(`build-replica/objects/${c.hash}.jsonl.gz`)!,{...c,day:c.bucket});
+    const day=c.bucket.slice(0,10);days.set(day,[...days.get(day)??[],...rows]);
+  }
+  legacy.chunks=legacy.chunks.filter(c=>c.table!=='trades');
+  for(const [bucket,rows] of days) {
+    const bytes=encode(rows),sourceHash=hash([...rows].sort((a,b)=>a.key<b.key?-1:a.key>b.key?1:0).map(r=>r.row+'\n').join(''));
+    const c={table:'trades',bucket,hash:hash(bytes),sourceHash,rows:rows.length,bytes:bytes.length};
+    files.set(`build-replica/objects/${c.hash}.jsonl.gz`,bytes);legacy.chunks.push(c);
+  }
+  await publishReplica(store,legacy,first.previous);
+  const readsBeforeMigration=reads;
   const warm = await capture();
   assert.equal(warm.stats.fetchedBytes,0); assert.equal(warm.stats.fetchedChunks,0);
+  assert.equal(reads,readsBeforeMigration,'날짜→시간 전환은 R2만 사용');
+  assert.deepEqual(warm.previous,legacy,'경합 검사용 이전 manifest를 변경하지 않음');
   assert(warm.stats.reusedChunks > 0);
   await restore(warm.replica,'mirror_warm');
   await publishReplica(store,warm.replica,warm.previous);
+  await local.query("INSERT INTO trades(id,item_id,sold_date,unit_price,count,price) VALUES (778,'soul','2026-09-22T02:00:00Z',10,1,10)");
+  const nextHour=await capture();
+  assert.equal(nextHour.stats.fetchedChunks,1,'같은 날 다음 시간 체결은 그 시간만 가져옴');
+  assert(nextHour.stats.fetchedBytes<1000,'하루 전체 체결을 다시 가져오지 않음');
+  await publishReplica(store,nextHour.replica,nextHour.previous);
   await writer.query('COMMIT');
   await local.query("DELETE FROM trades WHERE id=777; UPDATE trades SET refine=2 WHERE id=1");
   const changed = await capture();
