@@ -11,8 +11,8 @@ const DEFINITIONS: Record<string, Definition> = Object.fromEntries(Object.entrie
   bucket: def.key.length === 1 && def.key[0] === 'id' ? '(id/256)::text' :
     def.time ? `to_char(${quote(def.time)} AT TIME ZONE 'UTC','YYYY-MM-DD')` : "'all'::text",
 }]));
-// 체결 ID는 중복 INSERT 시도에도 증가한다. 날짜로 묶어 빈 번호 때문에 작은 객체가 폭증하지 않게 한다.
-DEFINITIONS.trades.bucket = "to_char(sold_date AT TIME ZONE 'UTC','YYYY-MM-DD')";
+// 체결 ID는 중복 INSERT에도 증가한다. 시간별로 묶어 완료된 시간을 재사용한다.
+DEFINITIONS.trades.bucket = "to_char(sold_date AT TIME ZONE 'UTC','YYYY-MM-DD/HH24')";
 // 호가 사다리는 현재 매물만 사용한다. 닫힌 매물 전체를 매시간 가져오지 않는다.
 DEFINITIONS.listings = { key: ['auction_no'], bucket: "'all'::text",
   select: '*', source: 'listings WHERE closed_at IS NULL' };
@@ -54,6 +54,22 @@ export async function captureReplica(client: DB, store: Store, project: string, 
   assert.equal((await client.query('SHOW transaction_read_only')).rows[0].transaction_read_only, 'on');
   await client.query("SET LOCAL TIME ZONE 'UTC'; SET LOCAL DateStyle='ISO,YMD'; SET LOCAL extra_float_digits=3");
   const previous = await readReplica(store, project);
+  const reusable = [...previous?.chunks ?? []];
+  // 구형 날짜 묶음은 R2 안에서 시간별로 나눈다. 운영 DB 전체를 다시 받지 않는다.
+  for (const chunk of reusable.filter(c=>c.table==='trades' && /^\d{4}-\d{2}-\d{2}$/.test(c.bucket))) {
+    const raw=await store.get(objectKey(chunk)); assert(raw,'재사용할 빌드 복제본 객체가 없습니다');
+    const rows=decode(raw,{...chunk,day:chunk.bucket});
+    assert.equal(digest(rows),chunk.sourceHash);
+    const hours=new Map<string,Row[]>();
+    for(const row of rows) {
+      const bucket=new Date(JSON.parse(row.row).sold_date).toISOString().slice(0,13).replace('T','/');
+      const group=hours.get(bucket)??[];group.push(row);hours.set(bucket,group);
+    }
+    for(const [bucket,group] of hours) {
+      const bytes=encode(group),part={...chunk,bucket,hash:hash(bytes),sourceHash:digest(group),rows:group.length,bytes:bytes.length};
+      await store.put(objectKey(part),bytes);reusable.push(part);
+    }
+  }
   const replica: Replica = { format: 1, project, asOf: (await client.query('SELECT now() AS t')).rows[0].t.toISOString(), columns: {}, chunks: [] };
   const stats = { fetchedBytes: 0, signatureBytes: 0, fetchedChunks: 0, reusedChunks: 0 };
   const plans: { table: string; sql: string; signatures: any[]; fields: Column[] }[] = [];
@@ -74,13 +90,14 @@ export async function captureReplica(client: DB, store: Store, project: string, 
       FROM (${sql}) r GROUP BY bucket ORDER BY bucket`)).rows;
     stats.signatureBytes += Buffer.byteLength(JSON.stringify(signatures));
     const missing = signatures.filter(sig => {
-      const old = previous?.chunks.find(c => c.table === table && c.bucket === sig.bucket && c.sourceHash === sig.hash);
+      const old = reusable.find(c => c.table === table && c.bucket === sig.bucket && c.sourceHash === sig.hash);
       if (old && JSON.stringify(previous!.columns[table]) === JSON.stringify(fields)) {
         replica.chunks.push(old); stats.reusedChunks++; return false;
       }
       return true;
     });
     stats.fetchedBytes += missing.reduce((n,s) => n+s.bytes, 0);
+    console.log(`[build-replica-plan] ${table} changedBytes=${missing.reduce((n,s)=>n+s.bytes,0)} changedChunks=${missing.length}`);
     plans.push({ table, sql, signatures: missing, fields });
   }
   assert(stats.fetchedBytes + stats.signatureBytes <= byteBudget,

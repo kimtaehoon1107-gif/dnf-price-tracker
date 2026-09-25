@@ -52,8 +52,11 @@ try {
     assert(!quality.stale && !quality.mismatches,`${live.schema} 집계 상태 불량`);
     const items=(await source.query('SELECT item_id FROM items WHERE tracked ORDER BY item_id')).rows.map(r=>r.item_id);
     assert.deepEqual(items,config.owners.filter(o=>o.source===live.schema && o.to===null).map(o=>o.itemId).sort(),'수집 담당 종목 불일치');
+    const previous=await readReplica(store,live.project);
+    // 최초 시간별 전환 때만 배포 중단 동안 누적된 변경분을 따라잡는다.
+    const migrating=previous?.chunks.some(c=>c.table==='trades' && /^\d{4}-\d{2}-\d{2}$/.test(c.bucket));
     const captured=await captureReplica(source,store,live.project,
-      await readReplica(store,live.project) ? 6_000_000 : 20_000_000);
+      !previous || migrating ? 20_000_000 : 6_000_000);
     await source.query('ROLLBACK');
     pending.push(captured);
     console.log(`[build-replica] ${live.schema}`,JSON.stringify(captured.stats),'결과 본문/해시 목록 기준, 청구량 아님');
