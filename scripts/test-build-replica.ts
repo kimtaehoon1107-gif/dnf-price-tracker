@@ -28,6 +28,8 @@ async function restore(replica: Awaited<ReturnType<typeof capture>>['replica'], 
 try {
   await source.connect(); await local.connect(); await writer.connect();
   await local.query(readFileSync('sql/legendary-scans.sql','utf8'));
+  await local.query(`INSERT INTO legendary_card_scans(id,started_at,status,expected,observations) VALUES
+    (101,'2026-09-22T00:00:00Z','complete',1,'[]'),(102,'2026-09-22T01:00:00Z','complete',1,'[]')`);
   await local.query(`CREATE TABLE collection_health(id bigserial PRIMARY KEY,checked_at timestamptz,last_collect_at timestamptz,
     gap_min numeric,stale_items integer,action text);
     INSERT INTO trades(id,item_id,sold_date,unit_price,count,price) VALUES (777,'soul','2026-09-22T01:00:00Z',10,1,10)`);
@@ -42,14 +44,15 @@ try {
   await restore(first.replica,'mirror_first');
   assert.equal((await local.query('SELECT 1 FROM mirror_first.trades WHERE id=42')).rowCount,0);
   const legacy=structuredClone(first.replica),days=new Map<string,Row[]>();
-  for(const c of legacy.chunks.filter(c=>c.table==='trades')) {
+  for(const c of legacy.chunks.filter(c=>['trades','legendary_card_scans'].includes(c.table))) {
     const rows=decode(files.get(`build-replica/objects/${c.hash}.jsonl.gz`)!,{...c,day:c.bucket});
-    const day=c.bucket.slice(0,10);days.set(day,[...days.get(day)??[],...rows]);
+    const day=c.table==='trades'?`trades:${c.bucket.slice(0,10)}`:'legendary_card_scans:0';days.set(day,[...days.get(day)??[],...rows]);
   }
-  legacy.chunks=legacy.chunks.filter(c=>c.table!=='trades');
-  for(const [bucket,rows] of days) {
+  legacy.chunks=legacy.chunks.filter(c=>!['trades','legendary_card_scans'].includes(c.table));
+  for(const [id,rows] of days) {
+    const [table,bucket]=id.split(':');
     const bytes=encode(rows),sourceHash=hash([...rows].sort((a,b)=>a.key<b.key?-1:a.key>b.key?1:0).map(r=>r.row+'\n').join(''));
-    const c={table:'trades',bucket,hash:hash(bytes),sourceHash,rows:rows.length,bytes:bytes.length};
+    const c={table,bucket,hash:hash(bytes),sourceHash,rows:rows.length,bytes:bytes.length};
     files.set(`build-replica/objects/${c.hash}.jsonl.gz`,bytes);legacy.chunks.push(c);
   }
   await publishReplica(store,legacy,first.previous);
@@ -66,6 +69,14 @@ try {
   assert.equal(nextHour.stats.fetchedChunks,1,'같은 날 다음 시간 체결은 그 시간만 가져옴');
   assert(nextHour.stats.fetchedBytes<1000,'하루 전체 체결을 다시 가져오지 않음');
   await publishReplica(store,nextHour.replica,nextHour.previous);
+  await local.query(`INSERT INTO legendary_card_scans(id,started_at,status,expected,observations)
+    VALUES (103,'2026-09-22T02:00:00Z','complete',1,'[]')`);
+  const nextScan=await capture();
+  assert.equal(nextScan.stats.fetchedChunks,1,'카드 조사도 이전 256개 대신 새 시간만 조회');
+  assert(nextScan.stats.fetchedBytes<1000);
+  await restore(nextScan.replica,'mirror_scans');
+  assert.equal((await local.query('SELECT count(*)::int n FROM mirror_scans.legendary_card_scans')).rows[0].n,3);
+  await publishReplica(store,nextScan.replica,nextScan.previous);
   await writer.query('COMMIT');
   await local.query("DELETE FROM trades WHERE id=777; UPDATE trades SET refine=2 WHERE id=1");
   const changed = await capture();
