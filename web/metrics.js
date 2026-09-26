@@ -47,3 +47,18 @@ export function summarizeWeekdays(profiles, ids, basis) {
         availableN: selected.reduce((s, p) => s + p.counts[k], 0) };
     }) };
 }
+// 확대는 표시용 꼬리만 자른다. 원본 일봉과 시가·종가·VWAP은 그대로 둔다.
+export function candleZoom(daily) {
+  const prices = daily.flatMap(day => [day.o, day.c, day.vwap]).filter(v => Number.isFinite(v) && v > 0);
+  if (!prices.length) return null;
+  const low = Math.min(...prices), high = Math.max(...prices);
+  const padding = Math.max((high - low) * 0.12, high * 0.005);
+  const min = Math.max(0, low - padding), max = high + padding;
+  return {
+    min, max,
+    candles: daily.map(day => ({ time: day.d, open: day.o, close: day.c,
+      high: Math.min(day.h, max), low: Math.max(day.l, min) })),
+    above: daily.filter(day => day.h > max),
+    below: daily.filter(day => day.l < min),
+  };
+}
