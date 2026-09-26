@@ -1,6 +1,6 @@
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
-import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260919-redesign';
+import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition, candleZoom } from './metrics.js?v=20260927-candle-zoom';
 import * as packageUI from './package.js?v=20260918';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
@@ -1008,11 +1008,15 @@ async function renderDetail(it) {
     ${isZeroCard ? upgradeEconomicsHTML(baseItem) : ''}
 
     <div class="panel">
-      <div class="panel-head">
+      <div class="panel-head price-chart-head">
         <h3>${isZeroCard ? `${cardTier} 최저호가` : '가격 · 체결 수량'}</h3>
-        <button class="chart-toggle" id="candle-toggle" type="button" aria-pressed="true">캔들 켜짐</button>
+        <div class="price-chart-controls">
+          ${isZeroCard ? '' : '<button class="chart-toggle" id="price-zoom" type="button" aria-pressed="true">가격 축 확대</button><button class="chart-toggle" id="price-full" type="button" aria-pressed="false">전체 범위</button>'}
+          <button class="chart-toggle" id="candle-toggle" type="button" aria-pressed="true">캔들 켜짐</button>
+        </div>
       </div>
       <p class="desc" id="fc-desc">불러오는 중…</p>
+      ${isZeroCard ? '' : '<p class="desc price-scale-status" id="price-scale-status" aria-live="polite"></p>'}
       <div class="chart${isZeroCard ? '' : ' tall'}" id="c1"></div>
       <div class="event-rail" id="event-rail" aria-label="가격 영향 이벤트 태그" hidden></div>
       <details class="event-study" id="event-details">
@@ -1215,7 +1219,39 @@ async function renderDetail(it) {
       upColor: css('--up'), downColor: css('--down'), borderVisible: false,
       wickUpColor: css('--up'), wickDownColor: css('--down'),
     });
-    candleSeries.setData(d.map((x) => ({ time: x.d, open: x.o, high: x.h, low: x.l, close: x.c })));
+    const zoom = isZeroCard ? null : candleZoom(d);
+    let zoomed = !!zoom && localStorage.getItem('dnf-price-scale') !== 'full';
+    const updatePriceScale = () => {
+      c1.priceScale('right').applyOptions({ mode: zoomed ? 0 : 1, autoScale: true });
+      candleSeries.setData(zoomed ? zoom.candles : d.map(x => ({ time: x.d, open: x.o, high: x.h, low: x.l, close: x.c })));
+      // 화살표는 표시 범위 밖으로 이어지는 꼬리. 툴팁은 원본 일봉을 사용한다.
+      const markers = zoomed ? d.flatMap(day => [
+        ...(day.h > zoom.max ? [{ time: day.d, position: 'aboveBar', shape: 'arrowUp', size: 0.5, color: css('--ink-3') }] : []),
+        ...(day.l < zoom.min ? [{ time: day.d, position: 'belowBar', shape: 'arrowDown', size: 0.5, color: css('--ink-3') }] : []),
+      ]) : [];
+      candleSeries.setMarkers(markers);
+      const status = document.getElementById('price-scale-status');
+      if (status) {
+        status.textContent = zoomed
+          ? `확대 중 · 선형축 · 시가·종가·평균 범위 기준. ↑↓는 범위 밖 꼬리${zoom.above.length ? ` · ↑ 최고 ${fmt(Math.max(...zoom.above.map(x => x.h)))}골드 (${zoom.above.length}일)` : ''}${zoom.below.length ? ` · ↓ 최저 ${fmt(Math.min(...zoom.below.map(x => x.l)))}골드 (${zoom.below.length}일)` : ''}. 원래 고가·저가는 차트 상세에 표시됩니다.`
+          : '전체 범위 · 로그축 · 원래 고가·저가를 모두 표시합니다.';
+        for (const [id, active] of [['price-zoom', zoomed], ['price-full', !zoomed]]) {
+          const button = document.getElementById(id);
+          button.classList.toggle('on', active);
+          button.setAttribute('aria-pressed', String(active));
+        }
+      }
+    };
+    updatePriceScale();
+    if (zoom) {
+      for (const [id, value] of [['price-zoom', true], ['price-full', false]]) {
+        document.getElementById(id).onclick = () => {
+          zoomed = value;
+          localStorage.setItem('dnf-price-scale', value ? 'zoom' : 'full');
+          updatePriceScale();
+        };
+      }
+    }
     const candleToggle = document.getElementById('candle-toggle');
     let candleVisible = localStorage.getItem('dnf-candles') !== 'off';
     const setCandleVisible = (visible) => {
@@ -1231,7 +1267,7 @@ async function renderDetail(it) {
       localStorage.setItem('dnf-candles', candleVisible ? 'on' : 'off');
     };
     c1.addLineSeries({
-      color: css('--ink'), lineWidth: 1, priceLineVisible: false, lastValueVisible: false,
+      color: css('--ink'), lineWidth: 2, priceLineVisible: false, lastValueVisible: false,
     }).setData(d.map((x) => ({ time: x.d, value: x.vwap })));
     if (timeline.length) {
       c1.addLineSeries({
@@ -1262,6 +1298,10 @@ async function renderDetail(it) {
   } else {
     document.getElementById('c1').innerHTML = '<p style="color:var(--ink-3);margin:0">일봉을 그릴 만큼 데이터가 모이지 않았습니다.</p>';
     document.getElementById('candle-toggle').hidden = true;
+    for (const id of ['price-zoom', 'price-full', 'price-scale-status']) {
+      const element = document.getElementById(id);
+      if (element) element.hidden = true;
+    }
     desc.textContent = '';
   }
 
