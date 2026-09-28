@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process';
 import pg from 'pg';
 import { readManifest, restore, r2Store, TABLES, quote, type Store } from '../src/archive.ts';
 import { unifyMarket, installBuildClock } from '../src/build-unified.ts';
+import { buildPriceDistribution } from '../src/build-price-distribution.ts';
 import type { HistoryOwner } from '../src/history-merge.ts';
 
 const url = new URL(process.env.ARCHIVE_VERIFY_URL!);
@@ -48,6 +49,7 @@ try {
   const count = await restore(client,archived.manifest,readonly);
   // 연구 보관본이 유지한 정리 전 체결을 운영 조회 창에 되살리지 않는다.
   await client.query('DELETE FROM trades WHERE sold_date<(SELECT raw_from FROM candle_pipeline_state WHERE singleton)');
+  await buildPriceDistribution(client);
   await client.query(`CREATE VIEW collection_runs AS SELECT id,item_id,source,started_at,finished_at,sold_rows,sold_new,
     sold_span_min,saturated,listing_rows,deltas_found,CASE WHEN status='failed' THEN 'archived failure' ELSE NULL END AS error FROM collection_quality;
     CREATE TABLE collection_health(id bigint,checked_at timestamptz,last_collect_at timestamptz,gap_min numeric,stale_items integer,action text);

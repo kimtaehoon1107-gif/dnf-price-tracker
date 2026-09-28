@@ -296,6 +296,12 @@ const byItem = <T extends { item_id: string }>(rows: T[]) => {
 };
 const dailyBy = byItem(daily);
 const hourlyBy = byItem(hourly);
+// R2 복원·중복 제거를 마친 임시 DB의 집계만 내보낸다. Supabase 추가 조회는 없다.
+const distributions = process.env.BUILD_DATABASE_URL ? (await query(`
+  SELECT item_id,kind,to_char(bucket AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') AS d,
+    to_char(bucket AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') AS t,
+    q25,median,q75,n,qty,l,h,vwap FROM price_distributions ORDER BY item_id,kind,bucket`)).rows : [];
+const distributionsBy = byItem(distributions);
 const cardDailyMaxBy = byItem(cardDailyMax);
 const cardHourlyMaxBy = byItem(cardHourlyMax);
 const askGapBy = byItem(askGap);
@@ -420,6 +426,11 @@ for (const it of items) {
   if (band) bands.set(it.item_id, band);
   writeFileSync(`${OUT}/data/series/${it.item_id}.json`, JSON.stringify({
     priceBasis: it.price_basis, daily: d, hourly: hourlyBy.get(it.item_id) ?? [],
+    distribution: it.price_basis === 'trade' ? {
+      asOf: quality.checkedAt, minTrades: 5,
+      daily: (distributionsBy.get(it.item_id) ?? []).filter(x => x.kind === 'day'),
+      hourly: (distributionsBy.get(it.item_id) ?? []).filter(x => x.kind === 'hour'),
+    } : null,
     askGap: askGapBy.get(it.item_id) ?? [],
     stock: stockBy.get(it.item_id) ?? [],
     depth: depthBy.get(it.item_id) ?? [], events: eventsBy.get(it.item_id) ?? [],
@@ -620,7 +631,7 @@ writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
   },
 }));
 
-for (const f of ['index.html', 'ranking.html', 'analysis.html', 'guide.html', 'feedback.html', 'feedback.js', 'feedback.css', 'app.js', 'metrics.js', 'ranking.js', 'style.css', 'research.html', 'research.js', 'research-ui.js', 'research.css', 'package.js', 'package-calc.js', 'package.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
+for (const f of ['index.html', 'ranking.html', 'analysis.html', 'guide.html', 'feedback.html', 'feedback.js', 'feedback.css', 'app.js', 'price-distribution.js', 'price-distribution.css', 'metrics.js', 'ranking.js', 'style.css', 'research.html', 'research.js', 'research-ui.js', 'research.css', 'package.js', 'package-calc.js', 'package.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
 writeFileSync(`${OUT}/.nojekyll`, '');
 
 console.log('[history-cache] 합계', JSON.stringify(historyCache.stats));
