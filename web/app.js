@@ -1013,12 +1013,10 @@ async function renderDetail(it) {
       <div class="panel-head price-chart-head">
         <h3>${isZeroCard ? `${cardTier} 최저호가` : '가격 · 체결 수량'}</h3>
         <div class="price-chart-controls">
-          
           ${isZeroCard ? '<button class="chart-toggle" id="candle-toggle" type="button" aria-pressed="true">캔들 켜짐</button>' : ''}
         </div>
       </div>
       <p class="desc" id="fc-desc">불러오는 중…</p>
-      
       <div class="chart${isZeroCard ? '' : ' tall'}" id="c1"></div>
       <div class="event-rail" id="event-rail" aria-label="가격 영향 이벤트 태그" hidden></div>
       <details class="event-study" id="event-details">
@@ -1209,7 +1207,7 @@ async function renderDetail(it) {
     renderPriceDistribution(document.getElementById('c1'), s.distribution, events);
   } else if (d.length >= 2) {
     const box1 = document.getElementById('c1');
-    const c1 = LightweightCharts.createChart(box1, { ...opts, height: isZeroCard ? 300 : 340 });
+    const c1 = LightweightCharts.createChart(box1, { ...opts, height: 300 });
     const timeline = eventTimeline(events, d);
     const candleSeries = c1.addCandlestickSeries({
       upColor: css('--up'), downColor: css('--down'), borderVisible: false,
@@ -1239,20 +1237,16 @@ async function renderDetail(it) {
       }).setData(timeline.map((x) => ({ time: x.date, value: d[0].vwap })));
     }
 
-    // 롤링 평가에서 모델 오차가 naive보다 커서 가격 예측은 그리지 않는다.
-    desc.innerHTML = isZeroCard
-      ? `캔들은 수집 시점별 ${cardTier} 최저호가의 일별 시가·고가·저가·종가이며, 검은 실선은 일평균 ${cardTier} 최저호가입니다. 정확한 ${cardTier} 체결가를 구분할 수 없어 예측은 표시하지 않습니다.`
-      : '캔들은 일별 시가·고가·저가·종가이며 오늘 봉은 수집 중입니다. 검은 실선은 일별 VWAP, 아래 막대는 일별 API 관측 체결 수량입니다. 수량은 100건 상한 때문에 실제 거래량의 하한값입니다. ' +
-        '가격 예측은 표시하지 않습니다 — 과거 평가에서 모델 오차가 “마지막 가격 유지”보다 컸습니다. <a href="analysis.html">검증 보기 →</a>';
+    desc.textContent = `캔들은 수집 시점별 ${cardTier} 최저호가의 일별 시가·고가·저가·종가이며, 검은 실선은 일평균 ${cardTier} 최저호가입니다. 정확한 ${cardTier} 체결가를 구분할 수 없어 예측은 표시하지 않습니다.`;
     const dayAt = new Map(d.map((x) => [x.d, x]));
     attachTooltip(c1, box1, (param) => {
       const day = dayAt.get(param.time);
       if (day) {
         return tipRows(param.time, [
-          [isZeroCard ? '평균 최저호가' : 'VWAP', fmt(day.vwap)],
+          ['평균 최저호가', fmt(day.vwap)],
           ['시가 · 종가', `${fmt(day.o)} · ${fmt(day.c)}`],
           ['고가 · 저가', `${fmt(day.h)} · ${fmt(day.l)}`],
-          isZeroCard ? ['관측', `${fmt(day.n)}회`] : ['체결 수량', `${fmt(day.qty)}개 · ${fmt(day.n)}건`],
+          ['관측', `${fmt(day.n)}회`],
         ]);
       }
       return null;
@@ -1262,10 +1256,6 @@ async function renderDetail(it) {
   } else {
     document.getElementById('c1').innerHTML = '<p style="color:var(--ink-3);margin:0">일봉을 그릴 만큼 데이터가 모이지 않았습니다.</p>';
     document.getElementById('candle-toggle').hidden = true;
-    for (const id of ['price-zoom', 'price-full', 'price-scale-status']) {
-      const element = document.getElementById(id);
-      if (element) element.hidden = true;
-    }
     desc.textContent = '';
   }
 

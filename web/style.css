@@ -283,7 +283,6 @@ a.ranking-row:hover { background: var(--page); }
 .price-chart-head { flex-wrap: wrap; }
 .price-chart-controls { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
 .price-chart-controls .chart-toggle { margin-left: 0; min-height: 32px; }
-.panel .price-scale-status { color: var(--ink-2); }
 .chart { height: 300px; }
 .chart.tall { height: 340px; }
 #stock-chart { height: 360px; }
