@@ -1,0 +1,128 @@
+[
+  {
+    "group": "treatment",
+    "id": "e974d2eac46f0c8b23b83d4da389fa57",
+    "name": "숲속의 유랑악단 패키지",
+    "expiresAt": "2026-11-05T06:00:00+09:00"
+  },
+  {
+    "group": "treatment",
+    "id": "702d33e99edb55d23cac4c9970ef44ee",
+    "name": "숲속의 유랑악단 아바타 풀세트 상자",
+    "expiresAt": "2026-11-05T06:00:00+09:00"
+  },
+  {
+    "group": "treatment",
+    "id": "a295bdbb26984dcb946eb3a3044dcfe5",
+    "name": "숲속의 유랑악단 크리쳐 상자",
+    "expiresAt": "2026-11-05T06:00:00+09:00"
+  },
+  {
+    "group": "treatment",
+    "id": "33776306aa3fa6fead55ced8656be444",
+    "name": "숲속의 유랑악단 오라 상자",
+    "expiresAt": "2026-11-05T06:00:00+09:00"
+  },
+  {
+    "group": "treatment",
+    "id": "329338e9ac307d34de71a48b314b19a0",
+    "name": "숲속의 유랑악단 칭호 상자",
+    "expiresAt": "2026-11-05T06:00:00+09:00"
+  },
+  {
+    "group": "treatment",
+    "id": "b971992f2529a494215fdf9368cfa0dd",
+    "name": "숲속의 유랑악단 세라 상자",
+    "expiresAt": "2026-11-05T06:00:00+09:00"
+  },
+  {
+    "group": "spillover",
+    "id": "ae1b370972f85389d77eee716ae9f6e2",
+    "name": "열대야의 추억 오라 상자",
+    "expiresAt": null
+  },
+  {
+    "group": "spillover",
+    "id": "d39b0118e0d6cd3eccbaadb9797b6bac",
+    "name": "플로럴 스태그 알",
+    "expiresAt": null
+  },
+  {
+    "group": "spillover",
+    "id": "3e4f1a4b2bc623c582b9845e0bcc9033",
+    "name": "플로럴 스태그 플래티넘 크리쳐 알 선택 상자",
+    "expiresAt": "2026-11-05T06:00:00+09:00"
+  },
+  {
+    "group": "spillover",
+    "id": "efef96c0ebc3ace0a7aed5bb82b4ff67",
+    "name": "군자의 사계",
+    "expiresAt": null
+  },
+  {
+    "group": "spillover",
+    "id": "157903e48399874bc18b35d276b3ef1b",
+    "name": "천공의 지배자",
+    "expiresAt": null
+  },
+  {
+    "group": "spillover",
+    "id": "42fd3d4144f788b37ed19c70281dcda6",
+    "name": "프로스트의 전설",
+    "expiresAt": null
+  },
+  {
+    "group": "spillover",
+    "id": "41914178e78f02589b8e2760788a9da8",
+    "name": "종이달 오르골 칭호 선택 상자",
+    "expiresAt": null
+  },
+  {
+    "group": "control",
+    "id": "bfc7bb0aefe4d0c432ebf77836e68e3c",
+    "name": "+7 장비 증폭권[골고라이언]",
+    "expiresAt": null
+  },
+  {
+    "group": "control",
+    "id": "4a737b2ae337a57260ca4663ce6a9bb0",
+    "name": "+10 장비 증폭권[골고라이언]",
+    "expiresAt": null
+  },
+  {
+    "group": "control",
+    "id": "fac4ce61d490d3a006025c797abb5950",
+    "name": "+11 장비 증폭권[골고라이언]",
+    "expiresAt": null
+  },
+  {
+    "group": "control",
+    "id": "bb5a6aeb6b44bbdce835679bef4335b5",
+    "name": "+12 장비 증폭권[골고라이언]",
+    "expiresAt": null
+  },
+  {
+    "group": "control",
+    "id": "55be75a1c024aac3ef84ed3bed5b8db9",
+    "name": "증폭 보호권",
+    "expiresAt": null
+  },
+  {
+    "group": "control",
+    "id": "f9941d3fa0b8253bb0b2567a29b1299f",
+    "name": "닳아버린 순례의 증표",
+    "expiresAt": null
+  },
+  {
+    "group": "control",
+    "id": "518a2615502a5c67dde0e3b133a75bf0",
+    "name": "PC방 토큰 교환권",
+    "expiresAt": null
+  },
+  {
+    "group": "control",
+    "id": "5538350d018cb676ecaff09fad1ed4e0",
+    "name": "골드 코인",
+    "expiresAt": null
+  }
+]

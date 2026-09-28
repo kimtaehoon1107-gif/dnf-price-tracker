@@ -36,7 +36,9 @@ export async function researchExport(client: PoolClient, asOf: string, through: 
   const tradeMap = new Map(data.trade.map((p) => [`${p.item_id}/${p.d}`, p]));
   const dates = [...new Set(data.trade.filter((p) => [PACKAGE_ID, ...PART_IDS].includes(p.item_id)).map((p) => p.d))].sort();
   const benchmark = data.series.find((s) => s.id === 'soul')!;
-  const daily = dates.map((d) => {
+  // 공식 공지: 패키지와 구성 상자는 11-05 06:00 KST 일괄 삭제.
+  const expiryDay = '2026-11-05';
+  const daily = dates.filter((d) => d < expiryDay).map((d) => {
     const pkg = tradeMap.get(`${PACKAGE_ID}/${d}`);
     const parts = PART_IDS.map((id) => tradeMap.get(`${id}/${d}`));
     const sum = parts.every((p) => p?.value && p.value > 0) ? parts.reduce((s, p) => s + p!.value, 0) : null;
@@ -46,8 +48,9 @@ export async function researchExport(client: PoolClient, asOf: string, through: 
       benchmark: benchmark.daily.find((p) => p.d === d)?.value ?? null };
   });
   const components = PART_IDS.map((id) => ({ id, name: items.find((i) => i.item_id === id)?.item_name ?? id,
-    daily: data.trade.filter((p) => p.item_id === id).map((p) => ({ d: p.d, value: p.value, qty: p.qty })) }));
+    daily: data.trade.filter((p) => p.item_id === id && p.d < expiryDay).map((p) => ({ d: p.d, value: p.value, qty: p.qty })) }));
   const stages = event ? [['출시', event.starts], ['판매 종료', event.ends]].filter(([, d]) => d).map(([label, d]) => ({ label, date: d,
+    unavailableReason: label === '판매 종료' ? '패키지와 구성 상자가 11월 5일 06시에 삭제되어 사후 가격·해체 마진을 비교할 수 없습니다.' : null,
     metrics: Object.fromEntries(['price', 'parts', 'margin', 'qty', 'stock', 'benchmark'].map((key) => [key,
       eventWindow(daily.map((p) => ({ d: p.d, value: p[key as keyof Omit<typeof p, 'd'>] })), d, data.before)])),
     components: components.map((c) => ({ id: c.id, name: c.name, ...eventWindow(c.daily, d, data.before) })),

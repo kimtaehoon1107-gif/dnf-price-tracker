@@ -1,0 +1,215 @@
+{
+  "checkedAt": "2026-09-28T10:08:46.352Z",
+  "items": [
+    {
+      "source": "hist_b",
+      "item_id": "157903e48399874bc18b35d276b3ef1b",
+      "item_name": "천공의 지배자",
+      "tracked": true,
+      "poll_interval_sec": 1800,
+      "last_success": "2026-09-28T09:44:37.902Z",
+      "failed_24h": 0,
+      "succeeded_24h": 48
+    },
+    {
+      "source": "hist_b",
+      "item_id": "329338e9ac307d34de71a48b314b19a0",
+      "item_name": "숲속의 유랑악단 칭호 상자",
+      "tracked": true,
+      "poll_interval_sec": 900,
+      "last_success": "2026-09-28T09:54:30.282Z",
+      "failed_24h": 0,
+      "succeeded_24h": 95
+    },
+    {
+      "source": "hist_b",
+      "item_id": "3e4f1a4b2bc623c582b9845e0bcc9033",
+      "item_name": "플로럴 스태그 플래티넘 크리쳐 알 선택 상자",
+      "tracked": true,
+      "poll_interval_sec": 3600,
+      "last_success": "2026-09-28T10:06:00.631Z",
+      "failed_24h": 0,
+      "succeeded_24h": 24
+    },
+    {
+      "source": "hist_b",
+      "item_id": "41914178e78f02589b8e2760788a9da8",
+      "item_name": "종이달 오르골 칭호 선택 상자",
+      "tracked": true,
+      "poll_interval_sec": 1800,
+      "last_success": "2026-09-28T09:46:07.332Z",
+      "failed_24h": 0,
+      "succeeded_24h": 48
+    },
+    {
+      "source": "hist_b",
+      "item_id": "42fd3d4144f788b37ed19c70281dcda6",
+      "item_name": "프로스트의 전설",
+      "tracked": true,
+      "poll_interval_sec": 1800,
+      "last_success": "2026-09-28T09:44:35.374Z",
+      "failed_24h": 0,
+      "succeeded_24h": 48
+    },
+    {
+      "source": "hist_b",
+      "item_id": "518a2615502a5c67dde0e3b133a75bf0",
+      "item_name": "PC방 토큰 교환권",
+      "tracked": true,
+      "poll_interval_sec": 300,
+      "last_success": "2026-09-28T10:07:24.437Z",
+      "failed_24h": 0,
+      "succeeded_24h": 284
+    },
+    {
+      "source": "hist_b",
+      "item_id": "bb5a6aeb6b44bbdce835679bef4335b5",
+      "item_name": "+12 장비 증폭권[골고라이언]",
+      "tracked": true,
+      "poll_interval_sec": 3600,
+      "last_success": "2026-09-28T10:04:52.874Z",
+      "failed_24h": 0,
+      "succeeded_24h": 24
+    },
+    {
+      "source": "hist_b",
+      "item_id": "bfc7bb0aefe4d0c432ebf77836e68e3c",
+      "item_name": "+7 장비 증폭권[골고라이언]",
+      "tracked": true,
+      "poll_interval_sec": 3600,
+      "last_success": "2026-09-28T10:05:57.979Z",
+      "failed_24h": 0,
+      "succeeded_24h": 24
+    },
+    {
+      "source": "hist_b",
+      "item_id": "efef96c0ebc3ace0a7aed5bb82b4ff67",
+      "item_name": "군자의 사계",
+      "tracked": true,
+      "poll_interval_sec": 1800,
+      "last_success": "2026-09-28T09:44:40.425Z",
+      "failed_24h": 0,
+      "succeeded_24h": 48
+    },
+    {
+      "source": "hist_b",
+      "item_id": "fac4ce61d490d3a006025c797abb5950",
+      "item_name": "+11 장비 증폭권[골고라이언]",
+      "tracked": true,
+      "poll_interval_sec": 3600,
+      "last_success": "2026-09-28T10:05:55.333Z",
+      "failed_24h": 0,
+      "succeeded_24h": 24
+    },
+    {
+      "source": "hist_c",
+      "item_id": "33776306aa3fa6fead55ced8656be444",
+      "item_name": "숲속의 유랑악단 오라 상자",
+      "tracked": true,
+      "poll_interval_sec": 900,
+      "last_success": "2026-09-28T10:08:34.039Z",
+      "failed_24h": 0,
+      "succeeded_24h": 96
+    },
+    {
+      "source": "hist_c",
+      "item_id": "4a737b2ae337a57260ca4663ce6a9bb0",
+      "item_name": "+10 장비 증폭권[골고라이언]",
+      "tracked": true,
+      "poll_interval_sec": 900,
+      "last_success": "2026-09-28T10:08:13.293Z",
+      "failed_24h": 0,
+      "succeeded_24h": 96
+    },
+    {
+      "source": "hist_c",
+      "item_id": "5538350d018cb676ecaff09fad1ed4e0",
+      "item_name": "골드 코인",
+      "tracked": true,
+      "poll_interval_sec": 900,
+      "last_success": "2026-09-28T09:55:01.379Z",
+      "failed_24h": 0,
+      "succeeded_24h": 95
+    },
+    {
+      "source": "hist_c",
+      "item_id": "55be75a1c024aac3ef84ed3bed5b8db9",
+      "item_name": "증폭 보호권",
+      "tracked": true,
+      "poll_interval_sec": 900,
+      "last_success": "2026-09-28T10:03:18.642Z",
+      "failed_24h": 0,
+      "succeeded_24h": 96
+    },
+    {
+      "source": "hist_c",
+      "item_id": "702d33e99edb55d23cac4c9970ef44ee",
+      "item_name": "숲속의 유랑악단 아바타 풀세트 상자",
+      "tracked": true,
+      "poll_interval_sec": 900,
+      "last_success": "2026-09-28T09:55:07.671Z",
+      "failed_24h": 0,
+      "succeeded_24h": 95
+    },
+    {
+      "source": "hist_c",
+      "item_id": "a295bdbb26984dcb946eb3a3044dcfe5",
+      "item_name": "숲속의 유랑악단 크리쳐 상자",
+      "tracked": true,
+      "poll_interval_sec": 900,
+      "last_success": "2026-09-28T10:08:15.529Z",
+      "failed_24h": 0,
+      "succeeded_24h": 96
+    },
+    {
+      "source": "hist_c",
+      "item_id": "ae1b370972f85389d77eee716ae9f6e2",
+      "item_name": "열대야의 추억 오라 상자",
+      "tracked": true,
+      "poll_interval_sec": 3600,
+      "last_success": "2026-09-28T10:03:30.455Z",
+      "failed_24h": 0,
+      "succeeded_24h": 24
+    },
+    {
+      "source": "hist_c",
+      "item_id": "b971992f2529a494215fdf9368cfa0dd",
+      "item_name": "숲속의 유랑악단 세라 상자",
+      "tracked": true,
+      "poll_interval_sec": 900,
+      "last_success": "2026-09-28T10:08:36.535Z",
+      "failed_24h": 0,
+      "succeeded_24h": 96
+    },
+    {
+      "source": "hist_c",
+      "item_id": "d39b0118e0d6cd3eccbaadb9797b6bac",
+      "item_name": "플로럴 스태그 알",
+      "tracked": true,
+      "poll_interval_sec": 900,
+      "last_success": "2026-09-28T09:55:04.539Z",
+      "failed_24h": 0,
+      "succeeded_24h": 95
+    },
+    {
+      "source": "hist_c",
+      "item_id": "e974d2eac46f0c8b23b83d4da389fa57",
+      "item_name": "숲속의 유랑악단 패키지",
+      "tracked": true,
+      "poll_interval_sec": 900,
+      "last_success": "2026-09-28T09:54:58.432Z",
+      "failed_24h": 0,
+      "succeeded_24h": 95
+    },
+    {
+      "source": "hist_c",
+      "item_id": "f9941d3fa0b8253bb0b2567a29b1299f",
+      "item_name": "닳아버린 순례의 증표",
+      "tracked": true,
+      "poll_interval_sec": 120,
+      "last_success": "2026-09-28T10:07:53.448Z",
+      "failed_24h": 0,
+      "succeeded_24h": 692
+    }
+  ]
+}
