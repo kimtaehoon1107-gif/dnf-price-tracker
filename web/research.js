@@ -72,7 +72,8 @@ function packageStudy() {
   const labels = { price: '패키지 체결 VWAP', parts: '구성품 5종 합계', margin: '수수료 반영 해체 마진', qty: 'API 관측 체결 수량', stock: '관측 매물 잔량', benchmark: p.benchmark };
   view.innerHTML = `<section class="panel"><h3>${esc(p.event.name)} · 이벤트 관측</h3>
     <p class="desc">출시 ${esc(p.event.starts)} · 판매 종료 ${esc(p.event.ends)} · 완료 일봉 첫 관측 ${esc(p.firstObserved ?? '없음')}</p>
-    <p>출시 전 가격이 없어 출시 충격은 계산할 수 없습니다. 판매 종료는 예정된 사건이므로 종료 전부터 가격이 움직일 수 있습니다.</p>
+    <p>출시 전 자료가 없어 출시 충격을 계산할 수 없습니다. 패키지와 구성 상자는 11월 5일 06시에 삭제되므로 삭제 후 가격 상승도 분석할 수 없습니다.</p>
+    <p><a href="package-study.html">삭제 전 가격 변화·해체 마진 연구와 21종 자료 점검 →</a></p>
     <p class="hint">전 7일(-7~-1)과 이후 7일(0~+6)을 달력 날짜로 비교합니다. 양쪽 7일을 모두 관측해야 변화율을 계산합니다.
       관측 전후 차이이며, 다른 패치·공급 변화·요일 효과를 제거한 인과효과 추정은 아닙니다.</p>
     <a href="${esc(p.event.source_url)}" target="_blank" rel="noopener">공식 판매 공지 ↗</a>
@@ -90,6 +91,10 @@ function packageStudy() {
   <section class="panel"><h3>다른 품목과의 비교</h3><p class="desc">패키지와 소울 결정 지수를 두 값이 모두 있는 첫날 100으로 맞췄습니다. 소울 결정 6종은 패키지·구성품을 포함하지 않지만 시장 전체를 대표하거나 적절한 인과 비교군임을 보장하지 않습니다.</p><div id="package-context" class="chart"></div></section>`;
   const renderStage = () => {
     const s = p.stages[Number(document.getElementById('stage-select').value)];
+    if (s.unavailableReason || s.label === '판매 종료') {
+      document.getElementById('event-window').innerHTML = '<p><b>대상 삭제 · 사후 분석 불가</b></p><p>11월 5일 06시 이후 패키지·구성 상자의 가격은 정의되지 않습니다. 0원이나 일반 결측으로 채우지 않습니다.</p><a href="package-study.html">삭제 전 분석 보기 →</a>';
+      return;
+    }
     const w = s.metrics.price;
     document.getElementById('event-window').innerHTML = `<p><b>${s.label}</b> 전 ${w.preFrom} ~ ${w.preTo} / 이후 ${w.postFrom} ~ ${w.postTo}</p>
       <div class="table-scroll"><table><thead><tr><th>관측 항목</th><th>전 / 후 관측일</th><th>전 평균</th><th>후 평균</th><th>변화</th></tr></thead><tbody>

@@ -128,6 +128,11 @@ npm run stats            # 다른 창에서 현황 확인
 
 ## 한계
 
+유랑악단 패키지의 [삭제 전 분석 규칙](docs/package-end-preregistration.md)과
+[21종 초기 자료 점검](docs/package-study-audit-20260928.md)을 공개합니다.
+공식 공지상 패키지·구성 상자는 2026-11-05 06:00 KST 삭제되므로 삭제 후 가격 상승을 분석하지 않습니다.
+매시간 통합 빌드 뒤 [연구 점검 보고서](https://kimtaehoon1107-gif.github.io/dnf-price-tracker/package-study.html)를 갱신합니다.
+
 정직하게 밝혀둡니다.
 
 - **API 관측 거래량은 하한값입니다.** 체결 API가 한 번에 100건까지만 주므로 폴링 사이에 그보다 많이 거래되면 초과분을 알 수 없습니다. 매물 소진 관측에는 판매와 취소가 섞일 수 있고 API 체결과도 중복될 수 있어, 서로 합산하지 않습니다.
