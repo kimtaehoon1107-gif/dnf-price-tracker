@@ -1,7 +1,7 @@
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
 import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260928-distribution';
-import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20260928';
+import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20260929';
 import * as packageUI from './package.js?v=20260918';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
@@ -234,27 +234,6 @@ function eventStageStudy(stage, days, priceBasis) {
   };
 }
 
-function eventTimeline(events, days) {
-  if (!days.length) return [];
-  // 가격선이 과거 이벤트 때문에 눌리지 않도록 이력 시작 직전의 패치만 축에 보탠다.
-  const firstDate = new Date(`${days[0].d}T12:00:00Z`);
-  firstDate.setUTCDate(firstDate.getUTCDate() - 3);
-  const first = firstDate.toISOString().slice(0, 10);
-  const relatedFirstDate = new Date(`${days[0].d}T12:00:00Z`);
-  relatedFirstDate.setUTCDate(relatedFirstDate.getUTCDate() - 45);
-  const relatedFirst = relatedFirstDate.toISOString().slice(0, 10);
-  const last = days.at(-1).d;
-  const byDate = new Map();
-  for (const event of events) {
-    const date = event.starts;
-    const minDate = event.related_item_ids?.length ? relatedFirst : first;
-    if (!date || date < minDate || date > last) continue;
-    if (!byDate.has(date)) byDate.set(date, { date, events: [] });
-    byDate.get(date).events.push(event);
-  }
-  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
-}
-
 const EVENT_TYPES = {
   퍼스트서버: { badge: '퍼', label: '퍼스트서버' },
   대규모: { badge: '대', label: '대규모' },
@@ -263,42 +242,6 @@ const EVENT_TYPES = {
 };
 
 const eventTypeLabel = (type) => EVENT_TYPES[type]?.label ?? type;
-
-function renderEventRail(chart, groups) {
-  const rail = document.getElementById('event-rail');
-  if (!groups.length) {
-    rail.hidden = true;
-    return;
-  }
-  rail.hidden = false;
-  rail.innerHTML = groups.map((group, index) => {
-    const byType = new Map();
-    for (const event of group.events) {
-      if (!byType.has(event.type)) byType.set(event.type, []);
-      byType.get(event.type).push(event);
-    }
-    const pins = [...byType].map(([type, events]) => {
-      const meta = EVENT_TYPES[type];
-      const action = type === '패키지' ? '출시' : '패치';
-      const title = events.map((event) => `[${meta.label}] ${event.name}`).join('\n');
-      return `<button class="event-pin ${type}" type="button" title="${esc(title)}" aria-label="${esc(`${group.date} ${action} · ${title}`)}">${meta.badge}</button>`;
-    }).join('');
-    return `<div class="event-pin-group" data-event-pin="${index}">${pins}</div>`;
-  }).join('');
-  rail.onclick = (event) => {
-    if (event.target.closest('.event-pin')) document.getElementById('event-details').open = true;
-  };
-
-  requestAnimationFrame(() => {
-    for (const [index, group] of groups.entries()) {
-      const pin = rail.querySelector(`[data-event-pin="${index}"]`);
-      const x = chart.timeScale().timeToCoordinate(group.date);
-      if (x === null) { pin.hidden = true; continue; }
-      const half = pin.offsetWidth / 2;
-      pin.style.left = `${Math.max(half + 2, Math.min(rail.clientWidth - half - 2, x))}px`;
-    }
-  });
-}
 
 function eventStudyHTML(events, days, priceBasis) {
   if (!events.length) return '<p class="event-empty">연결된 이벤트가 아직 없습니다.</p>';
@@ -1012,9 +955,6 @@ async function renderDetail(it) {
     <div class="panel">
       <div class="panel-head price-chart-head">
         <h3>${isZeroCard ? `${cardTier} 최저호가` : '가격 · 체결 수량'}</h3>
-        <div class="price-chart-controls">
-          ${isZeroCard ? '<button class="chart-toggle" id="candle-toggle" type="button" aria-pressed="true">캔들 켜짐</button>' : ''}
-        </div>
       </div>
       <p class="desc" id="fc-desc">불러오는 중…</p>
       <div class="chart${isZeroCard ? '' : ' tall'}" id="c1"></div>
@@ -1202,62 +1142,12 @@ async function renderDetail(it) {
     document.getElementById('stock-chart').innerHTML = '<p style="color:var(--ink-3);margin:0">최근 7일의 가격과 매물 잔량 관측 기록이 없습니다.</p>';
   }
 
-  if (!isZeroCard) {
-    desc.textContent = '구간별 수량 가중 중앙값과 주요 거래 가격대입니다. 상단 대표 가격(최근 1시간 VWAP)과는 계산 기준이 다릅니다. 날짜를 누르면 시간별로 확대합니다.';
-    renderPriceDistribution(document.getElementById('c1'), s.distribution, events);
-  } else if (d.length >= 2) {
-    const box1 = document.getElementById('c1');
-    const c1 = LightweightCharts.createChart(box1, { ...opts, height: 300 });
-    const timeline = eventTimeline(events, d);
-    const candleSeries = c1.addCandlestickSeries({
-      upColor: css('--up'), downColor: css('--down'), borderVisible: false,
-      wickUpColor: css('--up'), wickDownColor: css('--down'),
-    });
-    candleSeries.setData(d.map(x => ({ time: x.d, open: x.o, high: x.h, low: x.l, close: x.c })));
-    const candleToggle = document.getElementById('candle-toggle');
-    let candleVisible = localStorage.getItem('dnf-candles') !== 'off';
-    const setCandleVisible = (visible) => {
-      candleVisible = visible;
-      candleSeries.applyOptions({ visible });
-      candleToggle.classList.toggle('on', visible);
-      candleToggle.textContent = visible ? '캔들 켜짐' : '캔들 꺼짐';
-      candleToggle.setAttribute('aria-pressed', String(visible));
-    };
-    setCandleVisible(candleVisible);
-    candleToggle.onclick = () => {
-      setCandleVisible(!candleVisible);
-      localStorage.setItem('dnf-candles', candleVisible ? 'on' : 'off');
-    };
-    c1.addLineSeries({
-      color: css('--ink'), lineWidth: 2, priceLineVisible: false, lastValueVisible: false,
-    }).setData(d.map((x) => ({ time: x.d, value: x.vwap })));
-    if (timeline.length) {
-      c1.addLineSeries({
-        lineVisible: false, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-      }).setData(timeline.map((x) => ({ time: x.date, value: d[0].vwap })));
-    }
-
-    desc.textContent = `캔들은 수집 시점별 ${cardTier} 최저호가의 일별 시가·고가·저가·종가이며, 검은 실선은 일평균 ${cardTier} 최저호가입니다. 정확한 ${cardTier} 체결가를 구분할 수 없어 예측은 표시하지 않습니다.`;
-    const dayAt = new Map(d.map((x) => [x.d, x]));
-    attachTooltip(c1, box1, (param) => {
-      const day = dayAt.get(param.time);
-      if (day) {
-        return tipRows(param.time, [
-          ['평균 최저호가', fmt(day.vwap)],
-          ['시가 · 종가', `${fmt(day.o)} · ${fmt(day.c)}`],
-          ['고가 · 저가', `${fmt(day.h)} · ${fmt(day.l)}`],
-          ['관측', `${fmt(day.n)}회`],
-        ]);
-      }
-      return null;
-    });
-    c1.timeScale().fitContent();
-    renderEventRail(c1, timeline);
-  } else {
-    document.getElementById('c1').innerHTML = '<p style="color:var(--ink-3);margin:0">일봉을 그릴 만큼 데이터가 모이지 않았습니다.</p>';
-    document.getElementById('candle-toggle').hidden = true;
-    desc.textContent = '';
-  }
+  desc.textContent = isZeroCard
+    ? `일별 평균 ${cardTier} 최저호가입니다. 가격이 확인된 관측만 평균하며 실제 체결가와는 다릅니다. 그래프에서 날짜를 선택하면 해당 날의 수치를 확인할 수 있습니다.`
+    : '일별 수량 가중 중앙값과 주요 거래 가격대입니다. 상단 대표 가격(최근 1시간 VWAP)과는 계산 기준이 다릅니다. 그래프에서 날짜를 선택하면 해당 날의 수치를 확인할 수 있습니다.';
+  renderPriceDistribution(document.getElementById('c1'), isZeroCard
+    ? { basis: 'ask', asOf: DATA.priceAsOf ?? DATA.builtAt, daily: d }
+    : s.distribution, events);
 
   if (!isZeroCard && s.askGap?.length) {
     const box4 = document.getElementById('c4');
