@@ -1,10 +1,9 @@
 .price-distribution { height: auto; min-width: 0; }
-.pd-toolbar, .pd-readout, .pd-select { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pd-toolbar, .pd-readout { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .pd-toolbar { margin: 18px 0; }
-.pd-periods, .pd-drill { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.pd-drill { margin-bottom: 18px; }
+.pd-periods { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .price-distribution [hidden] { display: none !important; }
-.price-distribution button, .price-distribution select { font: inherit; font-size: 13px; min-height: 36px; border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 12px; color: var(--ink); background: var(--card); cursor: pointer; }
+.price-distribution button { font: inherit; font-size: 13px; min-height: 36px; border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 12px; color: var(--ink); background: var(--card); cursor: pointer; }
 .price-distribution button[aria-pressed="true"] { background: var(--ink); color: var(--card); }
 .pd-extent, .pd-selected, .pd-qty, .pd-status { color: var(--ink-2); font-size: 12px; }
 .pd-price { font-size: 28px; font-weight: 700; margin: 4px 0; font-variant-numeric: tabular-nums; }
@@ -14,10 +13,10 @@
 .pd-line-key { width: 18px; height: 3px; background: var(--blue); }
 .pd-band-key { width: 12px; height: 12px; background: var(--ink-3); opacity: .4; }
 .pd-plot svg { display: block; width: 100%; }
+.pd-plot svg:focus:not(:focus-visible) { outline: none; }
+.pd-plot svg:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
 .pd-plot svg text { fill: var(--ink-2); font: 12px var(--sans); }
 .pd-hit { cursor: pointer; }
-.pd-select { border-top: 1px solid var(--line); padding-top: 16px; margin-top: 8px; }
-.pd-select label, .pd-drill label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }
 .pd-status { margin-top: 12px; }
 .pd-help, .pd-raw { margin-top: 14px; font-size: 12px; color: var(--ink-2); }
 .pd-help summary, .pd-raw summary { cursor: pointer; }
@@ -25,8 +24,7 @@
 .pd-events { display: flex; flex-wrap: wrap; gap: 6px; }
 .pd-events button { font-size: 11px; padding: 4px 8px; }
 @media(max-width:600px) {
-  .price-distribution button, .price-distribution select { min-height: 44px; }
-  .price-distribution select { font-size: 16px; }
+  .price-distribution button { min-height: 44px; }
   .pd-readout { align-items: flex-start; }
   .pd-price { font-size: 25px; }
 }
