@@ -1,7 +1,7 @@
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
 import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260928-distribution';
-import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20260929';
+import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20260929-layout';
 import * as packageUI from './package.js?v=20260918';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
@@ -385,6 +385,10 @@ function upgradeEconomicsHTML(it) {
         : '기대값상 두 방법의 비용이 같습니다.';
   return `<div class="panel upgrade-economics">
     <h3>맥스업 구매 vs 직접 강화</h3>
+    <div class="upgrade-verdict">${verdict}</div>
+    <p class="upgrade-caveat">기대비용 비교이며 실제 강화 비용은 운에 따라 달라집니다.</p>
+    <details class="upgrade-calculation">
+    <summary>강화 비용 상세 계산 보기</summary>
     <div class="kv">
       <div><div class="k">0업 최저호가</div><div class="v">${fmt(it.last_price)}</div></div>
       <div><div class="k">${it.max_upgrade}업 최저호가</div><div class="v">${fmt(it.max_last_price)}</div></div>
@@ -393,8 +397,8 @@ function upgradeEconomicsHTML(it) {
       <div><div class="k">직접 강화 재료 기대비용</div><div class="v">${fmt(e.materialCost)}</div></div>
       <div><div class="k">직접 강화 총 기대비용</div><div class="v">${fmt(e.expectedTotal)}</div></div>
     </div>
-    <div class="upgrade-verdict">${verdict}</div>
     <p class="desc">현재 레전더리 0업 카드 최저가 <b>${fmt(e.floor)}</b>를 재료 단가로 사용합니다. 1장 40%와 2장 80%는 성공 1회당 기대 소모량이 모두 2.5장이고, 3장 100%는 3장이라 기대비용은 2.5장 전략으로 계산했습니다. 실패해도 강화 대상 카드는 유지된다는 전제이며 실제 비용은 운에 따라 달라집니다.</p>
+    </details>
   </div>`;
 }
 
@@ -925,7 +929,7 @@ async function renderDetail(it) {
       <button class="${showingMax ? '' : 'on'}" data-card-mode="zero" type="button">0업</button>
       <button class="${showingMax ? 'on' : ''}" data-card-mode="max" type="button">맥스업${baseItem.max_upgrade ? ` (${baseItem.max_upgrade}업)` : ''}</button>
     </div>` : ''}
-    <div class="price-meta price-basis">${isZeroCard ? `${cardTier} 최저호가` : '최근 1시간 수량 가중평균 (VWAP)'}</div>
+    <div class="price-meta price-basis">${isZeroCard ? `현재 ${cardTier} 최저호가` : '현재 시세 · 최근 1시간 수량 가중평균 (VWAP)'}</div>
     <div class="bigpx">${fmt(representativePrice(it))}${representativePrice(it) == null ? '' : '<small>골드</small>'}</div>
     ${isZeroCard && representativePrice(it) == null ? `<div class="price-meta">${it.listings === 0 ? '현재 관측 매물 없음' : '현재 호가 관측 없음'}</div>` : ''}
     ${isZeroCard ? '' : `<div class="price-meta">최근 체결 ${it.last_trade_at ? `${fmt(it.last_price)}골드 · ${priceTime(it.last_trade_at)} KST` : '기록 없음'}</div>
@@ -934,7 +938,22 @@ async function renderDetail(it) {
       ? (isZeroCard ? '24h 평균 변화 비교 불가' : '데이터 없음')
       : `${pct(it.chg)} <span style="color:var(--ink-3);font-weight:500">24h 평균 변화</span>`}</div>
 
-    <div class="panel"><div class="kv">${isZeroCard ? `
+    <div class="panel">
+      <div class="panel-head price-chart-head">
+        <h3>${isZeroCard ? `${cardTier} 가격 흐름` : '가격 흐름 · 체결 수량'}</h3>
+      </div>
+      <p class="desc" id="fc-desc">불러오는 중…</p>
+      <div class="chart${isZeroCard ? '' : ' tall'}" id="c1"></div>
+      <div class="event-rail" id="event-rail" aria-label="가격 영향 이벤트 태그" hidden></div>
+      <details class="event-study" id="event-details">
+        <summary><span>가격 영향 이벤트 · 이벤트 스터디</span><small id="event-count"></small><i aria-hidden="true">⌄</i></summary>
+        <div class="event-body">
+          <p class="desc">실제 시장 충격일인 패치·적용·출시일을 기준으로 봅니다. 패키지는 종료일도 별도로 계산합니다. 전후 수치는 요일효과를 보정한 3일 평균 비교이며, 동시 발생이 인과관계를 뜻하지는 않습니다.${isZeroCard ? ` 카드 가격은 ${cardTier} 최저호가만 사용합니다.` : ''}</p>
+          <div id="event-list"></div>
+        </div>
+      </details>
+    </div>
+    <div class="detail-metrics" aria-label="시세 보조 지표"><div class="kv">${isZeroCard ? `
       <div><div class="k">24h 평균 ${cardTier} 최저호가</div><div class="v">${fmt(it.vwap24)}</div></div>
       <div><div class="k">현재 ${cardTier} 최저호가</div><div class="v">${fmt(it.min_ask)}</div></div>
       <div><div class="k">${cardTier} 등록 매물</div><div class="v">${fmt(it.listings)}</div></div>
@@ -952,21 +971,6 @@ async function renderDetail(it) {
 
     ${isZeroCard ? upgradeEconomicsHTML(baseItem) : ''}
 
-    <div class="panel">
-      <div class="panel-head price-chart-head">
-        <h3>${isZeroCard ? `${cardTier} 최저호가` : '가격 · 체결 수량'}</h3>
-      </div>
-      <p class="desc" id="fc-desc">불러오는 중…</p>
-      <div class="chart${isZeroCard ? '' : ' tall'}" id="c1"></div>
-      <div class="event-rail" id="event-rail" aria-label="가격 영향 이벤트 태그" hidden></div>
-      <details class="event-study" id="event-details">
-        <summary><span>가격 영향 이벤트 · 이벤트 스터디</span><small id="event-count"></small><i aria-hidden="true">⌄</i></summary>
-        <div class="event-body">
-          <p class="desc">실제 시장 충격일인 패치·적용·출시일을 기준으로 봅니다. 패키지는 종료일도 별도로 계산합니다. 전후 수치는 요일효과를 보정한 3일 평균 비교이며, 동시 발생이 인과관계를 뜻하지는 않습니다.${isZeroCard ? ` 카드 가격은 ${cardTier} 최저호가만 사용합니다.` : ''}</p>
-          <div id="event-list"></div>
-        </div>
-      </details>
-    </div>
     <div class="panel" id="stock-panel">
       <h3>최근 7일 · ${isZeroCard ? `${cardTier} ` : ''}가격과 매물 잔량</h3>
       <p class="desc">${isZeroCard ? '선택한 단계의 시간별 평균 최저호가와' : '시간별 체결 수량 가중평균(VWAP)과'} 각 시간의 마지막 매물 잔량을 같은 시간축에서 비교합니다. 현재 시간은 수집 중입니다.</p>
@@ -1143,8 +1147,8 @@ async function renderDetail(it) {
   }
 
   desc.textContent = isZeroCard
-    ? `일별 평균 ${cardTier} 최저호가입니다. 가격이 확인된 관측만 평균하며 실제 체결가와는 다릅니다. 그래프에서 날짜를 선택하면 해당 날의 수치를 확인할 수 있습니다.`
-    : '일별 수량 가중 중앙값과 주요 거래 가격대입니다. 상단 대표 가격(최근 1시간 VWAP)과는 계산 기준이 다릅니다. 그래프에서 날짜를 선택하면 해당 날의 수치를 확인할 수 있습니다.';
+    ? `일평균 ${cardTier} 최저호가 · 실제 체결가와 다릅니다.`
+    : '일별 수량 가중 중앙값 · 상단의 최근 1시간 평균(VWAP)과 계산 기준이 다릅니다.';
   renderPriceDistribution(document.getElementById('c1'), isZeroCard
     ? { basis: 'ask', asOf: DATA.priceAsOf ?? DATA.builtAt, daily: d }
     : s.distribution, events);
