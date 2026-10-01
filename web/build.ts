@@ -19,6 +19,7 @@ import { cardWeekday, type CardWeekdayDay } from '../src/card-weekday.ts';
 import { researchExport } from '../src/research-export.ts';
 import { weekdayTrend, WEEKDAY_MIN_WEEKS } from '../src/weekday-trend.ts';
 import { summarizeWeekdays } from './metrics.js';
+import { exportSeasonal } from '../src/seasonal-export.ts';
 
 const pool = await buildPool();
 const client = await pool.connect();
@@ -478,6 +479,7 @@ const research = await researchExport(client, quality.checkedAt, quality.through
 writeFileSync(`${OUT}/data/research.json`, JSON.stringify(research));
 const legendary = legendaryRows.slice(-1);
 writeFileSync(`${OUT}/data/legendary.json`, JSON.stringify(legendarySeries(legendaryRows, quality.checkedAt)));
+writeFileSync(`${OUT}/data/seasonal.json`, JSON.stringify(await exportSeasonal(client, quality.checkedAt)));
 
 // ── 스태커블 시장 거래대금 순위 ──────────────────────────────
 const marketRankingRows = (await query<{
@@ -633,6 +635,7 @@ writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
 
 for (const f of ['index.html', 'ranking.html', 'analysis.html', 'guide.html', 'feedback.html', 'feedback.js', 'feedback.css', 'app.js', 'price-distribution.js', 'price-distribution.css', 'metrics.js', 'ranking.js', 'style.css', 'research.html', 'research.js', 'research-ui.js', 'research.css', 'package.js', 'package-calc.js', 'package.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
 writeFileSync(`${OUT}/.nojekyll`, '');
+for (const f of ['seasonal.html','seasonal.js','seasonal.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
 
 console.log('[history-cache] 합계', JSON.stringify(historyCache.stats));
 console.log(`빌드 완료 — ${items.length}종 · 체결 ${meta.trades.toLocaleString()}건 · 일봉 ${daily.length}행 · 예측 ${forecasts.size}종 · 범위 ${bands.size}종`);

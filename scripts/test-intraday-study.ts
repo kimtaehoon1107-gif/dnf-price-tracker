@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {dailyPaths,compareBoundaries,HOUR,DAY} from '../src/intraday-study.ts';
+const start=Date.parse('2026-09-06T15:00:00Z');
+const points=Array.from({length:24*16},(_,i)=>({t:start+i*HOUR,price:100*Math.exp(i*.001)}));
+const ds=dailyPaths(points,0,start+16*DAY);
+assert.equal(ds[0].d,'2026-09-07');assert.equal(ds[0].hours,24);
+assert(Math.abs(ds[0].r2!-1)<1e-9);assert(ds[0].changePct!>0);
+const six=dailyPaths(points,6,start+16*DAY);assert.equal(six[0].complete,false);
+assert.equal(six[1].prices[0],points[6].price);
+const missing=points.map((p,i)=>({...p,price:i<7?null:p.price}));
+assert.equal(dailyPaths(missing,0,start+16*DAY)[0].eligible,false);
+assert.equal(compareBoundaries(points,start+16*DAY).fullWeeks.length,2);
+assert.equal(dailyPaths(points,0,start+15*DAY+HOUR).at(-1)!.complete,false);
+const flat=points.map(p=>({...p,price:100}));assert.equal(dailyPaths(flat,0,start+16*DAY)[0].changePct,0);
+const gap=points.filter(p=>p.t<start+DAY||p.t>=start+2*DAY);
+assert.equal(dailyPaths(gap,0,start+16*DAY)[1].hours,0);
+console.log('intraday boundary / missing / incomplete / weekly / slope tests passed');

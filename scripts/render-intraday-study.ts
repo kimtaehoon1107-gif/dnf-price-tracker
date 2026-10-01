@@ -1,0 +1,30 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+const folder='data/intraday-study';
+const report=JSON.parse(readFileSync(folder+'/report.json','utf8'));
+const html=String.raw`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>하루 안의 흐름과 요일 트렌드</title>
+<style>body{font:16px/1.7 system-ui,sans-serif;color:#172b42;background:#f3f6fa;max-width:1120px;margin:36px auto;padding:0 20px}h1{font-size:30px}h2{font-size:20px}section{background:white;border:1px solid #dae2ed;border-radius:14px;padding:22px;margin:18px 0}select{padding:10px;max-width:100%;font-size:15px;border:1px solid #bac8d9;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:8px;text-align:right;border-bottom:1px solid #e5eaf0}td:first-child,th:first-child{text-align:left}.muted{color:#52637b;font-size:14px}.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}svg{width:100%;height:auto}a{color:#165bc1}.scroll{max-height:440px;overflow:auto}@media(max-width:700px){.cols{grid-template-columns:1fr}body{padding:0 12px}section{padding:14px}}</style>
+<h1>하루 안의 흐름과 요일 트렌드</h1><p id="meta"></p>
+<section><b>이 결과로 확인할 수 있는 것</b><p>아이템별·날짜별로 하루 안에서 가격이 어떻게 움직였는지, 자정과 오전 6시 중 일자 경계를 바꾸면 그림이 얼마나 달라지는지 비교합니다. 요일 평균은 같은 주 안에서 비교합니다.</p><p class="muted">탐색 분석입니다. 주 평균으로 나눠도 장기 하락·상승 추세가 완전히 제거되지는 않습니다. 요일 효과의 통계적 유의성, 반복 가능한 수익, 미래 가격을 입증하지 않습니다. 카드 호가는 체결 가격과 다르며, 최저가 지표는 최저가를 구성하는 카드가 바뀔 수 있습니다.</p></section>
+<section><label for="item">아이템 · 가격 기준 </label><select id="item"></select><p id="coverage" class="muted"></p><div id="summary"></div></section>
+<section><h2>1. 날짜별 하루의 실제 가격 경로</h2><select id="date"></select><p class="muted">왼쪽 자정~자정 · 오른쪽 06시~다음 날 06시. 두 그림의 가격축은 같습니다. 빠진 시간은 연결하지 않습니다. 개별 날짜는 표본이 적어도 보여주되 평균 계산에서는 제외합니다.</p><div class="cols" id="daily"></div></section>
+<section><h2>2. 공통 날짜의 시간대별 평균</h2><p class="muted">각 날짜의 관측 시간 평균=100. 두 경계 모두 완료된 날짜이면서 18시간 이상 관측된 공통 날짜만 사용합니다. 각 시간의 표본 수가 다를 수 있으며 전체 곡선의 상승·하락이 모든 날짜에 반복된다는 뜻은 아닙니다.</p><div class="cols" id="profile"></div></section>
+<section><h2>3. 요일별 비교</h2><p class="muted">두 경계에서 모두 7일이 유효한 월~일 주만 사용하며, 해당 주의 평균=100입니다. 가격은 관측 시간별 가격의 단순평균이므로 일간 수량가중평균과 다릅니다. 4주는 화면에서 참고하는 기준이며 통계적 유의성의 기준이 아닙니다.</p><div id="weekday"></div></section>
+<section><h2>4. 모든 날짜의 확인표</h2><p class="muted">시작·끝 변화: 첫 3시간 평균 대비 마지막 3시간 평균. 각 구간에 2시간 이상 있어야 계산합니다. 누락은 0으로 채우지 않습니다. 운영 DB 전환이 시간 중간에 일어난 체결 봉은 제외했습니다.</p><div class="scroll" id="dates"></div></section>
+<script>const R=__DATA__;
+const el=id=>document.getElementById(id),fmt=(v,n=2)=>v==null?'—':Number(v).toLocaleString('ko-KR',{maximumFractionDigits:n});
+function chart(values,label,lo,hi){const valid=values.filter(v=>v!=null);if(!valid.length)return '<p>관측 없음</p>';lo=lo??Math.min(...valid);hi=hi??Math.max(...valid);if(hi===lo){hi+=1;lo-=1}const x=i=>50+i*18,y=v=>180-(v-lo)/(hi-lo)*140;let lines='';for(let i=1;i<values.length;i++)if(values[i]!=null&&values[i-1]!=null)lines+='<line x1="'+x(i-1)+'" y1="'+y(values[i-1])+'" x2="'+x(i)+'" y2="'+y(values[i])+'" stroke="#246ac4" stroke-width="2"/>';return '<div><b>'+label+'</b><svg viewBox="0 0 490 220" role="img" aria-label="'+label+'"><text x="0" y="30" font-size="11">'+fmt(hi)+'</text><text x="0" y="182" font-size="11">'+fmt(lo)+'</text>'+lines+values.map((v,i)=>v==null?'':'<circle cx="'+x(i)+'" cy="'+y(v)+'" r="2" fill="#246ac4"><title>경과 '+i+'시간: '+fmt(v)+'</title></circle>').join('')+'<text x="50" y="207" font-size="12">시작</text><text x="435" y="207" font-size="12">+23h</text></svg></div>'}
+function table(head,rows){return '<table><thead><tr>'+head.map(v=>'<th>'+v+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(v=>'<td>'+v+'</td>').join('')+'</tr>').join('')+'</tbody></table>'}
+el('meta').textContent=R.items+'종 · '+R.results.length+'개 가격 시계열 · 자료 기준 '+new Date(R.asOf).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})+' KST';
+R.results.sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+R.results.forEach((r,i)=>{const o=document.createElement('option');o.value=i;o.textContent=r.name+' · '+r.basis;el('item').append(o)});
+function selected(){return R.results[+el('item').value]}
+function day(){const r=selected(),d=el('date').value,ps=r.paths.map(p=>p.find(q=>q.d===d));const vs=ps.flatMap(p=>p?p.prices.filter(v=>v!=null):[]);el('daily').innerHTML=ps.map((p,i)=>chart(p?.prices??[],(i?'06시':'자정')+' 기준 · '+(p?.hours??0)+'시간 · '+(p?.eligible?'분석 포함':'표본 부족/미완료'),Math.min(...vs),Math.max(...vs))).join('')}
+function render(){const r=selected();el('coverage').textContent='관측: '+r.first.slice(0,10)+' ~ '+r.last.slice(0,10)+' (UTC 날짜) · 공통 유효일 '+r.commonDays+'일 · 공통 완료 주 '+r.fullWeeks.length+'주';
+el('summary').innerHTML=table(['일자 기준','변화 계산 가능','상승일','하락일','보합일','평균 변화'],r.summary.map(s=>[s.boundary+'시',s.pairedChanges,s.up,s.down,s.flat,fmt(s.meanChangePct)+'%']));
+const dates=[...new Set(r.paths.flatMap(p=>p.map(d=>d.d)))].sort();el('date').replaceChildren();dates.forEach(d=>{const o=document.createElement('option');o.value=o.textContent=d;el('date').append(o)});el('date').value=dates.at(-2)??dates.at(-1);day();
+const vals=r.summary.flatMap(s=>s.hourly.flatMap(h=>h.index==null?[]:[h.index]));el('profile').innerHTML=r.summary.map(s=>chart(s.hourly.map(h=>h.index),s.boundary+'시 기준 · 시간당 표본 '+Math.min(...s.hourly.map(h=>h.n))+'~'+Math.max(...s.hourly.map(h=>h.n))+'일',Math.min(...vals),Math.max(...vals))).join('');
+el('weekday').innerHTML=table(['요일','자정 기준','6시 기준','주 수'],Array.from({length:7},(_,i)=>[['월','화','수','목','금','토','일'][i],fmt(r.summary[0].weekday[i].index),fmt(r.summary[1].weekday[i].index),r.fullWeeks.length]));
+el('dates').innerHTML=table(['날짜','기준','유효 시간','포함','시작·끝 변화'],dates.flatMap(d=>r.paths.map((ps,i)=>{const p=ps.find(p=>p.d===d);return [d,i*6+'시',p?.hours??0,p?.eligible?'포함':'제외',fmt(p?.changePct)+'%']})));}
+el('item').value=R.results.findIndex(r=>r.id==='legendary'&&r.basis==='P10');
+el('item').onchange=render;el('date').onchange=day;render();</script></html>`;
+writeFileSync(folder+'/report.html',html.replace('__DATA__',JSON.stringify(report).replaceAll('<','\\u003c')));

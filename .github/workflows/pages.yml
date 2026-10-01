@@ -9,6 +9,8 @@ on:
     branches: [main]
     paths:
       - 'web/**'
+      - 'src/seasonal-*.ts'
+      - 'src/intraday-study.ts'
       - 'src/forecast.ts'
       - 'src/market-logic.ts'
       - 'src/legendary.ts'
@@ -39,7 +41,7 @@ on:
       - '.github/workflows/pages.yml'
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -51,7 +53,7 @@ jobs:
   build-deploy:
     runs-on: ubuntu-latest
     environment:
-      name: github-pages
+      name: ${{ github.ref == 'refs/heads/main' && 'github-pages' || 'build-preview' }}
       url: ${{ steps.deploy.outputs.page_url }}
     services:
       postgres:
@@ -123,4 +125,11 @@ jobs:
         with:
           path: dist
       - id: deploy
+        if: github.ref == 'refs/heads/main'
         uses: actions/deploy-pages@v4
+      - uses: actions/upload-artifact@v4
+        if: github.ref != 'refs/heads/main'
+        with:
+          name: seasonal-preview
+          path: dist/
+          retention-days: 7

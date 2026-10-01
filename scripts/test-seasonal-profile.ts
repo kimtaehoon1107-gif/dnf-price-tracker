@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {seasonalProfile,type SeasonalItem} from '../src/seasonal-profile.ts';
+import {HOUR,DAY} from '../src/intraday-study.ts';
+const start=Date.parse('2026-09-06T15:00:00Z'),cutoff=start+16*DAY;
+const points=Array.from({length:16*24},(_,h)=>({t:start+h*HOUR,price:100+(h%24)}));
+const a:SeasonalItem={id:'a',name:'a',category:'test',price:points,listings:points};
+const b={...a,id:'b',price:points.map(p=>({...p,price:p.price*10000}))};
+const single=seasonalProfile([a],'price',cutoff),group=seasonalProfile([a,b],'price',cutoff);
+assert.equal(group.weeks,2);assert.equal(group.days,15);
+for(let i=0;i<24;i++)assert(Math.abs(group.boundaries[0].hourly[i].index!-single.boundaries[0].hourly[i].index!)<1e-9);
+assert.equal(seasonalProfile([a,{...b,price:[]}],'price',cutoff).days,0);
+const z={...a,listings:points.map((p,i)=>({...p,price:i%24===12?0:p.price}))};
+assert.equal(seasonalProfile([z],'listings',cutoff).boundaries[0].hourly[12].index,0);
+assert.equal(seasonalProfile([a],'price',start+HOUR).days,0);
+console.log('seasonal profile: equal weighting, fixed membership, zero stock, complete windows passed');
