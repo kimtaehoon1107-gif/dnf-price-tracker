@@ -1,6 +1,7 @@
 import './test-forecast.ts';
 import './test-seasonal-profile.ts';
 import './test-activity-profile.ts';
+import './test-activity-study.ts';
 import './test-intraday-study.ts';
 import './test-forecast-comparison.ts';
 import './test-market-logic.ts';

@@ -1,0 +1,1672 @@
+{
+  "asOf": "2026-10-01T09:00:00.000Z",
+  "inputHash": "bc5bd659abf314a52f9f2661d1c2ff5b8d04cf1e5cfee145d103f56d81dfe11d",
+  "sources": [
+    {
+      "schema": "hist_a",
+      "id": "manifests/e4e86c683473ae16d7f260c4062b4269c3c0b51ff198624239b78490924ba7c9.json",
+      "asOf": "2026-09-22T10:50:15.218Z"
+    },
+    {
+      "schema": "hist_b",
+      "id": "manifests/119967993e66c248ec703e417ef3fbff0bc9537efccdb61b68b56c81171933a7.json",
+      "asOf": "2026-10-01T09:22:25.216Z"
+    },
+    {
+      "schema": "hist_c",
+      "id": "manifests/77008437b6d93a0401dd221aa8ae064d32997a79a06ff3a7da4c0f2aac06005b.json",
+      "asOf": "2026-10-01T09:22:18.363Z"
+    }
+  ],
+  "rules": {
+    "exploratory": true,
+    "windows": "KST 06–08 vs 18–20, each >=2 shared hours; each member >=18 observed hours/day. Individual and leave-one-out use identical baseline days and hours.",
+    "quality": "known: successful records with no recorded failure in hour; overlap: additionally no disjoint saturated flag or 400-listing cap; clean: additionally exclude every 100-row sold response. Missing records excluded, full completeness not guaranteed. A 100-row response alone does not prove missing trades.",
+    "forecast": "P10 only, exact 1/3/6-hour endpoints, >=7 days and >=100 training samples; expanding ridge penalty=1; price hold / price return / price+stock return. Historical reconstruction, not live-issued evaluation."
+  },
+  "groups": [
+    {
+      "name": "소울 결정",
+      "coverage": [
+        {
+          "name": "광휘의 소울 결정",
+          "hours": 555,
+          "known": 416,
+          "clean": 0
+        },
+        {
+          "name": "레어 소울 결정",
+          "hours": 549,
+          "known": 413,
+          "clean": 0
+        },
+        {
+          "name": "레전더리 소울 결정",
+          "hours": 559,
+          "known": 421,
+          "clean": 0
+        },
+        {
+          "name": "태초 소울 결정",
+          "hours": 553,
+          "known": 417,
+          "clean": 0
+        },
+        {
+          "name": "유니크 소울 결정",
+          "hours": 545,
+          "known": 409,
+          "clean": 0
+        },
+        {
+          "name": "에픽 소울 결정",
+          "hours": 557,
+          "known": 419,
+          "clean": 0
+        }
+      ],
+      "comparisons": [
+        {
+          "metric": "price",
+          "results": [
+            {
+              "boundary": 0,
+              "mode": "all",
+              "n": 20,
+              "up": 15,
+              "down": 5,
+              "medianPct": 2.4730207888231304,
+              "meanPct": 7.22362656146736
+            },
+            {
+              "boundary": 0,
+              "mode": "noThursday",
+              "n": 19,
+              "up": 14,
+              "down": 5,
+              "medianPct": 2.6315856383569014,
+              "meanPct": 7.510981116573383
+            },
+            {
+              "boundary": 0,
+              "mode": "known",
+              "n": 15,
+              "up": 11,
+              "down": 4,
+              "medianPct": 2.3144559392893598,
+              "meanPct": 8.470910994914263
+            },
+            {
+              "boundary": 0,
+              "mode": "overlap",
+              "n": 5,
+              "up": 4,
+              "down": 1,
+              "medianPct": 3.7840396341857017,
+              "meanPct": 5.374436908671534
+            },
+            {
+              "boundary": 0,
+              "mode": "clean",
+              "n": 0,
+              "up": 0,
+              "down": 0,
+              "medianPct": null,
+              "meanPct": null
+            },
+            {
+              "boundary": 6,
+              "mode": "all",
+              "n": 20,
+              "up": 15,
+              "down": 5,
+              "medianPct": 2.4730207888231304,
+              "meanPct": 7.22362656146736
+            },
+            {
+              "boundary": 6,
+              "mode": "noThursday",
+              "n": 18,
+              "up": 14,
+              "down": 4,
+              "medianPct": 2.6677157737636703,
+              "meanPct": 8.152751920471651
+            },
+            {
+              "boundary": 6,
+              "mode": "known",
+              "n": 15,
+              "up": 11,
+              "down": 4,
+              "medianPct": 2.3144559392893598,
+              "meanPct": 8.470910994914263
+            },
+            {
+              "boundary": 6,
+              "mode": "overlap",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 3.7840396341857017,
+              "meanPct": 3.7235470939406787
+            },
+            {
+              "boundary": 6,
+              "mode": "clean",
+              "n": 0,
+              "up": 0,
+              "down": 0,
+              "medianPct": null,
+              "meanPct": null
+            }
+          ],
+          "individual": [
+            {
+              "name": "광휘의 소울 결정",
+              "n": 20,
+              "up": 14,
+              "down": 6,
+              "medianPct": 2.4956904020866366,
+              "meanPct": 4.420231654579593
+            },
+            {
+              "name": "레어 소울 결정",
+              "n": 20,
+              "up": 7,
+              "down": 13,
+              "medianPct": -4.84001500124856,
+              "meanPct": 19.150966350074633
+            },
+            {
+              "name": "레전더리 소울 결정",
+              "n": 20,
+              "up": 14,
+              "down": 6,
+              "medianPct": 6.047250284558969,
+              "meanPct": 8.07991561343996
+            },
+            {
+              "name": "태초 소울 결정",
+              "n": 20,
+              "up": 11,
+              "down": 9,
+              "medianPct": 2.411364984956932,
+              "meanPct": 2.186171641958817
+            },
+            {
+              "name": "유니크 소울 결정",
+              "n": 20,
+              "up": 7,
+              "down": 13,
+              "medianPct": -0.6716627388309693,
+              "meanPct": -3.6364533595508775
+            },
+            {
+              "name": "에픽 소울 결정",
+              "n": 20,
+              "up": 19,
+              "down": 1,
+              "medianPct": 9.126960609644408,
+              "meanPct": 13.140927468302033
+            }
+          ],
+          "leaveOneOut": [
+            {
+              "omitted": "광휘의 소울 결정",
+              "n": 20,
+              "up": 15,
+              "down": 5,
+              "medianPct": 3.3955972413418447,
+              "meanPct": 7.784305542844914
+            },
+            {
+              "omitted": "레어 소울 결정",
+              "n": 20,
+              "up": 17,
+              "down": 3,
+              "medianPct": 3.6676457069421198,
+              "meanPct": 4.838158603745905
+            },
+            {
+              "omitted": "레전더리 소울 결정",
+              "n": 20,
+              "up": 14,
+              "down": 6,
+              "medianPct": 1.952583225586051,
+              "meanPct": 7.052368751072839
+            },
+            {
+              "omitted": "태초 소울 결정",
+              "n": 20,
+              "up": 15,
+              "down": 5,
+              "medianPct": 3.4524906577592973,
+              "meanPct": 8.231117545369067
+            },
+            {
+              "omitted": "유니크 소울 결정",
+              "n": 20,
+              "up": 15,
+              "down": 5,
+              "medianPct": 3.3015912707656287,
+              "meanPct": 9.395642545671006
+            },
+            {
+              "omitted": "에픽 소울 결정",
+              "n": 20,
+              "up": 11,
+              "down": 9,
+              "medianPct": 0.25035788286116406,
+              "meanPct": 6.040166380100425
+            }
+          ]
+        },
+        {
+          "metric": "traded",
+          "results": [
+            {
+              "boundary": 0,
+              "mode": "all",
+              "n": 20,
+              "up": 20,
+              "down": 0,
+              "medianPct": 398.3150853860567,
+              "meanPct": 567.8503162970745
+            },
+            {
+              "boundary": 0,
+              "mode": "noThursday",
+              "n": 19,
+              "up": 19,
+              "down": 0,
+              "medianPct": 404.49436167986437,
+              "meanPct": 587.0782107292449
+            },
+            {
+              "boundary": 0,
+              "mode": "known",
+              "n": 15,
+              "up": 15,
+              "down": 0,
+              "medianPct": 404.49436167986437,
+              "meanPct": 632.390505383777
+            },
+            {
+              "boundary": 0,
+              "mode": "overlap",
+              "n": 5,
+              "up": 5,
+              "down": 0,
+              "medianPct": 361.3938158417309,
+              "meanPct": 661.6468600154335
+            },
+            {
+              "boundary": 0,
+              "mode": "clean",
+              "n": 0,
+              "up": 0,
+              "down": 0,
+              "medianPct": null,
+              "meanPct": null
+            },
+            {
+              "boundary": 6,
+              "mode": "all",
+              "n": 20,
+              "up": 20,
+              "down": 0,
+              "medianPct": 398.3150853860567,
+              "meanPct": 567.8503162970745
+            },
+            {
+              "boundary": 6,
+              "mode": "noThursday",
+              "n": 18,
+              "up": 18,
+              "down": 0,
+              "medianPct": 410.9667373226679,
+              "meanPct": 604.423664841333
+            },
+            {
+              "boundary": 6,
+              "mode": "known",
+              "n": 15,
+              "up": 15,
+              "down": 0,
+              "medianPct": 404.49436167986437,
+              "meanPct": 632.390505383777
+            },
+            {
+              "boundary": 6,
+              "mode": "overlap",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 361.3938158417309,
+              "meanPct": 335.8465325469033
+            },
+            {
+              "boundary": 6,
+              "mode": "clean",
+              "n": 0,
+              "up": 0,
+              "down": 0,
+              "medianPct": null,
+              "meanPct": null
+            }
+          ],
+          "individual": [
+            {
+              "name": "광휘의 소울 결정",
+              "n": 20,
+              "up": 20,
+              "down": 0,
+              "medianPct": 212.46806576241457,
+              "meanPct": 282.94307614485376
+            },
+            {
+              "name": "레어 소울 결정",
+              "n": 20,
+              "up": 19,
+              "down": 1,
+              "medianPct": 306.0182932324052,
+              "meanPct": 702.727199001164
+            },
+            {
+              "name": "레전더리 소울 결정",
+              "n": 20,
+              "up": 20,
+              "down": 0,
+              "medianPct": 410.31489698518584,
+              "meanPct": 1043.4486381715476
+            },
+            {
+              "name": "태초 소울 결정",
+              "n": 20,
+              "up": 20,
+              "down": 0,
+              "medianPct": 268.3908045977011,
+              "meanPct": 304.66042623066033
+            },
+            {
+              "name": "유니크 소울 결정",
+              "n": 20,
+              "up": 18,
+              "down": 2,
+              "medianPct": 187.84592705551853,
+              "meanPct": 498.14673216377605
+            },
+            {
+              "name": "에픽 소울 결정",
+              "n": 20,
+              "up": 20,
+              "down": 0,
+              "medianPct": 434.9132090458836,
+              "meanPct": 575.1758260704462
+            }
+          ],
+          "leaveOneOut": [
+            {
+              "omitted": "광휘의 소울 결정",
+              "n": 20,
+              "up": 20,
+              "down": 0,
+              "medianPct": 414.4056832632443,
+              "meanPct": 624.8317643275188
+            },
+            {
+              "omitted": "레어 소울 결정",
+              "n": 20,
+              "up": 20,
+              "down": 0,
+              "medianPct": 418.5711189418354,
+              "meanPct": 540.8749397562569
+            },
+            {
+              "omitted": "레전더리 소울 결정",
+              "n": 20,
+              "up": 20,
+              "down": 0,
+              "medianPct": 352.4448865020996,
+              "meanPct": 472.73065192218
+            },
+            {
+              "omitted": "태초 소울 결정",
+              "n": 20,
+              "up": 20,
+              "down": 0,
+              "medianPct": 403.72830881180766,
+              "meanPct": 620.4882943103574
+            },
+            {
+              "omitted": "유니크 소울 결정",
+              "n": 20,
+              "up": 20,
+              "down": 0,
+              "medianPct": 392.7263337187506,
+              "meanPct": 581.7910331237343
+            },
+            {
+              "omitted": "에픽 소울 결정",
+              "n": 20,
+              "up": 20,
+              "down": 0,
+              "medianPct": 361.53988866531375,
+              "meanPct": 566.3852143424003
+            }
+          ]
+        },
+        {
+          "metric": "stock",
+          "results": [
+            {
+              "boundary": 0,
+              "mode": "all",
+              "n": 20,
+              "up": 8,
+              "down": 12,
+              "medianPct": -1.3909995719878596,
+              "meanPct": -0.654503608387687
+            },
+            {
+              "boundary": 0,
+              "mode": "noThursday",
+              "n": 19,
+              "up": 7,
+              "down": 12,
+              "medianPct": -1.4286633112592735,
+              "meanPct": -0.9694141607736665
+            },
+            {
+              "boundary": 0,
+              "mode": "known",
+              "n": 15,
+              "up": 7,
+              "down": 8,
+              "medianPct": -3.423835091132814,
+              "meanPct": -0.396040803696854
+            },
+            {
+              "boundary": 0,
+              "mode": "overlap",
+              "n": 5,
+              "up": 1,
+              "down": 4,
+              "medianPct": -11.427442406360468,
+              "meanPct": -8.378142305725277
+            },
+            {
+              "boundary": 0,
+              "mode": "clean",
+              "n": 0,
+              "up": 0,
+              "down": 0,
+              "medianPct": null,
+              "meanPct": null
+            },
+            {
+              "boundary": 6,
+              "mode": "all",
+              "n": 20,
+              "up": 8,
+              "down": 12,
+              "medianPct": -1.3909995719878596,
+              "meanPct": -0.654503608387687
+            },
+            {
+              "boundary": 6,
+              "mode": "noThursday",
+              "n": 18,
+              "up": 6,
+              "down": 12,
+              "medianPct": -2.4262492011960437,
+              "meanPct": -3.10948939668234
+            },
+            {
+              "boundary": 6,
+              "mode": "known",
+              "n": 15,
+              "up": 7,
+              "down": 8,
+              "medianPct": -3.423835091132814,
+              "meanPct": -0.396040803696854
+            },
+            {
+              "boundary": 6,
+              "mode": "overlap",
+              "n": 3,
+              "up": 0,
+              "down": 3,
+              "medianPct": -11.427442406360468,
+              "meanPct": -13.580400598847609
+            },
+            {
+              "boundary": 6,
+              "mode": "clean",
+              "n": 0,
+              "up": 0,
+              "down": 0,
+              "medianPct": null,
+              "meanPct": null
+            }
+          ],
+          "individual": [
+            {
+              "name": "광휘의 소울 결정",
+              "n": 20,
+              "up": 8,
+              "down": 12,
+              "medianPct": -5.173298671049276,
+              "meanPct": 1.5723870518965384
+            },
+            {
+              "name": "레어 소울 결정",
+              "n": 20,
+              "up": 12,
+              "down": 8,
+              "medianPct": 2.9879003302916374,
+              "meanPct": 2.92240981417524
+            },
+            {
+              "name": "레전더리 소울 결정",
+              "n": 20,
+              "up": 10,
+              "down": 10,
+              "medianPct": -1.4460038466355964,
+              "meanPct": -3.9178328783599694
+            },
+            {
+              "name": "태초 소울 결정",
+              "n": 20,
+              "up": 10,
+              "down": 10,
+              "medianPct": -0.7766130386317072,
+              "meanPct": 0.79447099199149
+            },
+            {
+              "name": "유니크 소울 결정",
+              "n": 20,
+              "up": 8,
+              "down": 12,
+              "medianPct": -3.895389298628454,
+              "meanPct": 0.19285177896359168
+            },
+            {
+              "name": "에픽 소울 결정",
+              "n": 20,
+              "up": 8,
+              "down": 12,
+              "medianPct": -2.375626977805523,
+              "meanPct": -5.491308408993011
+            }
+          ],
+          "leaveOneOut": [
+            {
+              "omitted": "광휘의 소울 결정",
+              "n": 20,
+              "up": 7,
+              "down": 13,
+              "medianPct": -1.2506085053889677,
+              "meanPct": -1.0998817404445318
+            },
+            {
+              "omitted": "레어 소울 결정",
+              "n": 20,
+              "up": 7,
+              "down": 13,
+              "medianPct": -3.40500161560029,
+              "meanPct": -1.3698862929002718
+            },
+            {
+              "omitted": "레전더리 소울 결정",
+              "n": 20,
+              "up": 7,
+              "down": 13,
+              "medianPct": -2.3856971979850905,
+              "meanPct": -0.001837754393229929
+            },
+            {
+              "omitted": "태초 소울 결정",
+              "n": 20,
+              "up": 7,
+              "down": 13,
+              "medianPct": -3.484314204842767,
+              "meanPct": -0.9442985284635217
+            },
+            {
+              "omitted": "유니크 소울 결정",
+              "n": 20,
+              "up": 9,
+              "down": 11,
+              "medianPct": -2.9846239599099578,
+              "meanPct": -0.8239746858579423
+            },
+            {
+              "omitted": "에픽 소울 결정",
+              "n": 20,
+              "up": 8,
+              "down": 12,
+              "medianPct": -1.3960713932661266,
+              "meanPct": 0.3128573517333777
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "유랑악단 패키지",
+      "coverage": [
+        {
+          "name": "숲속의 유랑악단 칭호 상자",
+          "hours": 441,
+          "known": 324,
+          "clean": 0
+        },
+        {
+          "name": "숲속의 유랑악단 오라 상자",
+          "hours": 505,
+          "known": 374,
+          "clean": 0
+        },
+        {
+          "name": "숲속의 유랑악단 아바타 풀세트 상자",
+          "hours": 500,
+          "known": 375,
+          "clean": 0
+        },
+        {
+          "name": "숲속의 유랑악단 크리쳐 상자",
+          "hours": 548,
+          "known": 411,
+          "clean": 0
+        },
+        {
+          "name": "숲속의 유랑악단 세라 상자",
+          "hours": 470,
+          "known": 343,
+          "clean": 0
+        },
+        {
+          "name": "숲속의 유랑악단 패키지",
+          "hours": 486,
+          "known": 361,
+          "clean": 0
+        }
+      ],
+      "comparisons": [
+        {
+          "metric": "price",
+          "results": [
+            {
+              "boundary": 0,
+              "mode": "all",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 0.5416000992224834,
+              "meanPct": 1.3080683629978322
+            },
+            {
+              "boundary": 0,
+              "mode": "noThursday",
+              "n": 2,
+              "up": 2,
+              "down": 0,
+              "medianPct": 0.4719581578918025,
+              "meanPct": 0.4719581578918025
+            },
+            {
+              "boundary": 0,
+              "mode": "known",
+              "n": 2,
+              "up": 2,
+              "down": 0,
+              "medianPct": 1.7609444362161877,
+              "meanPct": 1.7609444362161877
+            },
+            {
+              "boundary": 0,
+              "mode": "overlap",
+              "n": 2,
+              "up": 2,
+              "down": 0,
+              "medianPct": 1.7609444362161877,
+              "meanPct": 1.7609444362161877
+            },
+            {
+              "boundary": 0,
+              "mode": "clean",
+              "n": 0,
+              "up": 0,
+              "down": 0,
+              "medianPct": null,
+              "meanPct": null
+            },
+            {
+              "boundary": 6,
+              "mode": "all",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 0.5416000992224834,
+              "meanPct": 1.3080683629978322
+            },
+            {
+              "boundary": 6,
+              "mode": "noThursday",
+              "n": 2,
+              "up": 2,
+              "down": 0,
+              "medianPct": 0.4719581578918025,
+              "meanPct": 0.4719581578918025
+            },
+            {
+              "boundary": 6,
+              "mode": "known",
+              "n": 2,
+              "up": 2,
+              "down": 0,
+              "medianPct": 1.7609444362161877,
+              "meanPct": 1.7609444362161877
+            },
+            {
+              "boundary": 6,
+              "mode": "overlap",
+              "n": 2,
+              "up": 2,
+              "down": 0,
+              "medianPct": 1.7609444362161877,
+              "meanPct": 1.7609444362161877
+            },
+            {
+              "boundary": 6,
+              "mode": "clean",
+              "n": 0,
+              "up": 0,
+              "down": 0,
+              "medianPct": null,
+              "meanPct": null
+            }
+          ],
+          "individual": [
+            {
+              "name": "숲속의 유랑악단 칭호 상자",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 1.2296108150336549,
+              "meanPct": 2.849251739161314
+            },
+            {
+              "name": "숲속의 유랑악단 오라 상자",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 0.2674617284644132,
+              "meanPct": 1.1859547311738217
+            },
+            {
+              "name": "숲속의 유랑악단 아바타 풀세트 상자",
+              "n": 3,
+              "up": 1,
+              "down": 2,
+              "medianPct": -0.7157591687347309,
+              "meanPct": -0.45579032843952777
+            },
+            {
+              "name": "숲속의 유랑악단 크리쳐 상자",
+              "n": 3,
+              "up": 2,
+              "down": 1,
+              "medianPct": 0.13444375733626668,
+              "meanPct": 1.2315651842999875
+            },
+            {
+              "name": "숲속의 유랑악단 세라 상자",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 1.2843464457346743,
+              "meanPct": 1.972849707431057
+            },
+            {
+              "name": "숲속의 유랑악단 패키지",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 0.7879631572753842,
+              "meanPct": 1.064579144360341
+            }
+          ],
+          "leaveOneOut": [
+            {
+              "omitted": "숲속의 유랑악단 칭호 상자",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 0.5152735036035905,
+              "meanPct": 0.9998316877651359
+            },
+            {
+              "omitted": "숲속의 유랑악단 오라 상자",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 0.609445443785348,
+              "meanPct": 1.3324910893626345
+            },
+            {
+              "omitted": "숲속의 유랑악단 아바타 풀세트 상자",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 0.6742681330680256,
+              "meanPct": 1.6608401012853042
+            },
+            {
+              "omitted": "숲속의 유랑악단 크리쳐 상자",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 0.6230313675997268,
+              "meanPct": 1.3233689987374013
+            },
+            {
+              "omitted": "숲속의 유랑악단 세라 상자",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 0.39305082992004525,
+              "meanPct": 1.1751120941111874
+            },
+            {
+              "omitted": "숲속의 유랑악단 패키지",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 0.520045641237119,
+              "meanPct": 1.3567662067253305
+            }
+          ]
+        },
+        {
+          "metric": "traded",
+          "results": [
+            {
+              "boundary": 0,
+              "mode": "all",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 448.0218855218855,
+              "meanPct": 546.6697397252952
+            },
+            {
+              "boundary": 0,
+              "mode": "noThursday",
+              "n": 2,
+              "up": 2,
+              "down": 0,
+              "medianPct": 595.9936668270001,
+              "meanPct": 595.9936668270001
+            },
+            {
+              "boundary": 0,
+              "mode": "known",
+              "n": 2,
+              "up": 2,
+              "down": 0,
+              "medianPct": 682.3442760942761,
+              "meanPct": 682.3442760942761
+            },
+            {
+              "boundary": 0,
+              "mode": "overlap",
+              "n": 2,
+              "up": 2,
+              "down": 0,
+              "medianPct": 682.3442760942761,
+              "meanPct": 682.3442760942761
+            },
+            {
+              "boundary": 0,
+              "mode": "clean",
+              "n": 0,
+              "up": 0,
+              "down": 0,
+              "medianPct": null,
+              "meanPct": null
+            },
+            {
+              "boundary": 6,
+              "mode": "all",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 448.0218855218855,
+              "meanPct": 546.6697397252952
+            },
+            {
+              "boundary": 6,
+              "mode": "noThursday",
+              "n": 2,
+              "up": 2,
+              "down": 0,
+              "medianPct": 595.9936668270001,
+              "meanPct": 595.9936668270001
+            },
+            {
+              "boundary": 6,
+              "mode": "known",
+              "n": 2,
+              "up": 2,
+              "down": 0,
+              "medianPct": 682.3442760942761,
+              "meanPct": 682.3442760942761
+            },
+            {
+              "boundary": 6,
+              "mode": "overlap",
+              "n": 2,
+              "up": 2,
+              "down": 0,
+              "medianPct": 682.3442760942761,
+              "meanPct": 682.3442760942761
+            },
+            {
+              "boundary": 6,
+              "mode": "clean",
+              "n": 0,
+              "up": 0,
+              "down": 0,
+              "medianPct": null,
+              "meanPct": null
+            }
+          ],
+          "individual": [
+            {
+              "name": "숲속의 유랑악단 칭호 상자",
+              "n": 3,
+              "up": 2,
+              "down": 1,
+              "medianPct": 166.66666666666666,
+              "meanPct": 432.82828282828285
+            },
+            {
+              "name": "숲속의 유랑악단 오라 상자",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 585.7142857142857,
+              "meanPct": 620.2380952380953
+            },
+            {
+              "name": "숲속의 유랑악단 아바타 풀세트 상자",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 585.7142857142857,
+              "meanPct": 906.3492063492064
+            },
+            {
+              "name": "숲속의 유랑악단 크리쳐 상자",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 188.88888888888889,
+              "meanPct": 346.91358024691357
+            },
+            {
+              "name": "숲속의 유랑악단 세라 상자",
+              "n": 3,
+              "up": 2,
+              "down": 0,
+              "medianPct": 11.111111111111116,
+              "meanPct": 345.3703703703704
+            },
+            {
+              "name": "숲속의 유랑악단 패키지",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 319.0476190476191,
+              "meanPct": 628.3189033189034
+            }
+          ],
+          "leaveOneOut": [
+            {
+              "omitted": "숲속의 유랑악단 칭호 상자",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 504.29292929292933,
+              "meanPct": 569.4380311046978
+            },
+            {
+              "omitted": "숲속의 유랑악단 오라 상자",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 492.62626262626264,
+              "meanPct": 531.9560686227353
+            },
+            {
+              "omitted": "숲속의 유랑악단 아바타 풀세트 상자",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 213.24194324194323,
+              "meanPct": 474.7338464005131
+            },
+            {
+              "omitted": "숲속의 유랑악단 크리쳐 상자",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 499.8484848484849,
+              "meanPct": 586.6209716209715
+            },
+            {
+              "omitted": "숲속의 유랑악단 세라 상자",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 537.6262626262626,
+              "meanPct": 586.9296135962802
+            },
+            {
+              "omitted": "숲속의 유랑악단 패키지",
+              "n": 3,
+              "up": 3,
+              "down": 0,
+              "medianPct": 509.44444444444446,
+              "meanPct": 530.3399070065738
+            }
+          ]
+        },
+        {
+          "metric": "stock",
+          "results": [
+            {
+              "boundary": 0,
+              "mode": "all",
+              "n": 3,
+              "up": 0,
+              "down": 3,
+              "medianPct": -12.192280969626514,
+              "meanPct": -13.204680215047796
+            },
+            {
+              "boundary": 0,
+              "mode": "noThursday",
+              "n": 2,
+              "up": 0,
+              "down": 2,
+              "medianPct": -8.229309894757204,
+              "meanPct": -8.229309894757204
+            },
+            {
+              "boundary": 0,
+              "mode": "known",
+              "n": 2,
+              "up": 0,
+              "down": 2,
+              "medianPct": -17.673850912627746,
+              "meanPct": -17.673850912627746
+            },
+            {
+              "boundary": 0,
+              "mode": "overlap",
+              "n": 2,
+              "up": 0,
+              "down": 2,
+              "medianPct": -17.673850912627746,
+              "meanPct": -17.673850912627746
+            },
+            {
+              "boundary": 0,
+              "mode": "clean",
+              "n": 0,
+              "up": 0,
+              "down": 0,
+              "medianPct": null,
+              "meanPct": null
+            },
+            {
+              "boundary": 6,
+              "mode": "all",
+              "n": 3,
+              "up": 0,
+              "down": 3,
+              "medianPct": -12.192280969626514,
+              "meanPct": -13.204680215047796
+            },
+            {
+              "boundary": 6,
+              "mode": "noThursday",
+              "n": 2,
+              "up": 0,
+              "down": 2,
+              "medianPct": -8.229309894757204,
+              "meanPct": -8.229309894757204
+            },
+            {
+              "boundary": 6,
+              "mode": "known",
+              "n": 2,
+              "up": 0,
+              "down": 2,
+              "medianPct": -17.673850912627746,
+              "meanPct": -17.673850912627746
+            },
+            {
+              "boundary": 6,
+              "mode": "overlap",
+              "n": 2,
+              "up": 0,
+              "down": 2,
+              "medianPct": -17.673850912627746,
+              "meanPct": -17.673850912627746
+            },
+            {
+              "boundary": 6,
+              "mode": "clean",
+              "n": 0,
+              "up": 0,
+              "down": 0,
+              "medianPct": null,
+              "meanPct": null
+            }
+          ],
+          "individual": [
+            {
+              "name": "숲속의 유랑악단 칭호 상자",
+              "n": 3,
+              "up": 0,
+              "down": 3,
+              "medianPct": -41.463414634146346,
+              "meanPct": -31.132713238334972
+            },
+            {
+              "name": "숲속의 유랑악단 오라 상자",
+              "n": 3,
+              "up": 2,
+              "down": 1,
+              "medianPct": 0.5988023952095745,
+              "meanPct": -2.156316094099068
+            },
+            {
+              "name": "숲속의 유랑악단 아바타 풀세트 상자",
+              "n": 3,
+              "up": 1,
+              "down": 2,
+              "medianPct": -19.60784313725491,
+              "meanPct": 4.205219209957349
+            },
+            {
+              "name": "숲속의 유랑악단 크리쳐 상자",
+              "n": 3,
+              "up": 0,
+              "down": 3,
+              "medianPct": -21.287128712871283,
+              "meanPct": -24.557587603068058
+            },
+            {
+              "name": "숲속의 유랑악단 세라 상자",
+              "n": 3,
+              "up": 1,
+              "down": 2,
+              "medianPct": -21.62162162162162,
+              "meanPct": -4.344247014404085
+            },
+            {
+              "name": "숲속의 유랑악단 패키지",
+              "n": 3,
+              "up": 0,
+              "down": 3,
+              "medianPct": -23.404255319148938,
+              "meanPct": -21.242436550337946
+            }
+          ],
+          "leaveOneOut": [
+            {
+              "omitted": "숲속의 유랑악단 칭호 상자",
+              "n": 3,
+              "up": 0,
+              "down": 3,
+              "medianPct": -6.3380542367225505,
+              "meanPct": -9.619073610390362
+            },
+            {
+              "omitted": "숲속의 유랑악단 오라 상자",
+              "n": 3,
+              "up": 0,
+              "down": 3,
+              "medianPct": -17.39496480582824,
+              "meanPct": -15.414353039237541
+            },
+            {
+              "omitted": "숲속의 유랑악단 아바타 풀세트 상자",
+              "n": 3,
+              "up": 0,
+              "down": 3,
+              "medianPct": -23.356680465351268,
+              "meanPct": -16.686660100048826
+            },
+            {
+              "omitted": "숲속의 유랑악단 크리쳐 상자",
+              "n": 3,
+              "up": 0,
+              "down": 3,
+              "medianPct": -4.96162870076911,
+              "meanPct": -10.934098737443746
+            },
+            {
+              "omitted": "숲속의 유랑악단 세라 상자",
+              "n": 3,
+              "up": 0,
+              "down": 3,
+              "medianPct": -14.167225631484522,
+              "meanPct": -14.97676685517654
+            },
+            {
+              "omitted": "숲속의 유랑악단 패키지",
+              "n": 3,
+              "up": 0,
+              "down": 3,
+              "medianPct": -9.297403830218483,
+              "meanPct": -11.597128947989766
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "레전더리 P10",
+      "coverage": [
+        {
+          "name": "레전더리 P10",
+          "hours": 527,
+          "known": 271,
+          "clean": 249
+        }
+      ],
+      "comparisons": [
+        {
+          "metric": "price",
+          "results": [
+            {
+              "boundary": 0,
+              "mode": "all",
+              "n": 19,
+              "up": 3,
+              "down": 16,
+              "medianPct": -1.8162034249865178,
+              "meanPct": -2.2147543525156514
+            },
+            {
+              "boundary": 0,
+              "mode": "noThursday",
+              "n": 18,
+              "up": 3,
+              "down": 15,
+              "medianPct": -1.8294885855070608,
+              "meanPct": -2.268517645796104
+            },
+            {
+              "boundary": 0,
+              "mode": "known",
+              "n": 10,
+              "up": 2,
+              "down": 8,
+              "medianPct": -0.34699725740275356,
+              "meanPct": -1.0137671832999264
+            },
+            {
+              "boundary": 0,
+              "mode": "overlap",
+              "n": 8,
+              "up": 2,
+              "down": 6,
+              "medianPct": -0.34699725740275356,
+              "meanPct": -0.7435924033442579
+            },
+            {
+              "boundary": 0,
+              "mode": "clean",
+              "n": 8,
+              "up": 2,
+              "down": 6,
+              "medianPct": -0.34699725740275356,
+              "meanPct": -0.7435924033442579
+            },
+            {
+              "boundary": 6,
+              "mode": "all",
+              "n": 19,
+              "up": 3,
+              "down": 16,
+              "medianPct": -1.8162034249865178,
+              "meanPct": -2.2147543525156514
+            },
+            {
+              "boundary": 6,
+              "mode": "noThursday",
+              "n": 16,
+              "up": 3,
+              "down": 13,
+              "medianPct": -1.7889222099602753,
+              "meanPct": -2.1873771637532387
+            },
+            {
+              "boundary": 6,
+              "mode": "known",
+              "n": 10,
+              "up": 2,
+              "down": 8,
+              "medianPct": -0.34699725740275356,
+              "meanPct": -1.0137671832999264
+            },
+            {
+              "boundary": 6,
+              "mode": "overlap",
+              "n": 8,
+              "up": 2,
+              "down": 6,
+              "medianPct": -0.34699725740275356,
+              "meanPct": -0.7435924033442579
+            },
+            {
+              "boundary": 6,
+              "mode": "clean",
+              "n": 8,
+              "up": 2,
+              "down": 6,
+              "medianPct": -0.34699725740275356,
+              "meanPct": -0.7435924033442579
+            }
+          ],
+          "individual": [
+            {
+              "name": "레전더리 P10",
+              "n": 19,
+              "up": 3,
+              "down": 16,
+              "medianPct": -1.8162034249865178,
+              "meanPct": -2.2147543525156514
+            }
+          ],
+          "leaveOneOut": []
+        },
+        {
+          "metric": "stock",
+          "results": [
+            {
+              "boundary": 0,
+              "mode": "all",
+              "n": 19,
+              "up": 10,
+              "down": 9,
+              "medianPct": 0.7947477539737458,
+              "meanPct": 18.6265912287157
+            },
+            {
+              "boundary": 0,
+              "mode": "noThursday",
+              "n": 18,
+              "up": 9,
+              "down": 9,
+              "medianPct": -0.619345508462743,
+              "meanPct": 18.35625570594002
+            },
+            {
+              "boundary": 0,
+              "mode": "known",
+              "n": 10,
+              "up": 3,
+              "down": 7,
+              "medianPct": -5.928420733604573,
+              "meanPct": 6.694268960842839
+            },
+            {
+              "boundary": 0,
+              "mode": "overlap",
+              "n": 8,
+              "up": 2,
+              "down": 6,
+              "medianPct": -6.23359960706737,
+              "meanPct": -2.6551852499275124
+            },
+            {
+              "boundary": 0,
+              "mode": "clean",
+              "n": 8,
+              "up": 2,
+              "down": 6,
+              "medianPct": -6.23359960706737,
+              "meanPct": -2.6551852499275124
+            },
+            {
+              "boundary": 6,
+              "mode": "all",
+              "n": 19,
+              "up": 10,
+              "down": 9,
+              "medianPct": 0.7947477539737458,
+              "meanPct": 18.6265912287157
+            },
+            {
+              "boundary": 6,
+              "mode": "noThursday",
+              "n": 16,
+              "up": 7,
+              "down": 9,
+              "medianPct": -2.504429605371994,
+              "meanPct": 17.80768932699678
+            },
+            {
+              "boundary": 6,
+              "mode": "known",
+              "n": 10,
+              "up": 3,
+              "down": 7,
+              "medianPct": -5.928420733604573,
+              "meanPct": 6.694268960842839
+            },
+            {
+              "boundary": 6,
+              "mode": "overlap",
+              "n": 8,
+              "up": 2,
+              "down": 6,
+              "medianPct": -6.23359960706737,
+              "meanPct": -2.6551852499275124
+            },
+            {
+              "boundary": 6,
+              "mode": "clean",
+              "n": 8,
+              "up": 2,
+              "down": 6,
+              "medianPct": -6.23359960706737,
+              "meanPct": -2.6551852499275124
+            }
+          ],
+          "individual": [
+            {
+              "name": "레전더리 P10",
+              "n": 19,
+              "up": 10,
+              "down": 9,
+              "medianPct": 0.7947477539737458,
+              "meanPct": 18.6265912287157
+            }
+          ],
+          "leaveOneOut": []
+        }
+      ]
+    }
+  ],
+  "forecasts": [
+    {
+      "mode": "all",
+      "results": [
+        {
+          "horizon": 1,
+          "n": 358,
+          "days": 17,
+          "mape": [
+            0.3493499722938188,
+            0.36897041857810325,
+            0.4265389703932058
+          ],
+          "dailyWinsVsPrice": 4
+        },
+        {
+          "horizon": 3,
+          "n": 350,
+          "days": 17,
+          "mape": [
+            0.6770476898077624,
+            0.719759035992416,
+            0.8331473601202117
+          ],
+          "dailyWinsVsPrice": 4
+        },
+        {
+          "horizon": 6,
+          "n": 341,
+          "days": 17,
+          "mape": [
+            1.0900116116611278,
+            1.1689767296278446,
+            1.235754824746659
+          ],
+          "dailyWinsVsPrice": 6
+        }
+      ]
+    },
+    {
+      "mode": "noThursday",
+      "results": [
+        {
+          "horizon": 1,
+          "n": 304,
+          "days": 14,
+          "mape": [
+            0.3107184577017245,
+            0.3432252928119321,
+            0.381136330848926
+          ],
+          "dailyWinsVsPrice": 4
+        },
+        {
+          "horizon": 3,
+          "n": 296,
+          "days": 14,
+          "mape": [
+            0.5825855604210368,
+            0.6374690938871764,
+            0.7516693405632535
+          ],
+          "dailyWinsVsPrice": 3
+        },
+        {
+          "horizon": 6,
+          "n": 285,
+          "days": 14,
+          "mape": [
+            0.9890157387618321,
+            1.1067342910251319,
+            1.174399076727724
+          ],
+          "dailyWinsVsPrice": 6
+        }
+      ]
+    },
+    {
+      "mode": "known",
+      "results": [
+        {
+          "horizon": 1,
+          "n": 104,
+          "days": 5,
+          "mape": [
+            0.1312324674011958,
+            0.1343795378052122,
+            0.17716201457430894
+          ],
+          "dailyWinsVsPrice": 1
+        },
+        {
+          "horizon": 3,
+          "n": 100,
+          "days": 5,
+          "mape": [
+            0.20530075377976975,
+            0.2157943887898606,
+            0.33959924428441957
+          ],
+          "dailyWinsVsPrice": 1
+        },
+        {
+          "horizon": 6,
+          "n": 95,
+          "days": 5,
+          "mape": [
+            0.33606046923128646,
+            0.3860632580617461,
+            0.49252549901215265
+          ],
+          "dailyWinsVsPrice": 1
+        }
+      ]
+    },
+    {
+      "mode": "clean",
+      "results": [
+        {
+          "horizon": 1,
+          "n": 90,
+          "days": 5,
+          "mape": [
+            0.12557497944651738,
+            0.1272790094209579,
+            0.18504991514768013
+          ],
+          "dailyWinsVsPrice": 1
+        },
+        {
+          "horizon": 3,
+          "n": 86,
+          "days": 5,
+          "mape": [
+            0.20258338458643263,
+            0.20886694331508712,
+            0.3565239538225636
+          ],
+          "dailyWinsVsPrice": 1
+        },
+        {
+          "horizon": 6,
+          "n": 81,
+          "days": 5,
+          "mape": [
+            0.34360578825943894,
+            0.39883838308865116,
+            0.521888712377214
+          ],
+          "dailyWinsVsPrice": 1
+        }
+      ]
+    }
+  ],
+  "composition": {
+    "pairs": 268,
+    "first": "2026-09-19T17:00:00.000Z",
+    "last": "2026-10-01T08:00:00.000Z",
+    "medianCommon": 83,
+    "meanAbsDifference": 0.07664600137040116,
+    "different": 47
+  }
+}
