@@ -68,7 +68,7 @@ export function forecastSamples(points:Observation[],horizon:number):Sample[]{
   });
 }
 // Ridge 벌점은 1로 고정한다. 표준화도 학습 구간에서만 계산한다.
-function predict(train:Sample[],x:number[],dimensions:number){
+export function predict(train:Sample[],x:number[],dimensions:number){
   const means=Array.from({length:dimensions},(_,j)=>avg(train.map(r=>r.x[j]))!),sd=means.map((m,j)=>Math.sqrt(avg(train.map(r=>(r.x[j]-m)**2))!)||1);
   const rows=train.map(r=>[1,...means.map((m,j)=>(r.x[j]-m)/sd[j])]),n=dimensions+1;
   const a=Array.from({length:n},(_,i)=>Array.from({length:n+1},(_,j)=>j===n?rows.reduce((s,r,k)=>s+r[i]*train[k].y,0):rows.reduce((s,r)=>s+r[i]*r[j],0)+(i===j&&i>0?1:0)));
