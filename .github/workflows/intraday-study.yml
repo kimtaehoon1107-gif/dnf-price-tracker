@@ -16,6 +16,7 @@ jobs:
       - run: npm ci --omit=dev
       - run: node scripts/test-intraday-study.ts
       - run: node scripts/test-activity-study.ts
+      - run: node scripts/test-intraday-joint-forecast.ts
       - name: 검증된 보관 자료 분석
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
@@ -25,6 +26,7 @@ jobs:
         run: node scripts/intraday-weekday-study.ts
       - run: node scripts/render-intraday-study.ts
       - run: node scripts/activity-study.ts
+      - run: node scripts/intraday-joint-forecast.ts
       - uses: actions/upload-artifact@v4
         with:
           name: intraday-weekday-study
