@@ -41,7 +41,7 @@ on:
       - '.github/workflows/pages.yml'
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
