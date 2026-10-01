@@ -1,8 +1,9 @@
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
 import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260928-distribution';
-import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20260929-layout';
-import * as packageUI from './package.js?v=20260918';
+import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261002-comparison';
+import { renderComparison, disposeComparison } from './comparison.js?v=20261002-comparison';
+import { packagePanelHTML } from './package.js?v=20261002-comparison';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
   ? '-' : Number(n).toLocaleString('ko-KR', { maximumFractionDigits: d });
@@ -299,7 +300,6 @@ function hourlyPriceSegments(points) {
 }
 
 let DATA = null;
-const packageState = packageUI.initialPackageState();
 let tab = '전체';
 // 기본 정렬은 24h 거래대금. 변동률로 정렬하면 하루 한두 건 거래된 아이템의
 // 의미 없는 ±40%가 맨 위를 차지한다.
@@ -404,13 +404,24 @@ function upgradeEconomicsHTML(it) {
 
 function render() {
   disposePriceDistribution();
+  disposeComparison();
   legendaryForecastCleanup?.();
   legendaryForecastCleanup = null;
   legendaryChart?.remove();
   legendaryChart = null;
   const id = location.hash.slice(1);
+  document.querySelectorAll('.top nav a').forEach(link => {
+    if (['index.html', '#compare'].includes(link.getAttribute('href'))) {
+      link.classList.toggle('on', link.getAttribute('href') === (id === 'compare' || id.startsWith('compare?') ? '#compare' : 'index.html'));
+    }
+  });
   const it = DATA.items.find((x) => x.item_id === id);
   scrollTo(0, 0);
+  if (id === 'compare' || id.startsWith('compare?')) {
+    detailItemId = null;
+    renderComparison(document.getElementById('view'), DATA, new URLSearchParams(id.split('?')[1]).get('item'));
+    return;
+  }
   if (it || id === 'legendary-card') {
     if (detailItemId !== id) cardMode = 'zero';
     detailItemId = id;
@@ -555,7 +566,7 @@ function renderList() {
 
     ${categoryTabs(cats)}
     ${tab === '카드' ? cardJobTabs() : ''}
-    ${tab === '유랑악단 패키지' ? packageUI.packagePanelHTML(DATA, packageState) : ''}
+    ${tab === '유랑악단 패키지' ? packagePanelHTML(DATA) : ''}
     ${weekdayTrendHTML()}
     ${tab === '실반 하모니 박스' ? `<p class="desc">실반 멜로디 카드와 선택한 개봉 보상 4종의 시세입니다. 실반 하모니 박스는 NPC 개봉 메뉴로, 별도 거래 가격이 없습니다. <a href="https://df.nexon.com/pg/forestbandpkg" target="_blank" rel="noopener">공식 안내 ↗</a></p>` : ''}
 
@@ -627,7 +638,6 @@ function renderList() {
     </p>`;
 
   bindWeekdayTrend();
-  packageUI.bindPackagePanel(DATA, packageState);
   document.querySelectorAll('.tab').forEach((el) => {
     el.onclick = () => { tab = el.dataset.c; renderList(); scrollTo(0, 0); };
   });
@@ -941,6 +951,7 @@ async function renderDetail(it) {
     <div class="panel">
       <div class="panel-head price-chart-head">
         <h3>${isZeroCard ? `${cardTier} 가격 흐름` : '가격 흐름 · 체결 수량'}</h3>
+        <a class="compare-link" href="#compare?item=${encodeURIComponent(it.item_id)}">다른 아이템과 비교 →</a>
       </div>
       <p class="desc" id="fc-desc">불러오는 중…</p>
       <div class="chart${isZeroCard ? '' : ' tall'}" id="c1"></div>
