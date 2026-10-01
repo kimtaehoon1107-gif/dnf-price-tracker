@@ -15,7 +15,19 @@ function render(){const set=data.sets.find(s=>s.id===$('group').value),metric=$(
  $('hour-note').textContent='파랑: 평균 · 갈색 점선: 날짜별 중앙값. 두 선의 차이가 크면 일부 날짜가 평균에 크게 영향을 준 것입니다. 3일 미만 시간은 표시하지 않습니다. 시간별 표본 '+Math.min(...b.hourly.map(r=>r.n))+'~'+Math.max(...b.hourly.map(r=>r.n))+'일. 하루 첫·끝 3시간 비교 '+b.changes.n+'일 중 상승 '+b.changes.up+'일, 하락 '+b.changes.down+'일.';
  $('week-note').textContent=p.weeks+'주 평균입니다. '+(p.weeks<4?'아직 표본이 매우 적어 요일 효과를 판단할 수 없습니다.':'장기 추세·이벤트를 통제한 유의성 검정은 별도입니다.');
  $('members').innerHTML='<table><thead><tr><th>품목</th><th>유효일</th><th>주 수</th><th>평균상 낮은 시각</th><th>높은 시각</th></tr></thead><tbody>'+p.members.map(m=>{const child=data.sets.find(s=>s.id===m.id),cp=child?.[metric]??p,cb=cp.boundaries.find(b=>b.boundary===+$('boundary').value),e=extrema(cb.hourly);return '<tr><td><button data-item="'+escape(m.id)+'">'+escape(m.name)+'</button></td><td>'+cp.days+'</td><td>'+cp.weeks+'</td><td>'+(e?e.lo.hour+'시':'—')+'</td><td>'+(e?e.hi.hour+'시':'—')+'</td></tr>'}).join('')+'</tbody></table>';
+ renderActivity(set.id);
  $('members').querySelectorAll('button').forEach(btn=>btn.onclick=()=>{$('group').value=btn.dataset.item;render()});
+}
+function renderActivity(id){
+ const a=data.activity?.find(a=>a.id===id);
+ if(!a){$('activity-coverage').textContent='소울 결정·유랑악단 패키지·레전더리 P10에서 제공하는 비교입니다.';$('activity-charts').replaceChildren();$('activity-quality').textContent='';return;}
+ const labels={price:'가격',traded:'API 관측 체결 수량',stock:'관측 매물 잔량(개)',listings:'미업글 관측 매물(건)'};
+ const p=a.metrics[0].profile;
+ $('activity-coverage').textContent=p.members.length+'개 구성 · 공통 '+p.days+'일 / '+p.weeks+'주'+(p.from?' · '+p.from+' ~ '+p.to:'')+'. 위의 단일 지표 분석보다 표본이 줄어들 수 있습니다.';
+ $('activity-charts').innerHTML=a.metrics.map(m=>{const b=m.profile.boundaries.find(b=>b.boundary===+$('boundary').value);return '<div><h3>'+labels[m.metric]+'</h3><h4>24시간 · 평균과 중앙값</h4>'+graph(b.hourly)+'<p class="muted">시간별 '+Math.min(...b.hourly.map(h=>h.n))+'~'+Math.max(...b.hourly.map(h=>h.n))+'일 · 파랑 평균 / 갈색 중앙값</p><h4>요일별 · '+p.weeks+'주 평균</h4>'+graph(b.weekday,true)+'</div>'}).join('');
+ if(id==='legendary:p10'){$('activity-quality').textContent='레전더리는 가격·미업글 매물 건수만 비교합니다. 체결 API에서 업그레이드 단계를 구분할 수 없어 체결량을 미업글 수요로 표시하지 않습니다. 요일 표본은 아직 제한적입니다.';return;}
+ const qs=(data.activityQuality??[]).filter(q=>p.members.some(m=>m.id===q.item_id)),sum=k=>qs.reduce((s,q)=>s+q[k],0);
+ $('activity-quality').textContent='최근 7일 범위에 남아 있는 수집 기록: 성공 '+sum('succeeded')+'회 · 실패 '+sum('failed')+'회 · 100건 응답의 이전 수집과 겹침 부족 표시 '+sum('saturated')+'회. 기록이 없던 구간의 정상 수집을 보증하거나 전체 분석 기간의 누락을 보정한 수치는 아닙니다. 요일 평균은 소수 주의 탐색 결과입니다.';
 }
 function status(){const hours=(Date.now()-Date.parse(data.asOf))/3600000;$('status').className=hours>3?'stale':'';$('status').textContent=(hours>3?'⚠ 오래된 데이터 · ':'')+'자료 기준 '+new Date(data.asOf).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})+' KST · 페이지는 5분마다 새 빌드 여부를 확인합니다.'}
 async function refresh(){try{const r=await fetch('data/seasonal.json',{cache:'no-store'});if(!r.ok)throw Error();const next=await r.json(),selected=$('group').value;data=next;$('group').replaceChildren();for(const s of data.sets){const o=document.createElement('option');o.value=s.id;o.textContent=(s.id.startsWith('group:')?'품목군 · ':'')+s.name;$('group').append(o)}$('group').value=data.sets.some(s=>s.id===selected)?selected:'legendary:p10';render();status()}catch{$('status').textContent='자료를 갱신하지 못했습니다. '+(data?'이전 결과를 표시하고 있습니다.':'잠시 후 다시 시도해 주세요.')}}
