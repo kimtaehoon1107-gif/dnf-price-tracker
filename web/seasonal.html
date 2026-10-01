@@ -5,7 +5,7 @@
 <header><a href="index.html">던파 경매장</a><nav><a href="index.html">시세</a><a href="analysis.html">분석</a><a href="research.html">실험</a><a href="seasonal.html" aria-current="page">평균 트렌드</a></nav></header>
 <main><p class="eyebrow">관측 데이터 · 탐색 분석</p><h1>언제 비싸고, 언제 매물이 많았을까?</h1>
 <p>최근 최대 8주의 평균을 살펴봅니다. 매시간 사이트 빌드 시 갱신하며, 실시간 경매장과는 차이가 있습니다.</p><p id="status" role="status">자료를 불러오는 중입니다.</p>
-<section class="controls"><label>품목군·아이템<select id="group"></select></label><label>하루의 시작<select id="boundary"><option value="6">오전 6시 → 다음 날 6시</option><option value="0">자정 → 다음 날 자정</option></select></label><label>관측 지표<select id="metric"><option value="price">가격</option><option value="listings">매물 등록 건수</option></select></label></section>
+<section class="controls"><label>품목군·아이템<select id="group"></select></label><label>하루의 시작<select id="boundary"><option value="6">오전 6시 → 다음 날 6시</option><option value="0">자정 → 다음 날 자정</option></select></label><label>관측 지표<select id="metric"><option value="price">가격</option><option value="listings">관측 매물 건수</option></select></label></section>
 <p id="basis"></p><section><h2>평균 흐름 요약</h2><p id="headline"></p><p id="coverage" class="muted"></p><p class="muted">반복되는 법칙이나 매매 신호를 판정한 결과는 아닙니다. 주 평균으로 나눠도 장기 추세·이벤트의 영향이 남습니다.</p></section>
 <div class="grid"><section><h2>24시간 평균</h2><p class="muted">각 품목·날짜의 관측 시간 평균 = 100</p><div id="hourly"></div><p id="hour-note" class="muted"></p></section><section><h2>일주일 평균</h2><p class="muted">각 품목의 해당 주 평균 = 100</p><div id="weekly"></div><p id="week-note" class="muted"></p></section></div>
 <section><h2>품목별로 같은 방향인가?</h2><p class="muted">구성품별 결과도 확인하세요. 품목군은 모든 구성품을 동일한 비중으로 평균하며, 아래 개별 품목은 유효 날짜가 서로 다를 수 있습니다.</p><div class="table-wrap" id="members"></div></section>

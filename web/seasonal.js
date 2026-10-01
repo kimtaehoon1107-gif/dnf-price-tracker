@@ -9,8 +9,8 @@ function graph(rows,weekly=false){rows=rows.map(r=>!weekly&&r.n<3?{...r,index:nu
 }
 function render(){const set=data.sets.find(s=>s.id===$('group').value),metric=$('metric').value,p=set[metric],b=p.boundaries.find(b=>b.boundary===+$('boundary').value);
  $('basis').textContent=metric==='listings'?'관측 매물 건수입니다. 품목군은 총 건수 합계가 아니라 각 품목의 정규화 지수를 동일 비중으로 평균합니다.':set.id.startsWith('legendary:')?'레전더리 미업글 카드의 호가 지표입니다.':'일반 품목: 체결 시간봉 VWAP · 카드: 미업글 최저호가. 품목군은 각 품목을 동일 비중으로 평균합니다.';
- $('coverage').textContent=p.members.length+'종 · 공통 유효일 '+p.days+'일'+(p.from?' ('+p.from+' ~ '+p.to+')':'')+' · 완전한 공통 주 '+p.weeks+'주';
- const ex=extrema(b.hourly);$('headline').textContent=ex?'평균 곡선에서 '+ex.lo.hour+'시가 낮고('+fmt(ex.lo.index)+'), '+ex.hi.hour+'시가 높았습니다('+fmt(ex.hi.index)+'). 매일 같은 방향이라는 뜻은 아닙니다.':'평균 흐름을 요약하기에는 관측이 부족합니다.';
+ $('coverage').textContent=p.members.length+'개 구성 · 공통 유효일 '+p.days+'일'+(p.from?' ('+p.from+' ~ '+p.to+')':'')+' · 완전한 공통 주 '+p.weeks+'주';
+ const ex=extrema(b.hourly);$('headline').textContent=ex?'평균 곡선에서 '+ex.lo.hour+'시가 낮고('+fmt(ex.lo.index)+'), '+ex.hi.hour+'시가 높았습니다('+fmt(ex.hi.index)+'). 매일 같은 방향이라는 뜻은 아닙니다.':'평균 흐름을 요약하기에는 관측이 부족합니다.';if(ex?.hi.median!=null&&Math.abs(ex.hi.index-ex.hi.median)>3)$('headline').textContent+=' 높은 시각의 중앙값은 '+fmt(ex.hi.median)+'로, 일부 날짜가 평균을 끌어올렸을 수 있습니다.';
  $('hourly').innerHTML=graph(b.hourly);$('weekly').innerHTML=graph(b.weekday,true);
  $('hour-note').textContent='파랑: 평균 · 갈색 점선: 날짜별 중앙값. 두 선의 차이가 크면 일부 날짜가 평균에 크게 영향을 준 것입니다. 3일 미만 시간은 표시하지 않습니다. 시간별 표본 '+Math.min(...b.hourly.map(r=>r.n))+'~'+Math.max(...b.hourly.map(r=>r.n))+'일. 하루 첫·끝 3시간 비교 '+b.changes.n+'일 중 상승 '+b.changes.up+'일, 하락 '+b.changes.down+'일.';
  $('week-note').textContent=p.weeks+'주 평균입니다. '+(p.weeks<4?'아직 표본이 매우 적어 요일 효과를 판단할 수 없습니다.':'장기 추세·이벤트를 통제한 유의성 검정은 별도입니다.');
