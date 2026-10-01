@@ -30,6 +30,32 @@ export function distributionSegments(rows) {
   return segments;
 }
 
+export function periodChange(rows) {
+  const observed = rows.filter(r => !r.partial && r.state === 'ready' && r.median > 0);
+  if (observed.length < 2) return null;
+  const first = observed[0], last = observed.at(-1);
+  return { first, last, percent: (last.median / first.median - 1) * 100 };
+}
+
+export function isThursday(day) { return new Date(`${day}T00:00:00Z`).getUTCDay() === 4; }
+
+export function renderThursdayMarkers(root, rows, position, onSelect) {
+  root.replaceChildren();
+  // 긴 기간·모바일에서 터치 영역이 겹치면 최근 목요일부터 간격을 확보한다.
+  let right = Infinity;
+  rows.map((r, i) => ({ r, i })).reverse().forEach(({ r, i }) => {
+    const left = position(i);
+    if (!isThursday(r.d) || right - left < 44) return;
+    right = left;
+    const button = document.createElement('button');
+    button.type = 'button'; button.textContent = '목'; button.style.left = `${left}px`;
+    button.title = `${r.d} 목요일 · 요일 표시이며 실제 패치 여부와는 별개입니다.`;
+    button.setAttribute('aria-label', button.title);
+    button.onclick = () => onSelect(r);
+    root.prepend(button);
+  });
+}
+
 let cleanup = () => {};
 export function disposePriceDistribution() { cleanup(); cleanup = () => {}; }
 
@@ -40,9 +66,10 @@ export function renderPriceDistribution(root, data, events = []) {
   root.className = 'price-distribution';
   root.innerHTML = `<div class="pd-toolbar"><div class="pd-periods" aria-label="조회 기간">
     <button type="button" data-period="7">7일</button><button type="button" data-period="30">30일</button><button type="button" data-period="all">전체</button></div><span class="pd-extent"></span></div>
+    <div class="pd-period-change"></div>
     <div class="pd-readout"><div><span class="pd-selected"></span><div class="pd-price"></div><div class="pd-range"></div></div><div class="pd-qty"></div></div>
     ${ask ? '' : '<div class="pd-legend"><span><i class="pd-line-key"></i>수량 가중 중앙값</span><span><i class="pd-band-key"></i>주요 거래 가격대</span><span>○ 체결 5건 미만</span></div>'}
-    <div class="pd-plot"></div><div class="pd-events"></div>
+    <div class="pd-plot"></div><div class="pd-thursdays" aria-label="목요일 · 실제 패치 여부와 별개"></div><div class="pd-events"></div>
     <div class="pd-status"></div><div class="pd-announcement" aria-live="polite"></div>
     <details class="pd-help" ${ask ? 'hidden' : ''}><summary>주요 거래 가격대란?</summary><p>관측한 체결을 개당 가격순으로 놓고, 누적 수량이 25%와 75%에 도달하는 가격을 표시합니다. 가운데 50%에 해당하는 가격 구간이며 동일 가격에 거래가 몰리면 포함 수량은 더 많을 수 있습니다. 미래 가격의 예측 범위가 아닙니다. 체결 5건 미만은 표시 기준상 점만 남기며, 5건 이상이라고 통계적 신뢰성을 보장하지 않습니다.</p></details>
     <details class="pd-raw"><summary>${ask ? '관측 최저·최고 호가와 횟수' : '원본 고가·저가와 평균 확인'}</summary><p></p></details>
@@ -52,7 +79,7 @@ export function renderPriceDistribution(root, data, events = []) {
   let rows = [], positions = new Map();
   function info(r, announce = false) {
     state.selected = r.time;
-    $('.pd-selected').textContent = `${r.d}${r.partial ? ' · 수집 중' : ''}`;
+    $('.pd-selected').textContent = `${r.d}${isThursday(r.d) ? ' · 목요일' : ''}${r.partial ? ' · 수집 중' : ''}`;
     $('.pd-price').textContent = r.median == null ? '—' : `${fmt(r.median)} 골드`;
     $('.pd-range').textContent = ask ? (r.state === 'ready' ? '' : '가격 관측 없음') : r.state === 'ready' ? `주요 거래 가격대 ${fmt(r.q25)}–${fmt(r.q75)}`
       : r.state === 'sparse' ? `체결 ${fmt(r.n)}건 · 가격점만 표시` : r.state === 'unavailable' ? '원본 불완전 · 분포 자료 없음' : '체결 관측 없음';
@@ -75,6 +102,10 @@ export function renderPriceDistribution(root, data, events = []) {
     if (!rows.length) return;
     root.querySelectorAll('[data-period]').forEach(b => b.setAttribute('aria-pressed', String(String(state.period) === b.dataset.period)));
     $('.pd-extent').textContent = `${rows[0].d}–${rows.at(-1).d} · 일별`;
+    const change = periodChange(rows);
+    $('.pd-period-change').textContent = change
+      ? `기간 변화 ${change.percent >= 0 ? '+' : ''}${change.percent.toFixed(2)}% · ${fmt(change.first.median)} → ${fmt(change.last.median)} 골드 (${change.first.d}–${change.last.d} · 완료 관측일 기준)`
+      : '기간 변화: 가격이 있는 완료 관측일이 2일 이상 필요합니다.';
     const box = $('.pd-plot'), width = box.clientWidth;
     if (width < 100) return;
     const L = 68, R = 14, T = 28, B = 228, V = ask ? 228 : 308, H = ask ? 260 : 340;
@@ -101,6 +132,7 @@ export function renderPriceDistribution(root, data, events = []) {
     ticks.forEach((i,k)=>{svg+=`<text x="${x(i)}" y="${H-7}" text-anchor="${k===0?'start':k===ticks.length-1?'end':'middle'}">${md(rows[i].d)}</text>`;});
     svg+=`<line class="pd-guide" y1="${T}" y2="${V}" stroke="var(--ink-3)" stroke-dasharray="3 4"/><circle class="pd-active" r="4" stroke="var(--blue)" stroke-width="1.5"/><rect class="pd-hit" x="${L}" y="${T}" width="${width-L-R}" height="${V-T}" fill="transparent"/></svg>`;
     box.innerHTML=svg;
+    renderThursdayMarkers($('.pd-thursdays'), rows, x, r => info(r, true));
     info(rows.find(r=>r.time===state.selected)??rows.at(-1));
     const pick = e => { const rect=box.getBoundingClientRect();return rows[Math.max(0,Math.min(rows.length-1,Math.floor((e.clientX-rect.left-L)/(width-L-R)*rows.length)))]; };
     $('.pd-hit').onpointermove=e=>{if(e.pointerType==='mouse')info(pick(e));};
