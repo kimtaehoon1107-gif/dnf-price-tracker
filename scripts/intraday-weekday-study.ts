@@ -5,7 +5,7 @@ import {r2Store,projectArchiveStore,readManifest,readRows,hash} from '../src/arc
 import {compareBoundaries,HOUR,type Point} from '../src/intraday-study.ts';
 const config=JSON.parse(readFileSync('config/history-sources.json','utf8'));
 const root=r2Store(), sources:any[]=[], input:any[]=[];
-const tables=['items','candles_1h','listing_snapshots','legendary_card_floor'];
+const tables=['items','candles_1h','listing_snapshots','legendary_card_floor','collection_quality','legendary_card_scans'];
 for(const source of [{schema:'hist_a',project:null,manifest:config.frozen.manifest},...config.live]) {
   const store=source.project?projectArchiveStore(root,source.project):root;
   const saved=await readManifest(store,source.manifest);assert(saved);
@@ -62,6 +62,15 @@ const report={asOf:new Date(cutoff).toISOString(),sources,inputHash:hash(JSON.st
   rules:{timezone:'Asia/Seoul',boundaries:[0,6],minimumHours:18,endpoint:'첫/끝 3시간 각각 2개 이상인 경우 평균 비교',weekday:'두 경계 공통 유효일로 구성된 완전한 월~일 주만 사용. 주 평균=100',noInterpolation:true,exploratory:true,boundaryCandlesExcluded:boundaryCandles},
   items:items.size,results};
 mkdirSync('data/intraday-study',{recursive:true});
+// 후속 거래 활동 연구: 민감한 오류 원문 없이 보관된 정량 기록만 내보낸다.
+const activityIds=new Set([...items.values()].filter(i=>['소울 결정','유랑악단 패키지'].includes(i.category)).map(i=>i.item_id));
+const activityRows=input.filter(({source,table,row:r})=>{
+  if(!['candles_1h','listing_snapshots','legendary_card_floor','collection_quality','legendary_card_scans'].includes(table))return false;
+  if(!table.startsWith('legendary_')&&!activityIds.has(r.item_id))return false;
+  const t=Date.parse(r.hour??r.captured_at??r.started_at);
+  return t>=cutoff-56*24*HOUR&&t<cutoff&&owns(source,t,table.startsWith('legendary_')?undefined:r.item_id,table==='candles_1h'?t+HOUR-1:t);
+});
+writeFileSync('data/intraday-study/activity-input.json',JSON.stringify({asOf:report.asOf,sources,items:[...items.values()].filter(i=>activityIds.has(i.item_id)),rows:activityRows}));
 writeFileSync('data/intraday-study/report.json',JSON.stringify(report));
 // 결과와 함께 재계산 가능한 시간별 연구 입력을 보존한다.
 writeFileSync('data/intraday-study/hourly.json',JSON.stringify([...series.values()].map(s=>({...s,points:[...s.points.values()]}))));
