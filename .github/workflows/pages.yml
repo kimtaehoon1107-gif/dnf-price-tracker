@@ -1,69 +1,12 @@
-name: 사이트 배포
-
-# 아이템별 수집 주기보다 느슨하게 매시간 굽는다.
-# GitHub schedule은 이 저장소에서 누락된 전력이 있어 Supabase pg_cron이
-# 매시 5분 workflow_dispatch를 호출한다 (sql/scheduler.sql).
+name: 시간대 요일 읽기 전용 연구
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'web/**'
-      - 'src/forecast.ts'
-      - 'src/market-logic.ts'
-      - 'src/legendary.ts'
-      - 'src/research*.ts'
-      - 'scripts/record-forecasts.ts'
-      - 'sql/research.sql'
-      - 'data/research-baskets.json'
-      - 'src/package-study.ts'
-      - 'scripts/package-study.ts'
-      - 'config/package-study-members.json'
-      - 'src/card-weekday.ts'
-      - 'src/weekday-trend.ts'
-      - 'src/candle-check.ts'
-      - 'src/db.ts'
-      - 'src/history-cache.ts'
-      - 'src/build-*.ts'
-      - 'scripts/build-history-site.ts'
-      - 'config/history-sources.json'
-      - 'src/archive.ts'
-      - 'scripts/legendary-floor.ts'
-      - 'sql/legendary-scans.sql'
-      - 'scripts/scan-turnover.ts'
-      - 'data/market-items.json'
-      - 'data/legendary-cards.json'
-      - 'certs/supabase-prod-ca-2021.crt'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.github/workflows/pages.yml'
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
-
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
 jobs:
-  build-deploy:
+  study:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: archive_verify
-          POSTGRES_PASSWORD: temporary-build-only
-          POSTGRES_DB: archive_verify
-        ports: ['55432:5432']
-        options: >-
-          --health-cmd "pg_isready -U archive_verify -d archive_verify"
-          --health-interval 10s --health-timeout 5s --health-retries 5
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -71,56 +14,16 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --omit=dev
-      - run: npm test
-
-      # 긴 TOP100 집계보다 먼저 실행해 시간별 관측이 밀리지 않게 한다.
-      # 같은 시간대에 수집을 완료했다면 스크립트가 중복 스캔을 건너뛴다.
-      - name: 레전더리 카드 저가 지표 스캔
+      - run: node scripts/test-intraday-study.ts
+      - name: 검증된 보관 자료 분석
         env:
-          NEOPLE_API_KEY: ${{ secrets.NEOPLE_API_KEY }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: node --no-warnings scripts/legendary-floor.ts
-
-      # 스태커블 시장은 하루 한 번만 전수 조회한다. 스크립트가 DB의 마지막
-      # 집계 시각을 확인하므로 매시간 배포돼도 23시간 안에는 즉시 종료한다.
-      - name: 거래대금 TOP100 갱신
-        if: hashFiles('config/history-sources.json') == ''
-        env:
-          NEOPLE_API_KEY: ${{ secrets.NEOPLE_API_KEY }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: node --no-warnings scripts/scan-turnover.ts
-
-      - name: 사전 예측 기록 및 실측 확정
-        if: hashFiles('config/history-sources.json') == ''
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: node --no-warnings scripts/record-forecasts.ts
-
-      - name: 사이트 빌드
-        env:
-          NEOPLE_API_KEY: ${{ secrets.NEOPLE_API_KEY }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DATABASE_URL_B: ${{ secrets.DATABASE_URL_B }}
-          DATABASE_URL_C: ${{ secrets.DATABASE_URL_C }}
-          ARCHIVE_VERIFY_URL: postgresql://archive_verify:temporary-build-only@127.0.0.1:55432/archive_verify
-          BUILD_HISTORY_CACHE: r2
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        run: |
-          if [ -f config/history-sources.json ]; then
-            node --no-warnings scripts/build-history-site.ts
-          else
-            node --no-warnings web/build.ts
-          fi
-
-      - name: 패키지 삭제 전 연구 점검
-        run: node --no-warnings scripts/package-study.ts
-
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+        run: node scripts/intraday-weekday-study.ts
+      - uses: actions/upload-artifact@v4
         with:
-          path: dist
-      - id: deploy
-        uses: actions/deploy-pages@v4
+          name: intraday-weekday-study
+          path: data/intraday-study/
+          retention-days: 30
