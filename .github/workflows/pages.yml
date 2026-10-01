@@ -53,7 +53,7 @@ jobs:
   build-deploy:
     runs-on: ubuntu-latest
     environment:
-      name: github-pages
+      name: ${{ github.ref == 'refs/heads/main' && 'github-pages' || 'build-preview' }}
       url: ${{ steps.deploy.outputs.page_url }}
     services:
       postgres:
