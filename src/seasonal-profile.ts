@@ -1,5 +1,5 @@
 import {HOUR,DAY,mean,type Point} from './intraday-study.ts';
-export type SeasonalItem={id:string;name:string;category:string;price:Point[];listings:Point[]};
+export type SeasonalItem={id:string;name:string;category:string;price:Point[];listings:Point[];traded?:Point[];stock?:Point[]};
 const date=(t:number)=>new Date(t).toISOString().slice(0,10);
 const median=(xs:number[])=>{const s=[...xs].sort((a,b)=>a-b),m=Math.floor(s.length/2);return s.length?(s.length%2?s[m]:(s[m-1]+s[m])/2):null};
 const monday=(d:string)=>{const t=Date.parse(d+'T00:00:00Z');return date(t-((new Date(t).getUTCDay()+6)%7)*DAY)};
@@ -12,11 +12,11 @@ function days(points:Point[],boundary:number,cutoff:number) {
   }
   return new Map([...bins].filter(([,ps])=>ps.filter(p=>p!=null).length>=18&&mean(ps.filter(p=>p!=null) as number[])!>0));
 }
-export function seasonalProfile(items:SeasonalItem[],metric:'price'|'listings',cutoff:number) {
+export function seasonalProfile(items:SeasonalItem[],metric:'price'|'listings',cutoff:number,allowedDates?:Set<string>) {
   const samples=items.map(i=>[days(i[metric],0,cutoff),days(i[metric],6,cutoff)]);
-  const common=items.length?[...samples[0][0].keys()].filter(d=>samples.every(s=>s.every(b=>b.has(d)))).sort():[];
+  const common=items.length?[...samples[0][0].keys()].filter(d=>(!allowedDates||allowedDates.has(d))&&samples.every(s=>s.every(b=>b.has(d)))).sort():[];
   const weeks=[...new Set(common.map(monday))].filter(w=>common.filter(d=>monday(d)===w).length===7);
-  return {members:items.map(i=>({id:i.id,name:i.name})),days:common.length,from:common[0]??null,to:common.at(-1)??null,weeks:weeks.length,
+  return {members:items.map(i=>({id:i.id,name:i.name})),dates:common,days:common.length,from:common[0]??null,to:common.at(-1)??null,weeks:weeks.length,
     boundaries:[0,6].map((boundary,b)=>{
       const normalized=samples.map(s=>new Map(common.map(d=>{
         const ps=s[b].get(d)!,avg=mean(ps.filter(p=>p!=null) as number[])!;
