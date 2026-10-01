@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {H,D,type Series} from '../src/activity-study.ts';
+import {fullDayForecast} from '../src/full-day-forecast.ts';
+const start=Date.parse('2026-09-01T00:00:00Z');
+const s:Series={id:'test',name:'test',category:'test',points:Array.from({length:24*22},(_,i)=>({t:start+i*H,price:100*Math.exp(.01*Math.sin(i*Math.PI/12)),stock:100+i%24,known:true,clean:true}))};
+const cutoff=start+22*D,r=fullDayForecast(s,cutoff),path=r.paths[0],origin=path.points[0].origin;
+assert.equal(path.points.length,24);assert.equal(path.points[0].hour,6);assert.equal(path.points[23].hour,5);
+assert.equal(new Date(origin+9*H).getUTCHours(),5,'input ends at 06:00 KST');
+const changed={...s,points:s.points.map(p=>p.t>origin?{...p,price:p.price*3,stock:9000}:p)};
+assert.deepEqual(fullDayForecast(changed,cutoff).paths[0].points.map(p=>p.predictions),path.points.map(p=>p.predictions),'future cannot alter any of the 24 forecasts');
+const missing={...s,points:s.points.filter(p=>p.t!==origin+H)};
+const m=fullDayForecast(missing,cutoff).paths.find(p=>p.day===path.day)!;
+assert.equal(m.points[0].actual,null);assert.equal(m.points.length,24);assert.deepEqual(m.points.map(p=>p.predictions),path.points.map(p=>p.predictions));
+assert.equal(path.points[23].predictions.yesterday,path.points[23].base,'24h seasonal naive uses current completed 05 bar');
+assert(r.coverage.days24>0);assert(r.summary.every(m=>m.days18>=m.days24));
+console.log('full-day: 06→06 endpoints, fixed origin, future leakage, missing targets and previous-day baseline passed');

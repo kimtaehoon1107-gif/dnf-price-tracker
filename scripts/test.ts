@@ -3,6 +3,7 @@ import './test-seasonal-profile.ts';
 import './test-activity-profile.ts';
 import './test-activity-study.ts';
 import './test-intraday-joint-forecast.ts';
+import './test-full-day-forecast.ts';
 import './test-intraday-study.ts';
 import './test-forecast-comparison.ts';
 import './test-market-logic.ts';

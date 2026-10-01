@@ -1,0 +1,10 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {prepare} from '../src/activity-study.ts';
+import {fullDayForecast} from '../src/full-day-forecast.ts';
+const text=readFileSync('data/intraday-study/activity-input.json','utf8'),input=JSON.parse(text);
+const series=prepare(input).filter(s=>s.id==='legendary:p10'||s.name==='레전더리 소울 결정');
+if(series.length!==2)throw new Error('Expected P10 and legendary soul crystal');
+const report={asOf:input.asOf,inputHash:createHash('sha256').update(text).digest('hex'),sources:input.sources,protocol:'docs/full-day-protocol-2026-10-01.md',results:series.map(s=>fullDayForecast(s,Date.parse(input.asOf)))};
+writeFileSync('data/intraday-study/full-day-results.json',JSON.stringify(report,null,2));
+for(const r of report.results)console.log(JSON.stringify({name:r.name,coverage:r.coverage,summary:r.summary},null,2));
