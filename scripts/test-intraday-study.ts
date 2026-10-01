@@ -12,4 +12,6 @@ assert.equal(dailyPaths(missing,0,start+16*DAY)[0].eligible,false);
 assert.equal(compareBoundaries(points,start+16*DAY).fullWeeks.length,2);
 assert.equal(dailyPaths(points,0,start+15*DAY+HOUR).at(-1)!.complete,false);
 const flat=points.map(p=>({...p,price:100}));assert.equal(dailyPaths(flat,0,start+16*DAY)[0].changePct,0);
+const gap=points.filter(p=>p.t<start+DAY||p.t>=start+2*DAY);
+assert.equal(dailyPaths(gap,0,start+16*DAY)[1].hours,0);
 console.log('intraday boundary / missing / incomplete / weekly / slope tests passed');

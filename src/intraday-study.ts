@@ -10,6 +10,11 @@ export function dailyPaths(points: Point[], boundary: number, cutoff: number) {
     if (!bins.has(d)) bins.set(d, []);
     bins.get(d)!.push(p);
   }
+  // 하루 전체가 비어 있어도 날짜를 지우지 않고 제외 사유를 확인할 수 있게 둔다.
+  if(points.length) {
+    const first=Math.min(...points.map(p=>p.t)),last=Math.max(...points.map(p=>p.t));
+    for(let t=first;t<=last;t+=DAY){const d=date(t+(9-boundary)*HOUR);if(!bins.has(d))bins.set(d,[]);}
+  }
   return [...bins].sort(([a],[b])=>a.localeCompare(b)).map(([d, ps])=> {
     const start = Date.parse(d+'T00:00:00Z')+(boundary-9)*HOUR;
     const prices = Array.from({length:24},(_,h)=>ps.find(p=>p.t===start+h*HOUR)?.price??null);

@@ -32,7 +32,7 @@ function put(id:string,name:string,basis:string,t:number,price:any,observed:numb
   const key=id+'/'+basis;
   if(!series.has(key))series.set(key,{id,name,basis,points:new Map()});
   const points=series.get(key)!.points,prior=points.get(hour);
-  // 最新状態が無出品なら null を残す。過去の正価格で埋めない。
+  // 마지막 상태가 매물 없음이면 null을 남기고 앞선 가격으로 채우지 않는다.
   if(!prior||observed>prior.observed)points.set(hour,{t:hour,price:price!=null&&Number(price)>0?Number(price):null,observed});
 }
 let boundaryCandles=0;
