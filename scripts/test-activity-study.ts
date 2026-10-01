@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {H,D,repetition,forecast,forecastSamples,prepare,type Series} from '../src/activity-study.ts';
+const start=Date.parse('2026-09-01T21:00:00Z');
+const series:Series={id:'x',name:'test',category:'test',points:Array.from({length:12*24},(_,i)=>({t:start+i*H,price:100+Math.sin(i)*3,stock:100+i%24,traded:i%24>=12&&i%24<15?20:10,known:true,clean:true}))};
+const r=repetition([series],'traded',start+12*D);
+assert.equal(r.n,12);assert.equal(r.up,12);assert.equal(r.medianPct,100);
+const missing={...series,points:series.points.filter((_,i)=>i%24<12||i%24>14)};
+assert.equal(repetition([series,missing],'traded',start+12*D).n,0);
+assert.equal(repetition([{...series,points:series.points.map(p=>({...p,known:false}))}],'price',start+12*D,6,'known').n,0);
+assert(repetition([series],'traded',start+12*D,6,'noThursday').n<12);
+assert(!forecastSamples(series.points.filter((_,i)=>i!==50),3).some(s=>s.t===start+47*H||s.t===start+51*H));
+const f=forecast(series.points,3),origin=f.predictions[0].t;
+const changed=series.points.map(p=>p.t>origin?{...p,price:p.price*10}:p);
+assert.deepEqual(forecast(changed,3).predictions[0].predictions,f.predictions[0].predictions,'future labels must not affect prediction');
+const stockNull={asOf:new Date(start+D).toISOString(),items:[{item_id:'x',item_name:'x',category:'test'}],rows:[{table:'candles_1h',row:{item_id:'x',hour:new Date(start).toISOString(),vwap:100,qty:2}},{table:'listing_snapshots',row:{item_id:'x',id:1,captured_at:new Date(start).toISOString(),total_qty:null}}]};
+assert.equal(prepare(stockNull)[0].points.length,0,'missing stock is not zero');
+console.log('activity research: paired windows, missingness, quality, future leakage tests passed');
