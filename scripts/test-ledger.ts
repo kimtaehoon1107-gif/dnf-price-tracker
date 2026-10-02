@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { HYPOTHESES } from '../src/forward-test.ts';
-import { STATUS, applyLive, countByStatus, evidenceLink } from '../web/ledger.js';
+import { STATUS, applyLive, buildSections, countByStatus, evidenceLink, liveHTML, needsFilterReset } from '../web/ledger.js';
 
 // ── 등록부: 근거 링크가 실제로 있고, 상태·참조가 올바른가 ───────────────────
 const ledger = JSON.parse(readFileSync('config/research-ledger.json', 'utf8'));
@@ -56,4 +56,16 @@ assert.equal(applyLive({ id: 'x', status: 'negative' }, report('confirmed')).sta
 assert.equal(applyLive(item, { hypotheses: [{ id: 'H2', status: 'confirmed' }] }).status, 'waiting', '다른 가설의 판정은 섞이지 않는다');
 const counts = countByStatus([{ status: 'confirmed' }, { status: 'confirmed' }, { status: 'negative' }]);
 assert.deepEqual([counts.confirmed, counts.negative, counts.partial, counts.running, counts.waiting], [2, 1, 0, 0, 0]);
+// ── 필터와 요약 링크, 보고서 링크 ─────────────────────────────────────────
+const sections = buildSections(ledger, null);
+assert.equal(needsFilterReset(sections, 'all', 'pkg-end'), false, '필터가 없으면 풀 필요가 없다');
+assert.equal(needsFilterReset(sections, 'confirmed', 'pkg-end'), true, '확인됨만 보는 중에 검증 중 항목으로 가는 링크');
+assert.equal(needsFilterReset(sections, 'confirmed', 'pkg-efficiency'), false, '필터에 맞는 항목은 그대로');
+assert.equal(needsFilterReset(sections, 'confirmed', 'package'), false, '필터에 맞는 항목이 있는 절은 그대로');
+assert.equal(needsFilterReset(sections, 'confirmed', 'forward'), true, '필터에 맞는 항목이 없는 절');
+assert.equal(needsFilterReset(sections, 'waiting', 'ft1-H1'), false, '표본 대기 필터에서 전향 검증 항목');
+assert.equal(needsFilterReset(sections, 'confirmed', ''), false);
+assert.equal(needsFilterReset(sections, 'confirmed', 'no-such-id'), false, '없는 닻은 건드리지 않는다');
+assert(!liveHTML(null).includes('forward-test.json'), '보고서가 없으면 404가 될 링크를 보이지 않는다');
+assert(liveHTML({ hypotheses: [] }).includes('forward-test.json'), '보고서가 있으면 링크를 보인다');
 console.log(`연구 원장: 항목 ${items.length}개의 근거 링크·상태·닻과 전향 검증 판정 연결 통과`);

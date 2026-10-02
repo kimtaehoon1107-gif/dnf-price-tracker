@@ -68,7 +68,7 @@ function itemHTML(it) {
   </article>`;
 }
 
-function liveHTML(report) {
+export function liveHTML(report) {
   const primary = report?.hypotheses?.filter((h) => h.primary) ?? [];
   const forward = primary.length ? `<ul class="lg-live-list">${primary.map((h) => {
     const [status, label] = FORWARD[h.status] ?? FORWARD.waiting;
@@ -78,7 +78,7 @@ function liveHTML(report) {
   const b = bannerState(Date.now());
   const pkg = b.show ? `<p class="lg-dday"><b>${esc(b.lead)}</b> ${esc(b.text)}</p>` : '<p class="lg-progress">판매 종료 뒤 비교 구간이 끝났습니다.</p>';
   return `<div class="panel"><h3>전향 검증 FT1</h3><p class="desc">후향 후보 4개를 새 기간에서 확인하는 중입니다.</p>${forward}
-      <p class="lg-links"><a href="${REPO}docs/forward-test-protocol-2026-10-02.md" target="_blank" rel="noopener">사전 등록 ↗</a><a href="data/forward-test.json">보고서 JSON →</a></p></div>
+      <p class="lg-links"><a href="${REPO}docs/forward-test-protocol-2026-10-02.md" target="_blank" rel="noopener">사전 등록 ↗</a>${report ? '<a href="data/forward-test.json">보고서 JSON →</a>' : ''}</p></div>
     <div class="panel"><h3>유랑악단 패키지 판매 종료</h3><p class="desc">2026-11-05 06:00 KST 삭제. 삭제 전 분석과 삭제 뒤 생존 품목 분석의 규칙을 미리 등록했습니다.</p>${pkg}
       <p class="lg-links"><a href="package-study.html">자료 점검 →</a><a href="#pkg-end">삭제 전 연구 →</a><a href="#pkg-survivors">생존 품목 연구 →</a></p></div>`;
 }
@@ -89,8 +89,20 @@ async function fetchJson(url, optional = false) {
   return response.json();
 }
 
-function render(root, ledger, report, filter) {
-  const sections = ledger.sections.map((s) => ({ ...s, items: s.items.map((it) => applyLive(it, report)) }));
+export const buildSections = (ledger, report) => ledger.sections.map((s) => ({ ...s, items: s.items.map((it) => applyLive(it, report)) }));
+
+/** 상태 필터가 감춘 항목·절로 가는 링크인지. 그렇다면 필터를 풀어야 닻이 움직인다. */
+export function needsFilterReset(sections, filter, id) {
+  if (!id || filter === 'all') return false;
+  const hidden = new Set();
+  for (const s of sections) {
+    if (!s.items.some((it) => it.status === filter)) hidden.add(s.id);
+    for (const it of s.items) if (it.status !== filter) hidden.add(it.id);
+  }
+  return hidden.has(id);
+}
+
+function render(root, sections, ledger, report, filter) {
   const all = sections.flatMap((s) => s.items), counts = countByStatus(all);
   document.getElementById('lg-live').innerHTML = liveHTML(report);
   document.getElementById('lg-filter').innerHTML = [['all', `전체 ${all.length}`], ...Object.entries(STATUS).map(([k, v]) => [k, `${v.label} ${counts[k]}`])]
@@ -104,15 +116,20 @@ function render(root, ledger, report, filter) {
 
 if (typeof document !== 'undefined' && document.getElementById('ledger')) {
   const root = document.getElementById('ledger');
-  let filter = 'all', ledger, report;
+  let filter = 'all', ledger, report, sections;
   const draw = () => {
-    render(root, ledger, report, filter);
+    sections = buildSections(ledger, report);
+    render(root, sections, ledger, report, filter);
     const target = location.hash.length > 1 && document.getElementById(decodeURIComponent(location.hash.slice(1)));
     if (target && !draw.scrolled) { draw.scrolled = true; target.scrollIntoView(); }
   };
   document.getElementById('lg-filter').addEventListener('click', (e) => {
     const k = e.target.closest('button')?.dataset.filter;
     if (k) { filter = k; draw(); }
+  });
+  // 필터가 감춘 항목으로 가는 요약 링크를 눌렀을 때 아무 일도 없던 문제: 필터를 풀고 그 항목으로 이동한다.
+  addEventListener('hashchange', () => {
+    if (ledger && needsFilterReset(sections, filter, decodeURIComponent(location.hash.slice(1)))) { filter = 'all'; draw.scrolled = false; draw(); }
   });
   Promise.all([fetchJson('data/ledger.json'), fetchJson('data/forward-test.json', true).catch(() => null)])
     .then(([l, r]) => { ledger = l; report = r; draw(); })
