@@ -645,7 +645,9 @@ writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
   },
 }));
 
-for (const f of ['index.html', 'ranking.html', 'analysis.html', 'guide.html', 'feedback.html', 'feedback.js', 'feedback.css', 'app.js', 'price-distribution.js', 'price-distribution.css', 'comparison.js', 'comparison-model.js', 'comparison.css', 'metrics.js', 'ranking.js', 'style.css', 'research.html', 'research.js', 'research-ui.js', 'research.css', 'package.js', 'package.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
+for (const f of ['index.html', 'ranking.html', 'analysis.html', 'guide.html', 'feedback.html', 'feedback.js', 'feedback.css', 'app.js', 'price-distribution.js', 'price-distribution.css', 'comparison.js', 'comparison-model.js', 'comparison.css', 'metrics.js', 'ranking.js', 'style.css', 'research.html', 'research.js', 'research-ui.js', 'research.css', 'package.js', 'package.css', 'ledger.html', 'ledger.js', 'ledger.css', 'event-banner.js']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
+// 연구 원장은 사람이 근거를 달아 쓰는 정적 등록부다. 전향 검증의 현재 상태는 data/forward-test.json이 겹쳐 그린다.
+copyFileSync('config/research-ledger.json', `${OUT}/data/ledger.json`);
 writeFileSync(`${OUT}/.nojekyll`, '');
 for (const f of ['seasonal.html','seasonal.js','seasonal.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
 

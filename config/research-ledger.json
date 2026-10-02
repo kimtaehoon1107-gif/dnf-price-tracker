@@ -1,0 +1,176 @@
+{
+  "updated": "2026-10-02",
+  "sections": [
+    {
+      "id": "price",
+      "title": "가격은 예측할 수 있는가",
+      "items": [
+        {
+          "id": "random-walk",
+          "question": "가격은 랜덤워크인가?",
+          "status": "partial",
+          "result": "종목별 가장 긴 연속 완료 시간봉 구간에 분산비(VR(2)) 검정을 적용했다. 2026-09-19 빌드에서 후보 38종 중 19종이 검정 가능했고 Holm 보정 후 단기 반전 5종·지속 0종이었다.",
+          "limit": "장기 평균회귀와 매수 전략의 유용성은 검증하지 않았다. VR이 1보다 작다는 것이 평균회귀는 아니다.",
+          "evidence": [{ "label": "분석 페이지", "href": "analysis.html" }]
+        },
+        {
+          "id": "forecast-daily",
+          "question": "일·주 단위 가격 예측이 '마지막 가격 유지'를 이기는가?",
+          "status": "negative",
+          "result": "2026-09-19 평가에서 모델 오차가 더 컸다. 1일 139건 5.29% 대 3.90%, 7일 48건 12.14% 대 6.43%. 그래서 일반 아이템 상세 화면에는 예측선을 그리지 않는다.",
+          "evidence": [{ "label": "분석 페이지", "href": "analysis.html" }, { "label": "요일 보정 비교 실험", "doc": "docs/forecast-comparison-2026-09-16.md" }]
+        },
+        {
+          "id": "forecast-band",
+          "question": "참고 범위(마지막 가격 ± 변동폭 × √일수)가 실제 가격의 80%를 덮는가?",
+          "status": "negative",
+          "result": "결과를 보기 전에 공식을 고정해 같은 롤링 평가로 재구성했으나 포함률이 1일 73.4%·7일 60.4%로 목표에 못 미쳐 그리지 않고 분석 페이지에만 기록한다.",
+          "evidence": [{ "label": "분석 페이지", "href": "analysis.html" }]
+        },
+        {
+          "id": "intraday-model",
+          "question": "시간대 정보로 6시간 방향과 하루 경로를 맞힐 수 있는가?",
+          "status": "partial",
+          "result": "레전더리 소울 결정에서만 후향 후보가 나왔다. 6시간 방향은 시간대 모델 77.6% 대 최빈 방향 44.8%(58구간·16게임일)였고, 저녁 평균 가격 예측은 시간대를 넣으면 MAPE가 10.2%에서 6.9%로 줄었다(10일). 다만 하루 경로에서는 시간대의 추가 효과가 추세 대비 0.06%p에 그쳤다. 레전더리 카드 P10은 가격 유지와 보합 기준을 이기지 못했다.",
+          "limit": "이미 본 3~4주 자료에서 후보를 고른 후향 탐색이다.",
+          "next": "새 기간에서 아래 '전향 검증 FT1'로 확인한다.",
+          "evidence": [
+            { "label": "6시간 방향", "doc": "docs/block-direction-results-2026-10-02.md" },
+            { "label": "하루 전체 경로", "doc": "docs/full-day-results-2026-10-01.md" },
+            { "label": "가격·방향 공동 평가", "doc": "docs/intraday-joint-results-2026-10-01.md" }
+          ]
+        },
+        {
+          "id": "weekday-add",
+          "question": "요일 정보를 추가하면 방향 예측이 좋아지는가?",
+          "status": "negative",
+          "result": "평가 5게임일 이상인 카드 57계열에서 개선 19·악화 17·동일 21로 일관된 개선이 없었다.",
+          "limit": "평가한 6게임일에 목요일 시작이 없어 목요일 성능은 주장하지 않는다.",
+          "evidence": [{ "label": "요일 추가 비교", "doc": "docs/weekday-direction-results-2026-10-02.md" }]
+        },
+        {
+          "id": "listing-info",
+          "question": "관측 매물 정보를 추가하면 가격 예측이 좋아지는가?",
+          "status": "negative",
+          "result": "레전더리 P10 1·3·6시간 예측에서 1시간 매물 변화를 더한 모델이 마지막 가격 유지보다 나빴다(1시간 MAPE 0.349% 대 0.427%).",
+          "limit": "다른 시차·비선형 효과·카드별 매물 정보가 쓸모없다는 증명은 아니다.",
+          "evidence": [{ "label": "거래 활동·매물 탐색", "doc": "docs/activity-study-2026-10-01.md" }]
+        },
+        {
+          "id": "depletion-speed",
+          "question": "매물 소진 속도로 실제 거래량을 알 수 있는가?",
+          "status": "negative",
+          "result": "판매와 취소를 구분할 수 없고 체결 API와 중복될 수 있어 합산하지 않고 화면에서 내렸다. 원자료는 계속 보존한다.",
+          "evidence": [{ "label": "수집하는 것(README)", "doc": "README.md" }]
+        }
+      ]
+    },
+    {
+      "id": "timing",
+      "title": "언제 싸고 비싼가",
+      "items": [
+        {
+          "id": "weekday-effect",
+          "question": "요일에 따라 가격이 다른가?",
+          "status": "waiting",
+          "result": "2026-09-08 표본 부족으로 분석 절을 내렸다. 시간별 자료로 다시 본 3주 탐색에서 레전더리·에픽 소울 결정의 토요일 상승과 카드 P10의 목요일 하락이 반복 관측 후보였으나 주마다 모양이 다르고 점검에 의한 결측이 섞여 있다.",
+          "next": "완전한 월~일 8주가 쌓이는 2026-11-02 이후 재검토. 후보 3개는 아래 '전향 검증 FT1'에서 확인한다.",
+          "evidence": [{ "label": "요일만 본 가격 수준", "doc": "docs/weekday-only-results-2026-10-02.md" }]
+        },
+        {
+          "id": "time-of-day",
+          "question": "하루 중 시간대에 따라 거래와 가격이 달라지는가?",
+          "status": "partial",
+          "result": "소울 결정의 관측 체결 수량은 저녁이 아침보다 많은 날이 20일 중 20일이었다. 가격은 품목마다 달랐다(에픽 19/20일 상승, 레어·유니크 7/20일). 레전더리 P10은 낮이 오전보다 낮은 날이 19일 중 17일이었지만 양쪽 변화가 모두 0.5%를 넘은 날은 6일뿐이다.",
+          "limit": "거래 활동의 패턴을 가격의 패턴으로 옮겨 해석하지 않는다. 후향 관측이다.",
+          "evidence": [
+            { "label": "거래 활동 반복성", "doc": "docs/activity-study-2026-10-01.md" },
+            { "label": "카드 P10 날짜별 반복성", "doc": "docs/daily-repetition-2026-10-02.md" },
+            { "label": "시간대·요일 평균 트렌드", "href": "seasonal.html" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "package",
+      "title": "유랑악단 패키지와 판매 종료",
+      "items": [
+        {
+          "id": "pkg-efficiency",
+          "question": "패키지 가격은 구성 상자 합계와 같게 매겨지는가?",
+          "status": "confirmed",
+          "result": "패키지와 구성 상자 5종의 가격으로 계산한 해체 마진이 수수료 3% 반영 후 사실상 0이다. 2026-09-24~10-01 일별 마진은 모두 ±1% 안이었다.",
+          "limit": "서로 다른 시점의 체결 평균이라 실행 가능한 차익이 아니다.",
+          "evidence": [{ "label": "패키지 이벤트", "href": "research.html#package" }]
+        },
+        {
+          "id": "pkg-launch",
+          "question": "패키지 출시 충격을 볼 수 있는가?",
+          "status": "negative",
+          "result": "출시는 2026-08-27, 관측 시작은 2026-09-06으로 10일 늦어 출시 전 자료가 없다. 이벤트 연구는 사건 전후를 모두 봐야 성립해서 출시 효과는 만들어 내지 않는다.",
+          "evidence": [{ "label": "패키지 이벤트", "href": "research.html#package" }]
+        },
+        {
+          "id": "pkg-end",
+          "question": "판매 종료 전, 패키지군의 가격이 통제군 대비 달라지는가?",
+          "status": "running",
+          "result": "2026-11-05 06:00 KST 삭제 전 14일(10-22~11-04)의 상대 가격 변화와 해체 마진을 2026-09-28에 등록한 규칙으로 계산한다. 삭제 뒤 가격은 정의되지 않아 사후 가설은 철회했다.",
+          "next": "기준선(09-10~10-21) 종료 뒤 참고 탐지 한계를 기록하고 11-05 이후 첫 빌드에서 결과를 계산한다.",
+          "evidence": [
+            { "label": "자료 점검·결과", "href": "package-study.html" },
+            { "label": "사전 등록 규칙", "doc": "docs/package-end-preregistration.md" },
+            { "label": "21종 자료 점검", "doc": "docs/package-study-audit-20260928.md" }
+          ]
+        },
+        {
+          "id": "pkg-survivors",
+          "question": "삭제 뒤에도 남는 연관 품목의 가격은 달라지는가?",
+          "status": "waiting",
+          "result": "플로럴 스태그 알(패키지 크리쳐 상자의 결과물)을 1차로, 기준선 대비 삭제 뒤 14일을 관측 비교하는 규칙을 삭제 전에 등록했다. 단일 품목의 참고 탐지 한계가 ±19~82%라 큰 변화가 아니면 구분 불가일 수 있다.",
+          "limit": "사건이 하나이고 정기점검일과 겹친다. 판정어와 p값을 쓰지 않는 관측 비교다.",
+          "next": "1차 결과는 2026-11-19 완료 뒤 첫 빌드. 평소 목요일의 점검 전후 움직임과 사건일을 비교한다.",
+          "evidence": [{ "label": "사전 등록 규칙", "doc": "docs/package-end-survivors-preregistration-2026-10-02.md" }]
+        }
+      ]
+    },
+    {
+      "id": "forward",
+      "title": "전향 검증 FT1 — 새 기간에서도 유지되는가",
+      "intro": "위의 후향 후보 4개를 새 자료로 확인합니다. 발행은 결과보다 먼저 기록하고, 판정 규칙과 유의수준(가설별 0.0125)은 병합 시각에 고정했습니다. 상태는 그 규칙으로만 바뀝니다.",
+      "items": [
+        {
+          "id": "ft1-H1",
+          "live": "ft1:H1",
+          "question": "레전더리 소울 결정의 6시간 방향을 시간대 모델이 모든 단순 기준선보다 잘 맞히는가?",
+          "status": "waiting",
+          "result": "후향 58구간·16게임일에서 77.6% 대 기준선 최고 51.7%. 전향에서는 첫 발행 게임일부터 28게임일을 날짜별 부호검정과 기준선 5개 모두 초과 조건으로 판정한다.",
+          "evidence": [{ "label": "사전 등록", "doc": "docs/forward-test-protocol-2026-10-02.md" }]
+        },
+        {
+          "id": "ft1-H2",
+          "live": "ft1:H2",
+          "question": "레전더리 소울 결정은 토요일 게임일 가격이 금요일보다 높은가?",
+          "status": "waiting",
+          "result": "후향 3주 모두 상승(+4.0~+12.1%). 전향에서는 첫 발행 주부터 10주 중 두 날의 공통 관측 시간으로 비교하며 9주 이상 성공해야 확인한다.",
+          "evidence": [{ "label": "사전 등록", "doc": "docs/forward-test-protocol-2026-10-02.md" }]
+        },
+        {
+          "id": "ft1-H3",
+          "live": "ft1:H3",
+          "question": "에픽 소울 결정은 토요일 게임일 가격이 금요일보다 높은가?",
+          "status": "waiting",
+          "result": "후향 3주 모두 상승(+19.4~+23.3%). 판정 규칙은 위 레전더리 소울 결정과 같다.",
+          "evidence": [{ "label": "사전 등록", "doc": "docs/forward-test-protocol-2026-10-02.md" }]
+        },
+        {
+          "id": "ft1-H4",
+          "live": "ft1:H4",
+          "question": "레전더리 카드 P10은 목요일 게임일 가격이 수요일보다 낮은가?",
+          "status": "waiting",
+          "result": "후향 3주 모두 하락(−1.9~−6.1%)이지만 공통 관측 18시간 기준을 통과한 주는 1주뿐이었다. 전향에서는 두 날의 공통 관측 시간이 16칸 이상인 주만 채점한다.",
+          "evidence": [{ "label": "사전 등록", "doc": "docs/forward-test-protocol-2026-10-02.md" }]
+        }
+      ]
+    }
+  ]
+}
