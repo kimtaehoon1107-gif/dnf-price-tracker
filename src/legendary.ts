@@ -17,14 +17,34 @@ const dayTime = (date: string) => Date.parse(`${date}T00:00:00+09:00`);
 const dow = (date: string) => (new Date(`${date}T12:00:00Z`).getUTCDay() + 6) % 7;
 const mean = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
 
-export function legendarySeries(rows: LegendarySnapshot[], asOf: string) {
+export type LegendaryDistribution = { captured_at: string; q25: number; q75: number; kinds: number };
+
+// 원본 JSON 전체를 전송하지 않고 성공한 조사별 종류 수·분위수만 읽는다.
+export const legendaryDistributionSQL = `
+  SELECT to_char(s.finished_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') captured_at,
+    percentile_disc(0.25) WITHIN GROUP (ORDER BY (o->>'minPrice')::float8) q25,
+    percentile_disc(0.75) WITHIN GROUP (ORDER BY (o->>'minPrice')::float8) q75,
+    count(*)::int kinds
+  FROM legendary_card_scans s CROSS JOIN LATERAL jsonb_array_elements(s.observations) o
+  WHERE s.status='complete' AND s.failed=0 AND s.succeeded=s.expected
+    AND o->>'status'='observed' AND (o->>'minPrice')::float8>0
+  GROUP BY s.id,s.finished_at ORDER BY s.finished_at,s.id`;
+
+export function legendarySeries(rows: LegendarySnapshot[], asOf: string, distributions: LegendaryDistribution[] = []) {
   const end = Date.parse(asOf);
   const valid = rows.filter((row) => row.p10 !== null && row.p10 > 0 && row.min_unit_price > 0
     && Date.parse(row.captured_at) <= end)
     .sort((a, b) => Date.parse(a.captured_at) - Date.parse(b.captured_at));
   const hours = new Map<number, LegendarySnapshot>();
   for (const row of valid) hours.set(Math.floor(Date.parse(row.captured_at) / HOUR), row);
-  const hourly = [...hours].map(([hour, row]) => ({ ...row, t: new Date(hour * HOUR).toISOString() }));
+  const byTime = new Map(distributions.map(row => [Date.parse(row.captured_at), row]));
+  const hourly = [...hours].map(([hour, row]) => {
+    const band = byTime.get(Math.floor(Date.parse(row.captured_at) / 1000) * 1000);
+    // 날짜가 가까운 다른 조사로 대신하지 않고 지표를 발행한 같은 스캔만 연결한다.
+    const matched = band && band.kinds === row.with_listings;
+    return { ...row, t: new Date(hour * HOUR).toISOString(),
+      q25: matched ? band.q25 : null, q75: matched ? band.q75 : null };
+  });
   const groups = new Map<string, typeof hourly>();
   for (const row of hourly) {
     const date = dateKey(Date.parse(row.t));
@@ -36,6 +56,9 @@ export function legendarySeries(rows: LegendarySnapshot[], asOf: string) {
     p10: mean(group.map((row) => row.p10!)),
     min: mean(group.map((row) => row.min_unit_price)),
     listings: mean(group.map((row) => row.total_listings)),
+    distributionHours: group.filter(row => row.q25 != null && row.q75 != null).length,
+    q25: group.every(row => row.q25 != null) ? mean(group.map(row => row.q25!)) : null,
+    q75: group.every(row => row.q75 != null) ? mean(group.map(row => row.q75!)) : null,
   }));
 
   // 당일과 관측이 18시간 미만인 날을 제외하고 월~일을 모두 갖춘 주만 비교한다.

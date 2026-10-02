@@ -54,3 +54,17 @@ assert(Math.abs(pattern[3].price! - 110 / (710 / 7) * 100) < 1e-9, '목요일 �
 assert(Math.abs(pattern[3].change! - 10) < 1e-9, '목요일 전날 대비 변화율');
 assert.equal(legendarySeries(history.slice(18), asOf).weekday.weeks, 3, '중간 요일부터 시작한 주 제외');
 console.log('레전더리 시계열·요일 표본 테스트 통과');
+
+const bandRows = [snapshot('2026-09-07T22:01:00Z'), snapshot('2026-09-07T22:55:00Z'), snapshot('2026-09-07T23:05:00Z')];
+const bands = [
+  {captured_at:'2026-09-07T22:01:00Z',q25:1,q75:2,kinds:80},
+  {captured_at:'2026-09-07T22:55:00Z',q25:120,q75:200,kinds:80},
+  {captured_at:'2026-09-07T23:05:00Z',q25:140,q75:300,kinds:80},
+];
+const bandDay=legendarySeries(bandRows,'2026-09-09T00:00:00Z',bands).daily[0];
+assert.equal(bandDay.q25,130,'시간별 마지막 조사의 종류별 분위수를 동일 비중으로 평균');
+assert.equal(bandDay.q75,250);
+assert.equal(bandDay.distributionHours,2);
+assert.equal(legendarySeries(bandRows,'2026-09-09T00:00:00Z',bands.slice(0,2)).daily[0].q25,null,'일부 원본이 빠지면 구간을 임의 복원하지 않는다');
+assert.equal(legendarySeries(bandRows,'2026-09-09T00:00:00Z',bands.map(r=>({...r,kinds:79}))).daily[0].q25,null,'종류 수가 다른 조사를 연결하지 않는다');
+assert.equal(legendarySeries(bandRows,'2026-09-09T00:00:00Z').daily[0].q75,null,'과거 원본이 없으면 분포 없음');
