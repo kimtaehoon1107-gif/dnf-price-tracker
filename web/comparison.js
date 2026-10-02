@@ -1,5 +1,5 @@
 import { comparisonSource, comparisonData } from './comparison-model.js?v=20261002-comparison';
-import { isThursday, renderThursdayMarkers } from './price-distribution.js?v=20261002-comparison';
+import { isThursday, renderThursdayMarkers } from './price-distribution.js?v=20261002-material-focus';
 
 const fmt = n => n == null ? '관측 없음' : Math.round(n).toLocaleString('ko-KR');
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
