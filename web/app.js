@@ -413,6 +413,8 @@ function render() {
     }
   });
   const it = DATA.items.find((x) => x.item_id === id);
+  // 판매 종료 띠는 목록 화면에서만 보인다(ledger.css).
+  document.body.dataset.view = id === 'compare' || id.startsWith('compare?') ? 'compare' : it || id === 'legendary-card' ? 'detail' : 'list';
   scrollTo(0, 0);
   if (id === 'compare' || id.startsWith('compare?')) {
     detailItemId = null;

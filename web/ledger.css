@@ -1,0 +1,76 @@
+/* 연구 원장과 판매 종료 띠. 색은 style.css의 토큰만 쓴다.
+   상승 빨강·하락 파랑은 가격 방향 전용이라 상태 표시에는 쓰지 않고, 글자·기호가 함께 상태를 전한다. */
+
+/* ── 판매 종료 띠 (시세 목록 화면) ───────────────── */
+.event-banner {
+  display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap;
+  margin: 0 0 18px; padding: 11px 16px; border-radius: 12px;
+  background: var(--blue-bg); border: 1px solid transparent; font-size: 13.5px; color: var(--ink);
+}
+.event-banner[hidden], body[data-view]:not([data-view="list"]) #event-banner { display: none; }
+.event-banner:hover { border-color: var(--blue); }
+.event-banner:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.event-banner .eb-lead { font-size: 15px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.event-banner .eb-text { flex: 1 1 220px; color: var(--ink-2); }
+.event-banner .eb-link { color: var(--blue); font-weight: 600; white-space: nowrap; }
+
+/* ── 상태 칩: 기호 + 글자. 색은 보조 신호다 ───────── */
+.st {
+  display: inline-flex; align-items: center; gap: 5px; flex: none; white-space: nowrap;
+  padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line-2);
+  background: var(--card); color: var(--ink); font-size: 12px; font-weight: 700; letter-spacing: 0;
+}
+.st i { font-style: normal; font-size: 11px; }
+.st-confirmed { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.st-partial { background: rgba(245,166,35,.16); border-color: rgba(245,166,35,.6); }
+.st-running { background: var(--blue-bg); border-color: var(--blue); }
+.st-negative { background: var(--line); color: var(--ink-2); }
+.st-waiting { border-style: dashed; color: var(--ink-2); }
+
+/* ── 진행 중인 검증 ─────────────────────────────── */
+.lg-live { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; margin-bottom: 22px; }
+.lg-live .panel { margin-bottom: 0; }
+.lg-live-list { list-style: none; margin: 10px 0 12px; padding: 0; display: grid; gap: 8px; }
+.lg-live-list li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13.5px; }
+.lg-live-list a { flex: 1 1 200px; min-width: 0; }
+.lg-live-list a:hover { text-decoration: underline; }
+.lg-live-list small { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.lg-dday { margin: 10px 0 12px; font-size: 14px; color: var(--ink-2); }
+.lg-dday b { margin-right: 6px; font-size: 20px; letter-spacing: -0.03em; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* ── 필터 ───────────────────────────────────────── */
+.lg-filter { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 6px; }
+.lg-filter button {
+  font: inherit; font-size: 13px; padding: 8px 13px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line-2); background: var(--card); color: var(--ink-2); font-variant-numeric: tabular-nums;
+}
+.lg-filter button[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); font-weight: 700; }
+.lg-filter button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+/* ── 항목 ───────────────────────────────────────── */
+.lg-section { scroll-margin-top: 80px; }
+.lg-section > h2 { margin: 34px 0 6px; font-size: 19px; letter-spacing: -0.03em; }
+.lg-intro { margin: 0 0 14px; max-width: var(--measure); color: var(--ink-2); font-size: 14px; line-height: 1.7; }
+.lg-item { scroll-margin-top: 80px; }
+.lg-item h3 { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 10px; font-size: 15.5px; line-height: 1.5; }
+.lg-result { margin: 0 0 8px; max-width: var(--measure); line-height: 1.75; }
+.lg-note { margin: 0 0 6px; max-width: var(--measure); color: var(--ink-2); font-size: 13.5px; line-height: 1.7; }
+.lg-note b { margin-right: 6px; color: var(--ink-3); font-weight: 600; }
+.lg-links { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 0 0; font-size: 13px; }
+.lg-links a { color: var(--blue); }
+.lg-links a:hover { text-decoration: underline; }
+.lg-progress { margin: 10px 0 6px; padding: 9px 12px; border-radius: 8px; background: var(--page); color: var(--ink-2); font-size: 13px; line-height: 1.7; font-variant-numeric: tabular-nums; }
+.lg-progress b { color: var(--ink); }
+.lg-weeks { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+.lg-week {
+  width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line-2); border-radius: 6px; font-size: 12px; color: var(--ink-3); background: var(--card);
+}
+.lg-week.yes { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.lg-week.no { border-color: var(--ink-2); color: var(--ink); }
+.lg-week.lg-missed { border-style: dashed; }
+
+@media (max-width: 600px) {
+  .lg-live { grid-template-columns: 1fr; }
+  .event-banner { padding: 10px 14px; }
+}

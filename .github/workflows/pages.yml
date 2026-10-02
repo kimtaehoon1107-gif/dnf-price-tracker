@@ -22,6 +22,7 @@ on:
       - 'src/block-direction-study.ts'
       - 'scripts/record-forward-test.ts'
       - 'sql/forward-test.sql'
+      - 'config/research-ledger.json'
       - 'data/research-baskets.json'
       - 'src/package-study.ts'
       - 'scripts/package-study.ts'

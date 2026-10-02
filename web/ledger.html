@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>연구 원장 — 던파 경매장</title>
+<meta name="description" content="던파 경매장 시세 추적기가 던진 질문과 그 답을 한곳에 모았습니다. 확인한 것뿐 아니라 확인하지 못한 것과 아직 검증 중인 것도 남깁니다.">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css?v=20261002-ledger">
+<link rel="stylesheet" href="research.css?v=20261002-ledger">
+<link rel="stylesheet" href="ledger.css?v=20261002-ledger">
+</head>
+<body class="research-page ledger-page">
+<header class="top">
+  <div class="inner">
+    <a class="brand" href="index.html">던파 경매장</a>
+    <nav>
+      <a href="index.html">시세</a>
+      <a href="index.html#compare">비교</a>
+      <a href="ranking.html">TOP100</a>
+      <a href="analysis.html">분석</a>
+      <a href="research.html">실험</a>
+      <a href="ledger.html" class="on">연구 원장</a>
+      <a href="guide.html">지표</a>
+      <a href="https://github.com/kimtaehoon1107-gif/dnf-price-tracker" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+    <details class="mobile-menu">
+      <summary>메뉴</summary>
+      <nav aria-label="모바일 주 메뉴">
+        <a href="index.html">시세</a>
+        <a href="index.html#compare">비교</a>
+        <a href="ranking.html">TOP100</a>
+        <a href="analysis.html">분석</a>
+        <a href="research.html">실험</a>
+        <a href="ledger.html" class="on">연구 원장</a>
+        <a href="guide.html">지표</a>
+        <a href="https://github.com/kimtaehoon1107-gif/dnf-price-tracker" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </details>
+    <span class="spacer"></span>
+    <span class="built" id="lg-updated"></span>
+  </div>
+</header>
+<div class="wrap">
+
+<h1 class="research-title">연구 원장</h1>
+<p class="research-intro">이 사이트가 던진 질문과 그 답을 한곳에 모았습니다. 확인한 것뿐 아니라 <b>확인하지 못한 것과 철회한 것</b>도 남깁니다.<br>
+이미 본 자료에서 고른 후보는 새 자료로 확인하기 전까지 '확인됨'으로 표시하지 않고, 전향 검증의 상태는 사전에 정한 규칙으로만 바뀝니다.</p>
+
+<section class="lg-live" id="lg-live" aria-label="지금 진행 중인 검증"></section>
+<div class="lg-filter" id="lg-filter" role="group" aria-label="상태별 보기"></div>
+<main id="ledger" aria-live="polite"><div class="panel">연구 원장을 불러오는 중입니다.</div></main>
+
+<footer>
+  <a class="feedback-link" href="feedback.html">의견 보내기 →</a> 오류나 제안은 피드백 게시판에 남겨 주세요.<br>
+  본 서비스는 <b>네오플 오픈 API 서비스</b>를 이용합니다. (<a href="https://developers.neople.co.kr" target="_blank" rel="noopener">developers.neople.co.kr</a>)<br>
+  비상업적 개인 프로젝트이며 API 이용에 대한 어떠한 대가도 받지 않습니다.<br>
+  네오플 또는 넥슨이 운영하거나 보증하는 공식 서비스가 아닌 비공식 개인 프로젝트입니다.<br>
+  분석과 예측은 과거 관측 데이터를 기반으로 한 실험 결과이며, 향후 가격이나 실제 거래 가능성을 보장하지 않습니다.
+</footer>
+
+</div>
+<script type="module" src="ledger.js?v=20261002-ledger"></script>
+</body>
+</html>
