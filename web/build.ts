@@ -17,6 +17,7 @@ import { holmAdjusted, longestCompleteHours, varianceRatio } from '../src/market
 import { legendarySeries, type LegendarySnapshot } from '../src/legendary.ts';
 import { cardWeekday, type CardWeekdayDay } from '../src/card-weekday.ts';
 import { researchExport } from '../src/research-export.ts';
+import { readForwardTestReport } from '../src/forward-test-db.ts';
 import { weekdayTrend, WEEKDAY_MIN_WEEKS } from '../src/weekday-trend.ts';
 import { summarizeWeekdays } from './metrics.js';
 import { exportSeasonal } from '../src/seasonal-export.ts';
@@ -480,6 +481,17 @@ writeFileSync(`${OUT}/data/research.json`, JSON.stringify(research));
 const legendary = legendaryRows.slice(-1);
 writeFileSync(`${OUT}/data/legendary.json`, JSON.stringify(legendarySeries(legendaryRows, quality.checkedAt)));
 writeFileSync(`${OUT}/data/seasonal.json`, JSON.stringify(await exportSeasonal(client, quality.checkedAt)));
+// 전향 검증 보고서. 원장이 없거나 읽기에 실패해도 사이트 배포는 막지 않는다.
+// 읽기 실패가 빌드 전체 트랜잭션을 중단 상태로 만들지 않도록 SAVEPOINT 안에서 읽는다.
+await query('SAVEPOINT forward_test');
+try {
+  const forwardTest = await readForwardTestReport(client, Date.parse(quality.checkedAt));
+  if (forwardTest) writeFileSync(`${OUT}/data/forward-test.json`, JSON.stringify(forwardTest));
+  await query('RELEASE SAVEPOINT forward_test');
+} catch (error) {
+  await query('ROLLBACK TO SAVEPOINT forward_test');
+  console.warn('[forward-test] 보고서를 만들지 못했습니다:', (error as { code?: string }).code ?? (error as Error).name);
+}
 
 // ── 스태커블 시장 거래대금 순위 ──────────────────────────────
 const marketRankingRows = (await query<{

@@ -94,11 +94,25 @@ try {
   assert.equal(new URL(process.env.DATABASE_URL!).username,`postgres.${config.live.find(s=>s.schema===config.globals.at(-1)!.source)!.project}`);
   await run('scripts/scan-turnover.ts',asOf);
   await run('scripts/record-forecasts.ts',asOf);
+  // 전향 검증 기록은 연구용이라 실패해도 사이트 배포와 기존 사전 예측을 막지 않는다.
+  await run('scripts/record-forward-test.ts',asOf).catch(e=>console.warn('[forward-test] 기록 실패, 배포는 계속합니다:',e.message));
   const globalSource=sources[config.live.findIndex(s=>s.schema===config.globals.at(-1)!.source)];
   for(const table of ['research_forecast_batches','research_actuals','market_rankings']) {
     const rows=(await globalSource.query(`SELECT to_jsonb(t)::text AS row FROM ${quote(table)} t`)).rows;
     await local.query(`TRUNCATE ${quote(table)}`);
     await local.query(`INSERT INTO ${quote(table)} SELECT * FROM jsonb_populate_recordset(NULL::${quote(table)},$1::jsonb)`,['['+rows.map(r=>r.row).join(',')+']']);
+  }
+  // 전향 검증 원장도 빌드용 DB로 옮긴다. 표가 아직 없으면 보고서만 만들지 않는다.
+  try {
+    await local.query(readFileSync('sql/forward-test.sql','utf8'));
+    for(const table of ['forward_test_issues','forward_test_actuals']) {
+      const rows=(await globalSource.query(`SELECT to_jsonb(t)::text AS row FROM ${quote(table)} t`)).rows;
+      await local.query(`INSERT INTO ${quote(table)} SELECT * FROM jsonb_populate_recordset(NULL::${quote(table)},$1::jsonb)`,['['+rows.map(r=>r.row).join(',')+']']);
+    }
+  } catch(e) {
+    // 반쪽 원장으로 보고서를 만들지 않는다.
+    await local.query('DROP TABLE IF EXISTS forward_test_issues, forward_test_actuals').catch(()=>{});
+    console.warn('[forward-test] 원장 복사 실패, 보고서를 생략합니다:',(e as {code?:string}).code??(e as Error).name);
   }
   await run('web/build.ts',asOf);
   for(const p of pending) await publishReplica(store,p.replica,p.previous);
