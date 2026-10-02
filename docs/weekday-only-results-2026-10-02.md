@@ -128,4 +128,4 @@
 
 `python scripts/test-weekday-only.py`, `python scripts/weekday-only-study.py`, `python scripts/render-weekday-only.py`. 입력은 `data/activity-research-verified/hourly.json`·`report.json`과 품목 메타데이터 `data/intraday-study/activity-input.json`이다. 06시 경계·미완료일·결측·완전 주·정확히 하루 전 비교를 합성 자료로 검증했다.
 
-[전체 날짜·요일 프로파일·주별 값·전날 변화·공통시간 변화 JSON](evidence/weekday-only-20261002.json)에 입력 해시도 보존했다. 운영 수집과 사이트는 변경하지 않았다.
+[전체 날짜·요일 프로파일·주별 값·전날 변화·공통시간 변화 JSON](evidence/weekday-only-20261002.json)에 입력 해시를 보존했다. `inputHashes`는 읽은 입력 세 파일(`hourly.json`·`report.json`·`activity-input.json`)의 SHA-256이고 `inputHash`는 이 셋을 합친 식별자다. 운영 수집과 사이트는 변경하지 않았다.

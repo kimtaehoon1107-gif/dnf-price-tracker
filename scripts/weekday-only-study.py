@@ -47,10 +47,14 @@ def analyze(points,cutoff):
     return dict(validDays=len(valid),fullWeeks=weeks,weekly=weekly,profile=profile,daily=daily,transitions=transitions)
 
 if __name__=='__main__':
-    raw=Path('data/activity-research-verified/hourly.json').read_bytes()
-    hourly=json.loads(raw)
-    meta=json.loads(Path('data/activity-research-verified/report.json').read_text(encoding='utf-8'))
-    activity=json.loads(Path('data/intraday-study/activity-input.json').read_text(encoding='utf-8'))
+    # 결과가 읽는 입력 세 개를 모두 해시한다. 하나라도 다르면 같은 식별자를 쓰지 않는다.
+    paths=dict(hourly='data/activity-research-verified/hourly.json',report='data/activity-research-verified/report.json',activityInput='data/intraday-study/activity-input.json')
+    raws={k:Path(v).read_bytes() for k,v in paths.items()}
+    inputHashes={k:hashlib.sha256(v).hexdigest() for k,v in raws.items()}
+    inputHash=hashlib.sha256(json.dumps(inputHashes,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+    hourly=json.loads(raws['hourly'])
+    meta=json.loads(raws['report'].decode('utf-8'))
+    activity=json.loads(raws['activityInput'].decode('utf-8'))
     assert meta['asOf']==activity['asOf']
     items={i['item_id']:i for i in activity['items']}
     selected=[s for s in hourly if s['id'] in items or '호가' in s['basis'] or (s['id']=='legendary' and s['basis']=='P10')]
@@ -68,7 +72,7 @@ if __name__=='__main__':
             vals=[mean([next(w['indices'][dow] for w in r['weekly'] if w['week']==week) for r in rs]) for week in common]
             profiles.append(dict(weekday=dow,weeks=len(vals),index=mean(vals),values=vals))
         groups.append(dict(category=category,items=len(rs),fullWeeks=common,profile=profiles))
-    report=dict(asOf=meta['asOf'],inputHash=hashlib.sha256(raw).hexdigest(),boundary=6,minHours=18,description='Hourly arithmetic mean per completed game day; complete Monday–Sunday weeks only for level profiles; adjacent calendar-day returns use all eligible pairs. Descriptive, not a forecast.',results=results,groups=groups)
+    report=dict(asOf=meta['asOf'],inputHash=inputHash,inputHashes=inputHashes,boundary=6,minHours=18,description='Hourly arithmetic mean per completed game day; complete Monday–Sunday weeks only for level profiles; adjacent calendar-day returns use all eligible pairs. Descriptive, not a forecast.',results=results,groups=groups)
     Path('docs/evidence/weekday-only-20261002.json').write_text(json.dumps(report,ensure_ascii=False,separators=(',',':')),encoding='utf-8')
     for r in results:
         if r['category']!='카드': print(r['name'],r['fullWeeks'],[(p['weekday'],round(p['index'],2) if p['index'] else None,p['changeN'],round(p['medianChange'],2) if p['medianChange'] is not None else None) for p in r['profile']])

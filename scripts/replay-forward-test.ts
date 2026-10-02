@@ -28,6 +28,7 @@ function series(key: SeriesKey) {
 }
 
 const result = (name: string) => evidence.results.find((r: any) => r.name === name && r.threshold === 0.5);
+let mismatches = 0;
 for (const [key, name] of [['soul-legendary', '레전더리 소울 결정'], ['legendary-p10', '레전더리 P10']] as const) {
   const s = series(key), rows = result(name).rows as { start: number; predictions: Record<string, number> }[];
   let same = 0; const diff: string[] = [];
@@ -38,4 +39,7 @@ for (const [key, name] of [['soul-legendary', '레전더리 소울 결정'], ['l
   }
   console.log(`${name}: 후향 연구 발행 ${rows.length}건 중 예측 일치 ${same}건 (시간별 ${s.points.length}개)`);
   for (const d of diff) console.log('  불일치', d);
+  mismatches += diff.length;
 }
+// 재현이 어긋나면 자동화가 성공으로 읽지 않도록 종료 코드로 알린다.
+if (mismatches) { console.error(`후향 연구와 다른 예측 ${mismatches}건`); process.exitCode = 1; }
