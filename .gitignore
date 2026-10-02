@@ -18,3 +18,7 @@ archive-work*/
 /AGENTS.md
 /CLAUDE.md
 /TASKS.md
+
+# 로컬 도구 설정(개발 서버 경로가 이 PC에 고정됨)과 파이썬 캐시
+.claude/
+__pycache__/
