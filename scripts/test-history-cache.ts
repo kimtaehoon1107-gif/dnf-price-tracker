@@ -5,6 +5,7 @@ import { HistoryCache } from '../src/history-cache.ts';
 import type { Store } from '../src/archive.ts';
 import { researchExport } from '../src/research-export.ts';
 import { PACKAGE_ID } from '../src/research-data.ts';
+import { legendaryDistributionSQL } from '../src/legendary.ts';
 
 // 외부 DB에 연결하지 않는다. CI의 일회성 PostgreSQL 17에서 실행한다.
 const url = new URL(process.env.HISTORY_TEST_URL!);
@@ -35,6 +36,10 @@ try {
   await client.query(readFileSync('sql/schema.postgres.sql', 'utf8'));
   await client.query('CREATE ROLE anon; CREATE ROLE authenticated');
   await client.query(readFileSync('sql/research.sql', 'utf8'));
+  await client.query(readFileSync('sql/legendary-scans.sql', 'utf8'));
+  await client.query(`INSERT INTO legendary_card_scans
+    (started_at,finished_at,status,expected,succeeded,failed,observations)
+    VALUES(now(),now(),'complete',4,4,0,$1)`,[JSON.stringify([10,20,30,40].map(minPrice=>({status:'observed',minPrice})))]);
   await client.query(`INSERT INTO items (item_id,item_name,category) VALUES
     ('a','테스트 결정','소울 결정'),('b','테스트 카드','카드'),($1,'테스트 패키지','패키지')`, [PACKAGE_ID]);
   await client.query(`INSERT INTO candles_1h (item_id,hour,o,h,l,c,vwap,qty,n)
@@ -66,6 +71,13 @@ try {
     assert.equal(cache.stats.fetchedBytes, bytes, `${label}: 두 번째 본문 전송 없음`);
   }
   const expectedResearch = await researchExport(client, asOf, asOf);
+  const bandQuery = cache.query({label:'legendaryDistributions',day:'captured_at',order:['captured_at']});
+  const bandExpected = (await client.query(legendaryDistributionSQL)).rows;
+  assert.equal(bandExpected.length,1);
+  assert.deepEqual((await bandQuery(legendaryDistributionSQL)).rows,bandExpected);
+  const bandBytes = cache.stats.fetchedBytes;
+  assert.deepEqual((await bandQuery(legendaryDistributionSQL)).rows,bandExpected);
+  assert.equal(cache.stats.fetchedBytes,bandBytes,'호가 분포 재실행은 본문 추가 전송 없음');
   assert.deepEqual(await researchExport(client, asOf, asOf, cache), expectedResearch);
   const warmBytes = cache.stats.fetchedBytes;
   assert.deepEqual(await researchExport(client, asOf, asOf, cache), expectedResearch);

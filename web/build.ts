@@ -478,7 +478,8 @@ const legendaryRows = (await history('legendaryRows', 'captured_at', ['captured_
 const research = await researchExport(client, quality.checkedAt, quality.through, historyCache);
 writeFileSync(`${OUT}/data/research.json`, JSON.stringify(research));
 const legendary = legendaryRows.slice(-1);
-const legendaryDistributions = (await history('legendaryDistributions', 'captured_at', ['captured_at'])<LegendaryDistribution>(legendaryDistributionSQL)).rows;
+const legendaryDistributionQuery = history('legendaryDistributions', 'captured_at', ['captured_at']);
+const legendaryDistributions = (await legendaryDistributionQuery<LegendaryDistribution>(legendaryDistributionSQL)).rows;
 writeFileSync(`${OUT}/data/legendary.json`, JSON.stringify(legendarySeries(legendaryRows, quality.checkedAt, legendaryDistributions)));
 writeFileSync(`${OUT}/data/seasonal.json`, JSON.stringify(await exportSeasonal(client, quality.checkedAt)));
 
