@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { distributionRows, distributionSegments } from '../web/price-distribution.js';
+import { distributionRows, distributionSegments, periodChange } from '../web/price-distribution.js';
 const data = { asOf:'2026-09-21T05:30:00Z',minTrades:5,
   daily:[{d:'2026-09-18',median:100,n:10},{d:'2026-09-20',median:120,n:2},{d:'2026-09-21',median:null,n:8}],
   hourly:[{t:'2026-09-20T15:00:00Z',median:100,n:5},{t:'2026-09-20T17:00:00Z',median:101,n:5}] };
@@ -17,4 +17,12 @@ assert.equal(card[1].median,null,'매물 없는 날을 0원으로 그리지 않�
 assert.equal(distributionSegments(card).length,2,'가격 없는 날짜 양쪽을 연결하지 않는다');
 assert.equal(distributionRows(data,1).length,1);
 assert.equal(distributionRows(null).length,0);
+const material = distributionRows({ basis:'legendary', asOf:data.asOf, daily:[
+  {d:'2026-09-18',vwap:100,hours:18}, {d:'2026-09-19',vwap:900,hours:17},
+  {d:'2026-09-20',vwap:120,hours:24}, {d:'2026-09-21',vwap:200,hours:18},
+] }, 'all');
+assert.deepEqual(material.map(r=>r.state), ['ready','sparse','ready','ready']);
+assert.equal(distributionSegments(material).length,2,'재료 시세도 관측 부족일을 가로질러 연결하지 않는다');
+assert.equal(periodChange(material).last.d,'2026-09-20','당일을 기간 변화에서 제외');
+assert.ok(Math.abs(periodChange(material).percent-20)<1e-9,'18시간 이상 관측한 완료일만 비교');
 console.log('가격 분포 화면: KST 날짜·결측·희소 표본·불완전 원본·진행 시간 통과');

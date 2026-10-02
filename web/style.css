@@ -286,7 +286,7 @@ a.ranking-row:hover { background: var(--page); }
 .chart { height: 300px; }
 .chart.tall { height: 340px; }
 #stock-chart { height: 360px; }
-#legendary-chart { height: 360px; }
+#legendary-chart { height: auto; }
 .stock-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 14px 0 8px; font-size: 12px; color: var(--ink-3); }
 .stock-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .stock-price-key { width: 18px; height: 2px; background: var(--ink); }
