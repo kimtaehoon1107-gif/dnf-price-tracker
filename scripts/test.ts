@@ -5,6 +5,7 @@ import './test-activity-study.ts';
 import './test-intraday-joint-forecast.ts';
 import './test-full-day-forecast.ts';
 import './test-block-direction-study.ts';
+import './test-forward-test.ts';
 import './test-intraday-study.ts';
 import './test-forecast-comparison.ts';
 import './test-market-logic.ts';
