@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { pool } from '../src/db.ts';
 import { loadResearch } from '../src/research-data.ts';
 import { LEGACY_RESEARCH_VERSION } from '../src/research.ts';
+import { legendaryDistributionSQL } from '../src/legendary.ts';
 
 // 실제 집계 SQL을 세션 임시 테이블에 실행한다. 운영 행을 변경하지 않는다.
 const client = await pool.connect();
@@ -55,6 +56,16 @@ try {
   const state = (await client.query(`SELECT status,failed,observations FROM pg_temp.legendary_card_scans`)).rows[0];
   assert.equal(state.failed, 1);
   assert.equal(state.observations[0].errorCode, 'http_503');
+  const prices = [10,20,30,40].map(minPrice => ({ status:'observed',minPrice }));
+  const observations = JSON.stringify([...prices,{status:'empty',minPrice:null}]);
+  await client.query(`INSERT INTO pg_temp.legendary_card_scans
+    (started_at,finished_at,status,expected,succeeded,failed,observations) VALUES
+    (now(),now(),'complete',5,5,0,$1), (now(),now(),'partial',5,4,1,$1)`,[observations]);
+  const bands = (await client.query(legendaryDistributionSQL)).rows;
+  assert.equal(bands.length,1,'실패·부분 조사 제외');
+  assert.equal(bands[0].q25,10);
+  assert.equal(bands[0].q75,30);
+  assert.equal(bands[0].kinds,4,'무매물은 0원으로 포함하지 않는다');
   const permissions = (await client.query(`SELECT relrowsecurity,relpersistence,
     has_table_privilege('anon',oid,'SELECT') anon_read,
     has_table_privilege('authenticated',oid,'SELECT') authenticated_read

@@ -14,7 +14,7 @@ import type { QueryResultRow } from 'pg';
 import { checkCandles } from '../src/candle-check.ts';
 import { forecast, naiveBand, type Band, type Point, type Forecast } from '../src/forecast.ts';
 import { holmAdjusted, longestCompleteHours, varianceRatio } from '../src/market-logic.ts';
-import { legendarySeries, type LegendarySnapshot } from '../src/legendary.ts';
+import { legendarySeries, legendaryDistributionSQL, type LegendarySnapshot, type LegendaryDistribution } from '../src/legendary.ts';
 import { cardWeekday, type CardWeekdayDay } from '../src/card-weekday.ts';
 import { researchExport } from '../src/research-export.ts';
 import { weekdayTrend, WEEKDAY_MIN_WEEKS } from '../src/weekday-trend.ts';
@@ -478,7 +478,8 @@ const legendaryRows = (await history('legendaryRows', 'captured_at', ['captured_
 const research = await researchExport(client, quality.checkedAt, quality.through, historyCache);
 writeFileSync(`${OUT}/data/research.json`, JSON.stringify(research));
 const legendary = legendaryRows.slice(-1);
-writeFileSync(`${OUT}/data/legendary.json`, JSON.stringify(legendarySeries(legendaryRows, quality.checkedAt)));
+const legendaryDistributions = (await history('legendaryDistributions', 'captured_at', ['captured_at'])<LegendaryDistribution>(legendaryDistributionSQL)).rows;
+writeFileSync(`${OUT}/data/legendary.json`, JSON.stringify(legendarySeries(legendaryRows, quality.checkedAt, legendaryDistributions)));
 writeFileSync(`${OUT}/data/seasonal.json`, JSON.stringify(await exportSeasonal(client, quality.checkedAt)));
 
 // ── 스태커블 시장 거래대금 순위 ──────────────────────────────
