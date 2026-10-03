@@ -792,13 +792,12 @@ async function renderLegendary() {
     <div class="bigchg flat">싼 매물 10개 평균 · 마지막 관측 ${priceTime(latest.captured_at)} KST${stale ? ' · 관측 지연' : ''}</div>
     <div class="panel"><div class="kv">
       <div><div class="k">전체 최저호가</div><div class="v">${fmt(latest.min_unit_price)}<small> 골드</small></div></div>
-      <div><div class="k">10번째 매물 가격</div><div class="v">${fmt(latest.tenth)}<small> 골드</small></div></div>
       <div><div class="k">관측 매물</div><div class="v">${fmt(latest.total_listings)}<small> 건</small></div></div>
       <div><div class="k">매물 확인 / 대상</div><div class="v">${latest.with_listings} / ${latest.scanned}<small> 종</small></div></div>
     </div><p class="hint">최저가 카드: ${esc(latest.min_item_name)} · 관측 기간 ${data.daily[0].d}~${data.daily.at(-1).d} · ${fmt(data.observations)}회 수집</p></div>
     <div class="panel" id="legendary-panel">
       <div class="panel-head"><h3>재료 가격 흐름</h3>
-        <select class="research-select" id="legendary-price" aria-label="차트 가격 기준"><option value="mean10">싼 매물 10개 평균 · 일평균</option><option value="tenth">10번째 매물 · 일평균</option><option value="min">전체 최저호가 · 일평균</option></select>
+        <select class="research-select" id="legendary-price" aria-label="차트 가격 기준"><option value="mean10">싼 매물 10개 평균 · 일평균</option><option value="min">전체 최저호가 · 일평균</option></select>
       </div>
       <p class="desc">각 시간의 마지막 관측 가격을 일평균으로 비교합니다. 18시간 미만 관측한 날은 점만 표시하고 기간 변화에서 제외합니다. 매물 건수는 관측 시점의 잔량이며 신규 등록량이나 체결량이 아닙니다.</p>
       <div id="legendary-chart"></div>
