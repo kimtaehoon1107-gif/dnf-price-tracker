@@ -84,3 +84,9 @@ const materialChart = distributionRows({basis:'legendary', asOf:mixed.asOf,
   daily:mixed.daily.map(r=>({...r,hours:r.materialHours,vwap:r.mean10}))});
 assert.equal(materialChart[0].state, 'sparse', '구형 관측 시간을 새 지표의 관측 시간에 더하지 않음');
 console.log('싼 매물 10개: 같은 카드·중복·업그레이드·응답 상한·과거 지표 분리 통과');
+
+const bundles = cheapestMaterialListings(offers.map((row,i)=>({...row,count:i+1})))!;
+assert.equal(bundles.length,10, '여러 장 묶음도 매물 한 건으로 포함');
+assert.equal(bundles[9].count,10);
+assert.equal(materialPrice(bundles),104.5, '묶음 총액이나 수량 가중치가 아니라 매물별 개당가 평균');
+assert.equal(cheapestMaterialListings([{...offers[0],count:0}]),null);
