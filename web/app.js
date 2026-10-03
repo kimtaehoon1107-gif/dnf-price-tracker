@@ -797,7 +797,7 @@ async function renderLegendary() {
     </div><p class="hint">최저가 카드: ${esc(latest.min_item_name)} · 관측 기간 ${data.daily[0].d}~${data.daily.at(-1).d} · ${fmt(data.observations)}회 수집</p></div>
     <div class="panel" id="legendary-panel">
       <div class="panel-head"><h3>재료 가격 흐름</h3>
-        <select class="research-select" id="legendary-price" aria-label="차트 가격 기준"><option value="mean10">싼 매물 10개 평균 · 일평균</option><option value="min">전체 최저호가 · 일평균</option></select>
+        <select class="research-select" id="legendary-price" aria-label="차트 가격 기준"><option value="min">전체 최저호가 · 일평균</option><option value="mean10">싼 매물 10개 평균 · 일평균</option></select>
       </div>
       <p class="desc">각 시간의 마지막 관측 가격을 일평균으로 비교합니다. 18시간 미만 관측한 날은 점만 표시하고 기간 변화에서 제외합니다. 매물 건수는 관측 시점의 잔량이며 신규 등록량이나 체결량이 아닙니다.</p>
       <div id="legendary-chart"></div>
