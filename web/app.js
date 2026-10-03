@@ -796,10 +796,6 @@ async function renderLegendary() {
       <div><div class="k">관측 매물</div><div class="v">${fmt(latest.total_listings)}<small> 건</small></div></div>
       <div><div class="k">매물 확인 / 대상</div><div class="v">${latest.with_listings} / ${latest.scanned}<small> 종</small></div></div>
     </div><p class="hint">최저가 카드: ${esc(latest.min_item_name)} · 관측 기간 ${data.daily[0].d}~${data.daily.at(-1).d} · ${fmt(data.observations)}회 수집</p></div>
-    <div class="panel"><h3>관측한 싼 매물 10개</h3>
-      ${latest.cheapest10?.length ? `<div class="legendary-weekday-table"><table><thead><tr><th>순위</th><th>카드</th><th>등록 수량</th><th>개당 가격</th></tr></thead><tbody>${latest.cheapest10.map((row, i) => `<tr><td>${i + 1}</td><td>${esc(row.itemName)}</td><td>${fmt(row.count)}장</td><td>${fmt(row.unitPrice)} 골드</td></tr>`).join('')}</tbody></table></div>` : '<p class="desc">새 매물 목록을 아직 확인하지 못했습니다. 다음 정상 관측부터 표시합니다.</p>'}
-      <p class="hint">서로 다른 경매 매물 10건 기준 · 묶음도 개당 가격으로 비교하며 평균은 매물마다 같은 비중입니다. 동일한 카드 이름이 여러 번 나올 수 있습니다.</p>
-    </div>
     <div class="panel" id="legendary-panel">
       <div class="panel-head"><h3>재료 가격 흐름</h3>
         <select class="research-select" id="legendary-price" aria-label="차트 가격 기준"><option value="mean10">싼 매물 10개 평균 · 일평균</option><option value="tenth">10번째 매물 · 일평균</option><option value="min">전체 최저호가 · 일평균</option></select>
