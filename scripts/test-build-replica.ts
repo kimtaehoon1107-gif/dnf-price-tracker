@@ -86,6 +86,13 @@ try {
   assert.equal((await local.query('SELECT 1 FROM mirror_changed.trades WHERE id=777')).rowCount,0);
   assert.equal((await local.query('SELECT refine FROM mirror_changed.trades WHERE id=1')).rows[0].refine,2);
   assert.equal((await local.query('SELECT unit_price::text AS n FROM mirror_changed.trades WHERE id=9007199254740993')).rows[0].n,'9007199254740993');
+  const material = Array.from({length:10},(_,i)=>({auctionNo:i+1,itemId:'card',itemName:'재료',unitPrice:100+i}));
+  await local.query(`INSERT INTO legendary_card_floor(captured_at,min_unit_price,min_item_id,min_item_name,p10,median,scanned,with_listings,total_listings,upgrade,cheapest10)
+    VALUES ('2026-09-22T03:00:00Z',100,'card','재료',100,100,1,1,10,0,$1)`,[JSON.stringify(material)]);
+  const withMaterial = await capture();
+  await restore(withMaterial.replica,'mirror_material');
+  assert.deepEqual((await local.query('SELECT cheapest10 FROM mirror_material.legendary_card_floor WHERE cheapest10 IS NOT NULL')).rows[0].cheapest10,material,
+    '매물 10개 원본은 R2 복제본에도 보존');
   const before = reads;
   await assert.rejects(capture(1),/전송 예산 초과/);
   assert.equal(reads,before,'예산 검사 전에 원문을 읽으면 안 됩니다');

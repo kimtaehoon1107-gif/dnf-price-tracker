@@ -109,7 +109,9 @@ export async function unifyMarket(client: Client, sources: string[], owners: His
     await client.query(`CREATE TABLE public.${quote(table)} AS SELECT * FROM ${quote(globalSource)}.${quote(table)}`);
   for(const [table,time] of [['legendary_card_floor','captured_at'],['legendary_card_scans','started_at']]) {
     await client.query(`CREATE TABLE public.${quote(table)} (LIKE ${quote(sources[0])}.${quote(table)})`);
-    for(const epoch of globals) await client.query(`INSERT INTO public.${quote(table)} SELECT * FROM ${quote(epoch.source)}.${quote(table)}
+    if(table==='legendary_card_floor') await client.query('ALTER TABLE public.legendary_card_floor ADD COLUMN IF NOT EXISTS cheapest10 jsonb');
+    const projection=table==='legendary_card_floor' ? '(jsonb_populate_record(NULL::public.legendary_card_floor,to_jsonb(source_row))).*' : '*';
+    for(const epoch of globals) await client.query(`INSERT INTO public.${quote(table)} SELECT ${projection} FROM ${quote(epoch.source)}.${quote(table)} source_row
       WHERE tstzrange($1,$2,'[)') @> ${quote(time)} AND ${quote(time)}<=$3`,[epoch.from,epoch.to,asOf]);
   }
   await unifyCollectionHealth(client,activeSources,asOf);

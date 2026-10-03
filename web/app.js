@@ -1,7 +1,7 @@
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
 import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260928-distribution';
-import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261002-material-focus';
+import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261003-cheapest-ten';
 import { renderComparison, disposeComparison } from './comparison.js?v=20261002-comparison';
 import { packagePanelHTML } from './package.js?v=20261002-comparison';
 
@@ -451,8 +451,8 @@ function summaryCards() {
     </div>
     ${lg ? `<a class="card hl" href="#legendary-card">
       <div class="k">레전더리 0업 카드</div>
-      <div class="v">${fmt(lg.p10)}</div>
-      <div class="sub">저가 기준 P10 · 그래프 보기 →<br>최저 ${fmt(lg.min_unit_price)} · 매물 ${lg.with_listings}/${lg.scanned}종</div>
+      <div class="v">${fmt(lg.cheapest10?.length === 10 ? lg.cheapest10.reduce((sum, row) => sum + row.unitPrice, 0) / 10 : null)}</div>
+      <div class="sub">싼 매물 10개 평균 · 그래프 보기 →<br>최저 ${fmt(lg.min_unit_price)} · 매물 ${lg.with_listings}/${lg.scanned}종</div>
     </a>` : ''}
     ${weekdayReady() ? `<button type="button" class="card weekday-summary" data-weekday-open>
       <span class="k">요일별 가격 트렌드</span>
@@ -581,9 +581,9 @@ function renderList() {
         <div class="rank r">지수</div>
         <div class="nm"><div class="legendary-icon" aria-hidden="true">0업</div><div class="t">
           <b>레전더리 카드 재료 시세<span class="tag">0업</span></b>
-          <span>종류별 최저호가의 P10 · 매물 확인 ${lg.with_listings}/${lg.scanned}종</span>
+          <span>싼 매물 10개 평균 · 매물 확인 ${lg.with_listings}/${lg.scanned}종</span>
         </div></div>
-        <div class="px"><b>${fmt(lg.p10)}</b><small class="flat">P10 · 골드</small></div>
+        <div class="px"><b>${fmt(lg.cheapest10?.length === 10 ? lg.cheapest10.reduce((sum, row) => sum + row.unitPrice, 0) / 10 : null)}</b><small class="flat">10개 평균 · 골드</small></div>
         <div class="chg flat">-</div><div class="dim c5">—</div>
         <div class="dim c6">그래프 보기 →</div><div class="dim c7">—<small>매물 ${fmt(lg.total_listings)}</small></div>
       </a>` : ''}
@@ -788,29 +788,33 @@ async function renderLegendary() {
       <h2>레전더리 카드 재료 시세<span class="tag">0업</span></h2>
       <div class="meta">강화·합성 재료의 저가 호가 지표 · ${latest.scanned}종 대상</div>
     </div></div>
-    <div class="bigpx">${fmt(latest.p10)}<small> 골드</small></div>
-    <div class="bigchg flat">저가 기준가 P10 · 마지막 관측 ${priceTime(latest.captured_at)} KST${stale ? ' · 관측 지연' : ''}</div>
+    <div class="bigpx">${fmt(latest.mean10)}<small> 골드</small></div>
+    <div class="bigchg flat">싼 매물 10개 평균 · 마지막 관측 ${priceTime(latest.captured_at)} KST${stale ? ' · 관측 지연' : ''}</div>
     <div class="panel"><div class="kv">
       <div><div class="k">전체 최저호가</div><div class="v">${fmt(latest.min_unit_price)}<small> 골드</small></div></div>
-      <div><div class="k">종류별 최저호가 중앙값</div><div class="v">${fmt(latest.median)}<small> 골드</small></div></div>
+      <div><div class="k">10번째 매물 가격</div><div class="v">${fmt(latest.tenth)}<small> 골드</small></div></div>
       <div><div class="k">관측 매물</div><div class="v">${fmt(latest.total_listings)}<small> 건</small></div></div>
       <div><div class="k">매물 확인 / 대상</div><div class="v">${latest.with_listings} / ${latest.scanned}<small> 종</small></div></div>
     </div><p class="hint">최저가 카드: ${esc(latest.min_item_name)} · 관측 기간 ${data.daily[0].d}~${data.daily.at(-1).d} · ${fmt(data.observations)}회 수집</p></div>
+    <div class="panel"><h3>관측한 싼 매물 10개</h3>
+      ${latest.cheapest10?.length ? `<div class="legendary-weekday-table"><table><thead><tr><th>순위</th><th>카드</th><th>개당 가격</th></tr></thead><tbody>${latest.cheapest10.map((row, i) => `<tr><td>${i + 1}</td><td>${esc(row.itemName)}</td><td>${fmt(row.unitPrice)} 골드</td></tr>`).join('')}</tbody></table></div>` : '<p class="desc">새 매물 목록을 아직 확인하지 못했습니다. 다음 정상 관측부터 표시합니다.</p>'}
+      <p class="hint">서로 다른 경매 매물 기준 · 동일한 카드 이름이 여러 번 나올 수 있습니다.</p>
+    </div>
     <div class="panel" id="legendary-panel">
       <div class="panel-head"><h3>재료 가격 흐름</h3>
-        <select class="research-select" id="legendary-price" aria-label="차트 가격 기준"><option value="p10">P10 · 일평균</option><option value="min">전체 최저호가 · 일평균</option></select>
+        <select class="research-select" id="legendary-price" aria-label="차트 가격 기준"><option value="mean10">싼 매물 10개 평균 · 일평균</option><option value="tenth">10번째 매물 · 일평균</option><option value="min">전체 최저호가 · 일평균</option></select>
       </div>
       <p class="desc">각 시간의 마지막 관측 가격을 일평균으로 비교합니다. 18시간 미만 관측한 날은 점만 표시하고 기간 변화에서 제외합니다. 매물 건수는 관측 시점의 잔량이며 신규 등록량이나 체결량이 아닙니다.</p>
       <div id="legendary-chart"></div>
     </div>
     <div class="panel research-page">
-      <label class="research-label" for="legendary-target">예측할 가격 기준</label>
+      <label class="research-label" for="legendary-target">기존 지표 연구 · 새 10개 평균과 별개</label>
       <select class="research-select" id="legendary-target"><option value="legendary-min">전체 최저호가 · 일평균</option><option value="legendary-p10">P10 · 일평균</option></select>
       <div id="legendary-forecast"><p class="desc">저장된 예측을 불러오는 중입니다.</p></div>
       <div class="research-links"><a href="research.html">종류별 지수·예측 →</a><a href="research.html#package">패키지 이벤트 관측 →</a></div>
     </div>
     <div class="panel" id="legendary-weekday">
-      <h3>요일별 재료 가격 흐름</h3>
+      <h3>기존 P10 지표의 요일별 흐름</h3>
       <p class="desc">${weekday.ready
         ? `완료 ${weekday.weeks}주를 비교합니다. 일평균 P10을 해당 주 평균 100으로 환산하고, 전날 대비 변화율도 함께 표시합니다.`
         : `표본을 모으는 중입니다. 월~일을 모두 관측한 완료 주 ${weekday.weeks}/${weekday.minWeeks}주 · 하루 ${weekday.minHours}시간 이상 관측한 날 ${weekday.eligibleDays}일.`}</p>
@@ -822,7 +826,8 @@ async function renderLegendary() {
       <p class="hint">당일과 관측 ${weekday.minHours}시간 미만인 날은 제외합니다. 일평균은 시간별 마지막 가격에 같은 비중을 줍니다. 패치·이벤트를 포함한 관측 패턴이며, 요일 자체의 효과나 통계적 유의성을 검증한 결과는 아닙니다.</p>
     </div>
     <div class="panel"><h3>이 가격을 읽는 방법</h3>
-      <p class="desc">P10은 매물이 확인된 카드 종류별 0업 최저호가를 싼 순서로 정렬한 10% 지점입니다. 매물 수나 체결 수량으로 가중한 평균가가 아닙니다. 최저호가는 그중 가장 싼 한 매물의 가격입니다.</p>
+      <p class="desc">싼 매물 10개 평균은 관측한 0업 매물을 개당 가격순으로 정렬한 앞 10건의 평균입니다. 같은 카드의 서로 다른 매물도 포함합니다. 체결 가격이 아닌 판매자의 등록 가격이며, 관측 후 판매·취소될 수 있습니다. 10건 미만이거나 응답 상한 때문에 순위를 확인할 수 없으면 평균을 표시하지 않습니다. 새 이력은 적용 이후부터 쌓이며 과거 P10으로 채우지 않습니다.</p>
+      <p class="desc">기존 연구에 남긴 P10은 매물이 확인된 카드 종류별 0업 최저호가를 싼 순서로 정렬한 10% 지점입니다. 매물 수나 체결 수량으로 가중한 평균가가 아닙니다. 최저호가는 그중 가장 싼 한 매물의 가격입니다.</p>
       <p class="hint">등록된 ${latest.scanned}종을 대상으로 하며 카드 종류별 API 응답은 최대 400건입니다. 매물 소멸이나 개별 조회 실패로 관측되는 종류가 바뀌어도 P10과 매물 건수가 변할 수 있습니다. 상단의 매물 확인 종수와 선택한 날의 관측 시간을 함께 확인하세요.</p>
     </div>`;
 
@@ -830,7 +835,7 @@ async function renderLegendary() {
   const drawPrice = () => {
     const metric = document.getElementById('legendary-price').value;
     renderPriceDistribution(box, { basis: 'legendary', metric, asOf: data.asOf,
-      daily: data.daily.map(row => ({ ...row, vwap: row[metric] })) });
+      daily: data.daily.map(row => ({ ...row, hours: metric === 'min' ? row.hours : row.materialHours, vwap: row[metric] })) });
   };
   document.getElementById('legendary-price').onchange = drawPrice;
   drawPrice();

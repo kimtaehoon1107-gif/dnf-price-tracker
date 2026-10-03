@@ -293,6 +293,7 @@ CREATE TABLE IF NOT EXISTS legendary_card_floor (
   upgrade        INTEGER
 );
 ALTER TABLE legendary_card_floor ADD COLUMN IF NOT EXISTS upgrade INTEGER;
+ALTER TABLE legendary_card_floor ADD COLUMN IF NOT EXISTS cheapest10 JSONB;
 CREATE INDEX IF NOT EXISTS idx_lcf_time ON legendary_card_floor (captured_at);
 
 -- 이 컬럼이 생기기 전에 수집한 카드 매물은 업그레이드 단계를 알 수 없다.

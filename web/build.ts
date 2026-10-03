@@ -473,7 +473,8 @@ const packageEvent = (await query<{
 // ── 레전더리 카드 최저가 지수 ──────────────────────────────────
 const legendaryRows = (await history('legendaryRows', 'captured_at', ['captured_at'])<LegendarySnapshot>(`
     SELECT to_char(captured_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') captured_at,
-      min_unit_price, min_item_name, p10, median, scanned, with_listings, total_listings
+      min_unit_price, min_item_name, p10, median, scanned, with_listings, total_listings,
+      to_jsonb(legendary_card_floor)->'cheapest10' AS cheapest10
     FROM legendary_card_floor WHERE upgrade = 0 ORDER BY captured_at, id`)).rows;
 const research = await researchExport(client, quality.checkedAt, quality.through, historyCache);
 writeFileSync(`${OUT}/data/research.json`, JSON.stringify(research));

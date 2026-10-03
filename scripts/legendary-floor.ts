@@ -10,6 +10,8 @@
 // Actions 러너에 싣지 않고, 필요한 itemId와 이름만 별도 파일로 관리한다.
 
 import { readFileSync } from 'node:fs';
+import { cheapestMaterialListings, materialPrice } from '../src/legendary-material.ts';
+import type { AuctionRow } from '../src/api.ts';
 import { getAuction } from '../src/api.ts';
 import { pool } from '../src/db.ts';
 
@@ -52,6 +54,7 @@ async function main() {
         upgrade        INTEGER
       );
       ALTER TABLE legendary_card_floor ADD COLUMN IF NOT EXISTS upgrade INTEGER;
+      ALTER TABLE legendary_card_floor ADD COLUMN IF NOT EXISTS cheapest10 JSONB;
       CREATE INDEX IF NOT EXISTS idx_lcf_time ON legendary_card_floor (captured_at);`);
     await client.query(readFileSync('sql/legendary-scans.sql', 'utf8'));
     // 같은 잠금을 얻었으므로 남아 있는 running 실행은 종료되거나 강제 중단된 것이다.
@@ -78,6 +81,7 @@ async function main() {
       (started_at,status,expected,observations) VALUES ($1,'running',$2,$3) RETURNING id`,
     [new Date().toISOString(), cards.length, JSON.stringify(observations)])).rows[0].id;
     const found: Array<{ id: string; name: string; price: number; listings: number }> = [];
+    const materialRows: AuctionRow[] = [], cappedBoundaries: number[] = [];
     let failures = 0;
     for (let i = 0; i < cards.length; i += 10) {
       await Promise.all(cards.slice(i, i + 10).map(async (card, offset) => {
@@ -86,6 +90,8 @@ async function main() {
           // API가 명시한 upgrade=0만 남긴 뒤 최저가를 고른다.
           const response = await getAuction(card.itemId, 400);
           const auctions = response.filter((row) => row.upgrade === 0);
+          materialRows.push(...auctions);
+          if (response.length >= 400) cappedBoundaries.push(Math.max(...response.map(row => row.unitPrice)));
           observations[i + offset] = { ...card, capturedAt: new Date().toISOString(),
             status: auctions.length ? 'observed' : 'empty', minPrice: auctions[0]?.unitPrice ?? null,
             listingCount: auctions.length, responseRows: response.length, capped: response.length >= 400 };
@@ -126,19 +132,21 @@ async function main() {
       found[Math.min(found.length - 1, Math.floor(found.length * fraction))].price;
     const now = new Date().toISOString();
 
+    const cheapest10 = cheapestMaterialListings(materialRows, cappedBoundaries);
     await client.query('BEGIN');
     await client.query(`INSERT INTO legendary_card_floor
       (captured_at, min_unit_price, min_item_id, min_item_name, p10, median,
-       scanned, with_listings, total_listings, upgrade)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,0)`,
+       scanned, with_listings, total_listings, upgrade, cheapest10)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,0,$10)`,
     [now, found[0].price, found[0].id, found[0].name, quantile(0.1), quantile(0.5),
-      cards.length, found.length, found.reduce((sum, row) => sum + row.listings, 0)]);
+      cards.length, found.length, found.reduce((sum, row) => sum + row.listings, 0), cheapest10 === null ? null : JSON.stringify(cheapest10)]);
     await client.query(`UPDATE legendary_card_scans SET status='complete',finished_at=$2 WHERE id=$1`, [scanId, now]);
     await client.query('COMMIT');
     finished = true;
 
     console.log(`레전더리 카드 ${cards.length}종 스캔 · 매물 있는 것 ${found.length}종`);
     console.log(`최저가  ${found[0].price.toLocaleString()} 골드  — ${found[0].name}`);
+    console.log(`싼 매물 10개 평균 ${materialPrice(cheapest10) ?? '확인 불가'} · 관측 ${cheapest10?.length ?? 0}개`);
     console.log(`p10     ${quantile(0.1).toLocaleString()}`);
     console.log(`중앙값  ${quantile(0.5).toLocaleString()}`);
     console.log('\n최저가 5종:');
