@@ -93,6 +93,8 @@ try {
     await client.query(`CREATE TABLE hist_b.reordered AS SELECT ${fields.join(',')} FROM hist_b.${quote(table)};
       DROP TABLE hist_b.${quote(table)}; ALTER TABLE hist_b.reordered RENAME TO ${quote(table)}`);
   }
+  // A의 옛 스키마와 B의 새 열을 함께 읽어도 기존 출력은 동일해야 한다.
+  await client.query('ALTER TABLE hist_b.legendary_card_floor ADD COLUMN IF NOT EXISTS cheapest10 jsonb');
   await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
   const report = await unifyMarket(client,['hist_a','hist_b','hist_c'],owners,asOf,
     [{source:'hist_a',from:null,to:cut},{source:'hist_b',from:cut,to:null}]);

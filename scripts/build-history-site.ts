@@ -71,6 +71,7 @@ try {
       await local.query(`ALTER SCHEMA public RENAME TO ${quote(live.schema)}; CREATE SCHEMA public`);
       for(const table of Object.keys(TABLES)) {
         const name=`${quote(live.schema)}.${quote(table)}`,fresh=`${quote(`live_${live.schema}`)}.${quote(table)}`;
+        if(table==='legendary_card_floor') await local.query(`ALTER TABLE ${name} ADD COLUMN IF NOT EXISTS cheapest10 jsonb`);
         if(['trades','candles_1h','listing_snapshots','listing_deltas','legendary_card_floor','legendary_card_scans'].includes(table)) {
           const columns=captured.replica.columns[table].map(c=>c.name), keys=TABLES[table].key;
           await local.query(`INSERT INTO ${name}(${columns.map(quote).join(',')}) SELECT ${columns.map(quote).join(',')} FROM ${fresh}

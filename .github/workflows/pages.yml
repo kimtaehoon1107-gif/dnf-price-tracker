@@ -15,6 +15,7 @@ on:
       - 'src/forecast.ts'
       - 'src/market-logic.ts'
       - 'src/legendary.ts'
+      - 'src/legendary-material.ts'
       - 'src/research*.ts'
       - 'scripts/record-forecasts.ts'
       - 'sql/research.sql'

@@ -1,6 +1,8 @@
 // 같은 시간의 재스캔이 일평균을 더 크게 좌우하지 않도록 마지막 관측만 쓴다.
+import { materialPrice, type MaterialListing } from './legendary-material.ts';
 export type LegendarySnapshot = {
   captured_at: string;
+  cheapest10?: MaterialListing[] | null;
   min_unit_price: number;
   min_item_name: string;
   p10: number | null;
@@ -24,7 +26,7 @@ export function legendarySeries(rows: LegendarySnapshot[], asOf: string) {
     .sort((a, b) => Date.parse(a.captured_at) - Date.parse(b.captured_at));
   const hours = new Map<number, LegendarySnapshot>();
   for (const row of valid) hours.set(Math.floor(Date.parse(row.captured_at) / HOUR), row);
-  const hourly = [...hours].map(([hour, row]) => ({ ...row, t: new Date(hour * HOUR).toISOString() }));
+  const hourly = [...hours].map(([hour, row]) => ({ ...row, mean10: materialPrice(row.cheapest10), tenth: row.cheapest10?.length === 10 ? row.cheapest10[9].unitPrice : null, t: new Date(hour * HOUR).toISOString() }));
   const groups = new Map<string, typeof hourly>();
   for (const row of hourly) {
     const date = dateKey(Date.parse(row.t));
@@ -33,6 +35,9 @@ export function legendarySeries(rows: LegendarySnapshot[], asOf: string) {
   }
   const daily = [...groups].map(([d, group]) => ({
     d, hours: group.length,
+    materialHours: group.filter(row => row.mean10 !== null).length,
+    mean10: group.some(row => row.mean10 !== null) ? mean(group.flatMap(row => row.mean10 === null ? [] : [row.mean10])) : null,
+    tenth: group.some(row => row.tenth !== null) ? mean(group.flatMap(row => row.tenth === null ? [] : [row.tenth])) : null,
     p10: mean(group.map((row) => row.p10!)),
     min: mean(group.map((row) => row.min_unit_price)),
     listings: mean(group.map((row) => row.total_listings)),

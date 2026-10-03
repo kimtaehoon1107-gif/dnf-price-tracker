@@ -1,3 +1,4 @@
+import { cheapestMaterialListings, materialPrice } from '../src/legendary-material.ts';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { stripTypeScriptTypes } from 'node:module';
@@ -49,6 +50,7 @@ async function scan(latest: string | null, now: string, options: {
       if (sql === 'ROLLBACK') { pendingInserts = 0; return { rows: [] }; }
       if (sql.includes('INSERT INTO legendary_card_floor')) {
         if (options.failFloor) throw new Error('DB floor write failed');
+        run.cheapest10 = args[9] === null ? null : JSON.parse(args[9]);
         pendingInserts++; return { rows: [] };
       }
       throw new Error('예상하지 않은 DB 조회');
@@ -58,13 +60,14 @@ async function scan(latest: string | null, now: string, options: {
   const modules: Record<string, vm.Module> = {
     'node:fs': synthetic({ readFileSync: (path: string) => path.endsWith('.sql') ? readFileSync(path, 'utf8') :
       JSON.stringify(Array.from({ length: options.cards ?? 1 }, (_, i) => ({ itemId: String(i), itemName: `재료 카드 ${i}` }))) }),
+    '../src/legendary-material.ts': synthetic({ cheapestMaterialListings, materialPrice }),
     '../src/api.ts': synthetic({ getAuction: async (id: string) => {
       calls++;
       const outcome = options.outcomes?.[Number(id)];
       if (options.fail || outcome === 'failed') throw new Error('/auction → 503 민감한 응답 원문');
       if (outcome === 'empty') return [];
       if (outcome === 'upgraded') return [{ upgrade: 2, unitPrice: 2000000 }];
-      if (outcome === 'capped') return Array.from({ length: 400 }, () => ({ upgrade: 0, unitPrice: 1000000 }));
+      if (outcome === 'capped') return Array.from({ length: 400 }, (_, i) => ({ auctionNo: i + 1, itemId: id, itemName: '재료 카드', itemRarity: '레전더리', count: 1, upgrade: 0, unitPrice: 1000000 + i }));
       return [{ upgrade: 0, unitPrice: 1000000 }];
     } }),
     '../src/db.ts': synthetic({ pool: { connect: async () => client, end: async () => { ended = true; } } }),
@@ -120,6 +123,8 @@ const capped = await scan(null, '2026-09-18T11:05:00+09:00', { outcomes: ['cappe
 assert.equal(capped.run.observations[0].capped, true);
 assert.equal(capped.run.observations[0].listingCount, 400);
 assert.equal(capped.run.status, 'complete');
+assert.equal(capped.run.cheapest10.length, 10);
+assert.equal(capped.run.cheapest10[9].unitPrice, 1000009, '저장까지 실제 매물 순위 유지');
 const interrupted = await scan(null, '2026-09-18T11:05:00+09:00', { cards: 12, failCheckpoint: 2 });
 assert.equal(interrupted.run.status, 'interrupted');
 assert.equal(interrupted.run.observations.filter((r: any) => r.status === 'observed').length, 10, '저장된 묶음은 중단 후에도 보존');

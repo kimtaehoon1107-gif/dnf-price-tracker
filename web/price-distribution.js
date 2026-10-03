@@ -64,7 +64,7 @@ export function renderPriceDistribution(root, data, events = []) {
   disposePriceDistribution();
   const legendary = data?.basis === 'legendary';
   const ask = data?.basis === 'ask' || legendary;
-  const priceLabel = legendary ? (data.metric === 'min' ? '전체 최저호가 · 일평균' : 'P10 · 일평균') : '평균 최저호가';
+  const priceLabel = legendary ? (data.metric === 'min' ? '전체 최저호가 · 일평균' : data.metric === 'tenth' ? '10번째 매물 · 일평균' : data.metric === 'mean10' ? '싼 매물 10개 평균 · 일평균' : 'P10 · 일평균') : '평균 최저호가';
   if (!data?.daily?.length) { root.textContent = ask ? '최저호가 관측 자료가 없습니다.' : '체결 분포 자료가 없습니다.'; return; }
   root.className = 'price-distribution';
   root.innerHTML = `<div class="pd-toolbar"><div class="pd-periods" aria-label="조회 기간">
