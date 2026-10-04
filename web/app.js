@@ -1,7 +1,7 @@
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
 import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260928-distribution';
-import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261004-korean-labels';
+import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261004-recording-start';
 import { renderComparison, disposeComparison } from './comparison.js?v=20261004-korean-labels';
 import { packagePanelHTML } from './package.js?v=20261002-comparison';
 
@@ -612,7 +612,7 @@ function renderList() {
             : r.vwap1h == null
               ? `<b class="flat nov" title="최근 1시간 관측 거래이 없어 평균을 표시하지 않습니다">최근 1시간 거래 없음</b>
                  <small class="flat" title="${priceTime(r.last_trade_at)} KST">최근 ${r.last_trade_at ? `${fmt(r.last_price)}${clockTag(r.last_trade_at)}` : '-'}</small>`
-              : `<b title="최근 1시간 ${fmt(r.trades1h)}건 · ${fmt(r.api_qty1h)}개로 계산">${fmt(r.display_price)}</b>
+              : `<b title="최근 1시간 거래 ${fmt(r.trades1h)}건 · 수량 ${fmt(r.api_qty1h)}개로 계산">${fmt(r.display_price)}</b>
                  <small class="flat" title="${priceTime(r.last_trade_at)} KST">거래 ${fmt(r.last_price)}${clockTag(r.last_trade_at)}</small>`}
           </div>
           <div class="chg ${thin ? 'flat' : cls(r.chg)}"${thin ? ' title="24시간 거래 기록 5개 미만 — 신뢰하기 어렵습니다"' : ''}>${pct(r.chg)}${thin ? '<span style="color:var(--ink-4)">?</span>' : ''}</div>
@@ -896,7 +896,7 @@ async function renderDetail(it) {
     <div class="bigpx">${fmt(representativePrice(it))}${representativePrice(it) == null ? '' : '<small>골드</small>'}</div>
     ${isZeroCard && representativePrice(it) == null ? `<div class="price-meta">${it.listings === 0 ? '현재 확인된 매물 없음' : '현재 판매가 기록 없음'}</div>` : ''}
     ${isZeroCard ? '' : `<div class="price-meta">최근 거래 ${it.last_trade_at ? `${fmt(it.last_price)}골드 · ${priceTime(it.last_trade_at)} KST` : '기록 없음'}</div>
-      <div class="price-meta">${it.vwap1h == null ? '최근 1시간 관측 거래 없음' : `최근 1시간 ${fmt(it.trades1h)}건 · ${fmt(it.api_qty1h)}개로 계산`} · ${priceTime(DATA.priceAsOf)} KST 기준</div>`}
+      <div class="price-meta">${it.vwap1h == null ? '최근 1시간 관측 거래 없음' : `최근 1시간 거래 ${fmt(it.trades1h)}건 · 수량 ${fmt(it.api_qty1h)}개로 계산`} · ${priceTime(DATA.priceAsOf)} KST 기준</div>`}
     <div class="bigchg ${cls(it.chg)}">${it.chg === null
       ? (isZeroCard ? '24시간 평균 변화 비교 불가' : '데이터 없음')
       : `${pct(it.chg)} <span style="color:var(--ink-3);font-weight:500">24시간 평균 변화</span>`}</div>
