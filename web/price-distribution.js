@@ -69,15 +69,23 @@ export function renderPriceDistribution(root, data, events = []) {
   root.className = 'price-distribution';
   root.innerHTML = `<div class="pd-toolbar"><div class="pd-periods" aria-label="조회 기간">
     <button type="button" data-period="7">7일</button><button type="button" data-period="30">30일</button><button type="button" data-period="all">전체</button></div><span class="pd-extent"></span></div>
+    <p class="hint pd-recording-start"></p>
     <div class="pd-period-change"></div>
     <div class="pd-readout"><div><span class="pd-selected"></span><div class="pd-price"></div><div class="pd-range"></div></div><div class="pd-qty"></div></div>
     ${ask ? '' : '<div class="pd-legend"><span><i class="pd-line-key"></i>수량 가중 중앙값</span><span><i class="pd-band-key"></i>주요 거래 가격대</span><span>○ 거래 5건 미만</span></div>'}
     <div class="pd-plot"></div><div class="pd-thursdays" aria-label="목요일 · 실제 패치 여부와 별개"></div><div class="pd-events"></div>
     <div class="pd-status"></div><div class="pd-announcement" aria-live="polite"></div>
-    <details class="pd-help" ${ask ? 'hidden' : ''}><summary>주요 거래 가격대란?</summary><p>관측한 거래을 개당 가격순으로 놓고, 누적 수량이 25%와 75%에 도달하는 가격을 표시합니다. 가운데 50%에 해당하는 가격 구간이며 동일 가격에 거래가 몰리면 포함 수량은 더 많을 수 있습니다. 미래 가격의 예측 범위가 아닙니다. 거래 5건 미만은 표시 기준상 점만 남기며, 5건 이상이라고 통계적 신뢰성을 보장하지 않습니다.</p></details>
+    <details class="pd-help" ${ask ? 'hidden' : ''}><summary>주요 거래 가격대란?</summary><p>관측한 거래를 개당 가격순으로 놓고, 누적 수량이 25%와 75%에 도달하는 가격을 표시합니다. 가운데 50%에 해당하는 가격 구간이며 동일 가격에 거래가 몰리면 포함 수량은 더 많을 수 있습니다. 미래 가격의 예측 범위가 아닙니다. 거래 5건 미만은 표시 기준상 점만 남기며, 5건 이상이라고 통계적 신뢰성을 보장하지 않습니다.</p></details>
     <details class="pd-raw" ${legendary ? 'hidden' : ''}><summary>${ask ? '관측 최저·최고 호가와 횟수' : '원본 고가·저가와 평균 확인'}</summary><p></p></details>
     <p class="hint">${ask ? '가격이 확인된 관측만 평균합니다. 빈 구간은 매물 없음과 수집 공백을 구분할 수 없어 연결하지 않습니다.' : '수집된 거래 수량은 전체 거래량의 일부입니다. API가 최근 거래를 최대 100건까지만 제공해 누락이 있을 수 있습니다. 빈 구간은 거래 관측이 없으며 무거래와 수집 공백을 구분할 수 없습니다. 원본이 불완전한 과거 구간은 분포를 표시하지 않습니다.'}</p>`;
   const $ = s => root.querySelector(s);
+  // 선택한 기간이 아니라 해당 가격 기준의 전체 제공 이력에서 찾는다.
+  const firstRecordedDate = data.daily.filter(row => (ask ? row.vwap : row.median) > 0)
+    .map(row => row.d).sort()[0];
+  $('.pd-recording-start').textContent = firstRecordedDate
+    ? `현재 데이터의 첫 가격 기록: ${firstRecordedDate}${legendary && data.metric === 'mean10' ? ' · 10건 평균은 이 날짜부터 기록됩니다.' : ''}`
+    : '이 가격 기준의 기록이 아직 없습니다.';
+
   const state = { period: 30, selected: null };
   let rows = [], positions = new Map();
   function info(r, announce = false) {
@@ -86,7 +94,7 @@ export function renderPriceDistribution(root, data, events = []) {
     $('.pd-price').textContent = r.median == null ? '—' : `${fmt(r.median)} 골드`;
     $('.pd-range').textContent = legendary ? `${priceLabel}${r.state === 'sparse' ? ' · 관측 18시간 미만: 점만 표시' : r.state === 'missing' ? ' · 가격 관측 없음' : ''}` : ask ? (r.state === 'ready' ? '' : '가격 관측 없음') : r.state === 'ready' ? `주요 거래 가격대 ${fmt(r.q25)}–${fmt(r.q75)}`
       : r.state === 'sparse' ? `거래 ${fmt(r.n)}건 · 가격점만 표시` : r.state === 'unavailable' ? '원본 불완전 · 분포 자료 없음' : '거래 관측 없음';
-    $('.pd-qty').textContent = legendary ? (r.hours == null ? '' : `관측 ${r.hours}/24시간 · 평균 확인된 매물 ${fmt(r.listings)}건`) : ask ? (r.state === 'ready' ? `가격 관측 ${fmt(r.n)}회` : '') : r.n == null ? '관측 수량 미확인' : `관측 ${fmt(r.qty)}개 · ${fmt(r.n)}건`;
+    $('.pd-qty').textContent = legendary ? (r.hours == null ? '' : `관측 ${r.hours}/24시간 · 평균 확인된 매물 ${fmt(r.listings)}건`) : ask ? (r.state === 'ready' ? `가격 관측 ${fmt(r.n)}회` : '') : r.n == null ? '관측 수량 미확인' : `거래 ${fmt(r.n)}건 · 수량 ${fmt(r.qty)}개`;
     $('.pd-raw p').textContent = r.n == null || (ask && r.state === 'missing') ? '가격 관측 자료 없음' : `최저 ${fmt(r.l)} · 최고 ${fmt(r.h)} · ${ask ? '평균 최저 판매가' : '평균 거래가(수량 반영)'} ${fmt(r.vwap)} 골드${ask ? ` · 가격 관측 ${fmt(r.n)}회` : ''}`;
     if (announce) $('.pd-announcement').textContent = `${$('.pd-selected').textContent} · ${$('.pd-price').textContent} · ${$('.pd-range').textContent}`;
     const slider = $('.pd-plot svg');
