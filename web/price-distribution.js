@@ -64,19 +64,19 @@ export function renderPriceDistribution(root, data, events = []) {
   disposePriceDistribution();
   const legendary = data?.basis === 'legendary';
   const ask = data?.basis === 'ask' || legendary;
-  const priceLabel = legendary ? (data.metric === 'min' ? '전체 최저호가 · 일평균' : data.metric === 'tenth' ? '10번째 매물 · 일평균' : data.metric === 'mean10' ? '싼 매물 10개 평균 · 일평균' : 'P10 · 일평균') : '평균 최저호가';
-  if (!data?.daily?.length) { root.textContent = ask ? '최저호가 관측 자료가 없습니다.' : '체결 분포 자료가 없습니다.'; return; }
+  const priceLabel = legendary ? (data.metric === 'min' ? '전체 최저 판매가 · 일평균' : data.metric === 'tenth' ? '10번째 매물 · 일평균' : data.metric === 'mean10' ? '최저가 매물 10건 평균 · 일평균' : 'P10 · 일평균') : '평균 최저 판매가';
+  if (!data?.daily?.length) { root.textContent = ask ? '최저 판매가 관측 자료가 없습니다.' : '거래 분포 자료가 없습니다.'; return; }
   root.className = 'price-distribution';
   root.innerHTML = `<div class="pd-toolbar"><div class="pd-periods" aria-label="조회 기간">
     <button type="button" data-period="7">7일</button><button type="button" data-period="30">30일</button><button type="button" data-period="all">전체</button></div><span class="pd-extent"></span></div>
     <div class="pd-period-change"></div>
     <div class="pd-readout"><div><span class="pd-selected"></span><div class="pd-price"></div><div class="pd-range"></div></div><div class="pd-qty"></div></div>
-    ${ask ? '' : '<div class="pd-legend"><span><i class="pd-line-key"></i>수량 가중 중앙값</span><span><i class="pd-band-key"></i>주요 거래 가격대</span><span>○ 체결 5건 미만</span></div>'}
+    ${ask ? '' : '<div class="pd-legend"><span><i class="pd-line-key"></i>수량 가중 중앙값</span><span><i class="pd-band-key"></i>주요 거래 가격대</span><span>○ 거래 5건 미만</span></div>'}
     <div class="pd-plot"></div><div class="pd-thursdays" aria-label="목요일 · 실제 패치 여부와 별개"></div><div class="pd-events"></div>
     <div class="pd-status"></div><div class="pd-announcement" aria-live="polite"></div>
-    <details class="pd-help" ${ask ? 'hidden' : ''}><summary>주요 거래 가격대란?</summary><p>관측한 체결을 개당 가격순으로 놓고, 누적 수량이 25%와 75%에 도달하는 가격을 표시합니다. 가운데 50%에 해당하는 가격 구간이며 동일 가격에 거래가 몰리면 포함 수량은 더 많을 수 있습니다. 미래 가격의 예측 범위가 아닙니다. 체결 5건 미만은 표시 기준상 점만 남기며, 5건 이상이라고 통계적 신뢰성을 보장하지 않습니다.</p></details>
+    <details class="pd-help" ${ask ? 'hidden' : ''}><summary>주요 거래 가격대란?</summary><p>관측한 거래을 개당 가격순으로 놓고, 누적 수량이 25%와 75%에 도달하는 가격을 표시합니다. 가운데 50%에 해당하는 가격 구간이며 동일 가격에 거래가 몰리면 포함 수량은 더 많을 수 있습니다. 미래 가격의 예측 범위가 아닙니다. 거래 5건 미만은 표시 기준상 점만 남기며, 5건 이상이라고 통계적 신뢰성을 보장하지 않습니다.</p></details>
     <details class="pd-raw" ${legendary ? 'hidden' : ''}><summary>${ask ? '관측 최저·최고 호가와 횟수' : '원본 고가·저가와 평균 확인'}</summary><p></p></details>
-    <p class="hint">${ask ? '가격이 확인된 관측만 평균합니다. 빈 구간은 매물 없음과 수집 공백을 구분할 수 없어 연결하지 않습니다.' : 'API 관측 수량은 전체 거래량의 하한입니다. 빈 구간은 체결 관측이 없으며 무거래와 수집 공백을 구분할 수 없습니다. 원본이 불완전한 과거 구간은 분포를 표시하지 않습니다.'}</p>`;
+    <p class="hint">${ask ? '가격이 확인된 관측만 평균합니다. 빈 구간은 매물 없음과 수집 공백을 구분할 수 없어 연결하지 않습니다.' : '수집된 거래 수량은 전체 거래량의 일부입니다. API가 최근 거래를 최대 100건까지만 제공해 누락이 있을 수 있습니다. 빈 구간은 거래 관측이 없으며 무거래와 수집 공백을 구분할 수 없습니다. 원본이 불완전한 과거 구간은 분포를 표시하지 않습니다.'}</p>`;
   const $ = s => root.querySelector(s);
   const state = { period: 30, selected: null };
   let rows = [], positions = new Map();
@@ -85,9 +85,9 @@ export function renderPriceDistribution(root, data, events = []) {
     $('.pd-selected').textContent = `${r.d}${isThursday(r.d) ? ' · 목요일' : ''}${r.partial ? ' · 수집 중' : ''}`;
     $('.pd-price').textContent = r.median == null ? '—' : `${fmt(r.median)} 골드`;
     $('.pd-range').textContent = legendary ? `${priceLabel}${r.state === 'sparse' ? ' · 관측 18시간 미만: 점만 표시' : r.state === 'missing' ? ' · 가격 관측 없음' : ''}` : ask ? (r.state === 'ready' ? '' : '가격 관측 없음') : r.state === 'ready' ? `주요 거래 가격대 ${fmt(r.q25)}–${fmt(r.q75)}`
-      : r.state === 'sparse' ? `체결 ${fmt(r.n)}건 · 가격점만 표시` : r.state === 'unavailable' ? '원본 불완전 · 분포 자료 없음' : '체결 관측 없음';
-    $('.pd-qty').textContent = legendary ? (r.hours == null ? '' : `관측 ${r.hours}/24시간 · 평균 관측 매물 ${fmt(r.listings)}건`) : ask ? (r.state === 'ready' ? `가격 관측 ${fmt(r.n)}회` : '') : r.n == null ? '관측 수량 미확인' : `관측 ${fmt(r.qty)}개 · ${fmt(r.n)}건`;
-    $('.pd-raw p').textContent = r.n == null || (ask && r.state === 'missing') ? '가격 관측 자료 없음' : `최저 ${fmt(r.l)} · 최고 ${fmt(r.h)} · ${ask ? '평균 최저호가' : 'VWAP'} ${fmt(r.vwap)} 골드${ask ? ` · 가격 관측 ${fmt(r.n)}회` : ''}`;
+      : r.state === 'sparse' ? `거래 ${fmt(r.n)}건 · 가격점만 표시` : r.state === 'unavailable' ? '원본 불완전 · 분포 자료 없음' : '거래 관측 없음';
+    $('.pd-qty').textContent = legendary ? (r.hours == null ? '' : `관측 ${r.hours}/24시간 · 평균 확인된 매물 ${fmt(r.listings)}건`) : ask ? (r.state === 'ready' ? `가격 관측 ${fmt(r.n)}회` : '') : r.n == null ? '관측 수량 미확인' : `관측 ${fmt(r.qty)}개 · ${fmt(r.n)}건`;
+    $('.pd-raw p').textContent = r.n == null || (ask && r.state === 'missing') ? '가격 관측 자료 없음' : `최저 ${fmt(r.l)} · 최고 ${fmt(r.h)} · ${ask ? '평균 최저 판매가' : '평균 거래가(수량 반영)'} ${fmt(r.vwap)} 골드${ask ? ` · 가격 관측 ${fmt(r.n)}회` : ''}`;
     if (announce) $('.pd-announcement').textContent = `${$('.pd-selected').textContent} · ${$('.pd-price').textContent} · ${$('.pd-range').textContent}`;
     const slider = $('.pd-plot svg');
     slider.setAttribute('aria-valuenow', rows.indexOf(r));
@@ -118,7 +118,7 @@ export function renderPriceDistribution(root, data, events = []) {
     const pad = Math.max((hi-lo)*.15, hi*.002, 1), y = p => B - (p-lo+pad)/(hi-lo+2*pad)*(B-T);
     positions = new Map(rows.map((r,i) => [r.time, { x: x(i), y: r.median == null ? null : y(r.median) }]));
     const axis = p => p >= 1e8 ? `${(p/1e8).toFixed(2)}억` : p >= 1e4 ? `${(p/1e4).toFixed(1)}만` : fmt(p);
-    let svg = `<svg viewBox="0 0 ${width} ${H}" role="slider" tabindex="0" aria-label="날짜별 ${ask ? priceLabel : '체결 가격'}. 좌우 화살표로 날짜 선택" aria-valuemin="0" aria-valuemax="${rows.length-1}"><text x="${L}" y="15">골드</text>`;
+    let svg = `<svg viewBox="0 0 ${width} ${H}" role="slider" tabindex="0" aria-label="날짜별 ${ask ? priceLabel : '거래 가격'}. 좌우 화살표로 날짜 선택" aria-valuemin="0" aria-valuemax="${rows.length-1}"><text x="${L}" y="15">골드</text>`;
     if (prices.length) for (let i=0;i<4;i++) { const p=lo+(hi-lo)*i/3; if(hi===lo&&i)break;
       svg+=`<line x1="${L}" x2="${width-R}" y1="${y(p)}" y2="${y(p)}" stroke="var(--line-2)"/><text x="${L-8}" y="${y(p)+4}" text-anchor="end">${axis(p)}</text>`; }
     else svg+=`<text x="${(L+width-R)/2}" y="130" text-anchor="middle">${ask ? '가격 관측 자료 없음' : '분포 자료 없음'}</text>`;
@@ -127,7 +127,7 @@ export function renderPriceDistribution(root, data, events = []) {
     for (const segment of distributionSegments(rows)) svg+=`<path d="${segment.map((r,i)=>`${i?'L':'M'}${positions.get(r.time).x},${y(r.median)}`).join(' ')}" fill="none" stroke="var(--blue)" stroke-width="2"/>`;
     rows.forEach((r,i)=>{if(r.median!=null)svg+=`<circle cx="${x(i)}" cy="${y(r.median)}" r="${r.state==='sparse'?3.5:2.2}" fill="${r.state==='sparse'?'var(--card)':'var(--blue)'}" stroke="var(--blue)" stroke-width="1.3"/>`;});
     if (!ask || legendary) {
-      svg+=`<text x="${L}" y="255">${legendary ? '평균 관측 매물 · 건 (체결량 아님)' : 'API 관측 수량'}</text>`;
+      svg+=`<text x="${L}" y="255">${legendary ? '평균 확인된 매물 · 건 (거래량 아님)' : '수집된 거래 수량'}</text>`;
       const quantity = r => legendary ? r.listings : r.qty;
       const maxQty = Math.max(1,...rows.map(r=>quantity(r)??0));
       rows.forEach((r,i)=>{if(quantity(r)!=null){const h=quantity(r)/maxQty*42;svg+=`<rect x="${x(i)-barW/2}" y="${V-h}" width="${barW}" height="${h}" fill="var(--blue)" opacity=".23"/>`;}});

@@ -1,5 +1,5 @@
 import { comparisonSource, comparisonData } from './comparison-model.js?v=20261002-comparison';
-import { isThursday, renderThursdayMarkers } from './price-distribution.js?v=20261002-comparison';
+import { isThursday, renderThursdayMarkers } from './price-distribution.js?v=20261004-korean-labels';
 
 const fmt = n => n == null ? '관측 없음' : Math.round(n).toLocaleString('ko-KR');
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -15,14 +15,14 @@ export function renderComparison(root, data, initialId) {
   const cache = new Map();
   root.innerHTML = `<a class="back" href="#">← 전체 목록</a><section class="comparison">
     <h2>아이템 비교</h2><p class="desc">동일한 가격 기준의 두 아이템을 같은 기간으로 비교합니다.</p>
-    <div class="compare-filters"><label>가격 기준<select data-kind><option value="trade">일반 아이템 · 체결 중앙값</option><option value="ask0">카드 · 평균 최저호가</option></select></label>
-    <label class="compare-stage">카드 단계<select data-stage><option value="zero">0업끼리</option><option value="max">맥스업끼리</option></select></label></div>
+    <div class="compare-filters"><label>가격 기준<select data-kind><option value="trade">일반 아이템 · 거래 중앙값</option><option value="ask0">카드 · 평균 최저 판매가</option></select></label>
+    <label class="compare-stage">카드 단계<select data-stage><option value="zero">0업끼리</option><option value="max">풀업끼리</option></select></label></div>
     <div class="compare-selectors"><label>아이템 A<select data-item="a"></select></label><label>아이템 B<select data-item="b"></select></label></div>
     <div class="panel"><div class="compare-toolbar"><div class="compare-buttons" aria-label="비교 기간"><button type="button" data-period="7">7일</button><button type="button" data-period="30">30일</button><button type="button" data-period="all">전체</button></div>
     <div class="compare-buttons" aria-label="가격 표시 방식"><button type="button" data-mode="index">변화 비교 · 시작 100</button><button type="button" data-mode="price">실제 가격</button></div></div>
     <p class="compare-status" role="status"></p><div class="compare-summaries"></div><div class="compare-plot"></div><div class="pd-thursdays" aria-label="목요일 · 실제 패치 여부와 별개"></div>
     <div class="compare-selected" aria-live="polite"></div><label class="compare-date">날짜 선택<input type="range" min="0" max="0" value="0" aria-label="비교 날짜"></label>
-    <p class="hint compare-basis"></p><p class="hint">시작 100은 같은 시작일의 가격을 100으로 맞춘 지수입니다. 가격 크기나 구매 유리함을 뜻하지 않습니다. 오늘은 제외하며, 관측이 없거나 체결이 5건 미만인 날짜는 선으로 연결하지 않습니다. ‘목’은 요일 표시로 실제 패치 여부와는 별개입니다.</p></div></section>`;
+    <p class="hint compare-basis"></p><p class="hint">시작 100은 같은 시작일의 가격을 100으로 맞춘 지수입니다. 가격 크기나 구매 유리함을 뜻하지 않습니다. 오늘은 제외하며, 관측이 없거나 거래이 5건 미만인 날짜는 선으로 연결하지 않습니다. ‘목’은 요일 표시로 실제 패치 여부와는 별개입니다.</p></div></section>`;
   const $ = s => root.querySelector(s);
   function setItems() {
     items = data.items.filter(i => i.price_basis === state.kind);
@@ -63,8 +63,8 @@ export function renderComparison(root, data, initialId) {
     root.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === state.mode)));
     const chosen = [state.a,state.b].map(id => items.find(i => i.item_id === id));
     $('.compare-basis').textContent = state.kind === 'ask0'
-      ? `일평균 최저호가 · ${state.stage === 'zero' ? '두 카드 모두 0업' : chosen.map(i => `${i?.item_name ?? ''} ${i?.max_upgrade ?? '맥스'}업`).join(' / ')} · 실제 체결가와 다릅니다.`
-      : '일별 수량 가중 중앙값 · 상세 상단의 최근 1시간 VWAP과 계산 기준이 다릅니다.';
+      ? `일평균 최저 판매가 · ${state.stage === 'zero' ? '두 카드 모두 0업' : chosen.map(i => `${i?.item_name ?? ''} ${i?.max_upgrade ?? '맥스'}업`).join(' / ')} · 실제 거래가와 다릅니다.`
+      : '일별 수량 가중 중앙값 · 상세 상단의 최근 1시간 평균 거래가와 계산 기준이 다릅니다.';
     const model = comparisonData(sources, state.period);
     if (!model.from || !model.to) {
       if (sources.length) $('.compare-status').textContent = '두 아이템에 모두 가격이 있는 완료일이 2일 이상 필요합니다.';
