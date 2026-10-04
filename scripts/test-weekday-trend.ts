@@ -62,7 +62,7 @@ assert.match(html, /전날 대비 변화율/);
 assert.match(html, /조건 충족 2\/2종/);
 assert.equal((html.match(/<th>[월화수목금토일]<\/th>/g) ?? []).length, 7, '7개 요일을 모두 표시');
 assert.match(render('소울 결정'), /조건 충족 1\/1종/);
-assert.match(render('카드', '딜러', 'askMax'), /카드 맥스업 호가/);
+assert.match(render('카드', '딜러', 'askMax'), /카드 풀업 판매가/);
 assert.doesNotMatch(render('카드', '버퍼'), /요일별 가격 트렌드/, '역할 필터 반영 — 후보가 없는 역할은 패널을 숨김');
 const pending = render('소울 결정', '전체', 'trade', { ...data, weekdayTrends: { items: [
   { item_id: 'cheap', basis: 'trade', ...weekdayTrend(history(1, 1), before) },
