@@ -78,7 +78,9 @@ function depthQuote(levels, target) {
   return { filled, avg: filled === target ? cost / target : null };
 }
 
-function depthSVG(levels, limit = 10) {
+let depthObserver = null;
+
+function depthSVG(levels, limit = 10, width = 540) {
   const shown = [];
   let total = 0;
   for (const level of levels) {
@@ -88,7 +90,7 @@ function depthSVG(levels, limit = 10) {
   }
   if (!shown.length) return '';
 
-  const W = 540, H = 250, L = 76, R = 40, T = 24, B = 40;
+  const W = width, H = 250, L = 76, R = 40, T = 24, B = 40;
   const plotW = W - L - R, plotH = H - T - B;
   const prices = shown.map((x) => x.price);
   const minPrice = Math.min(...prices), maxPrice = Math.max(...prices);
@@ -106,7 +108,12 @@ function depthSVG(levels, limit = 10) {
   }
   const area = `${line} L ${xAt(total)} ${T + plotH} L ${xAt(0)} ${T + plotH} Z`;
   const priceTicks = minPrice === maxPrice ? [minPrice] : [minPrice, (minPrice + maxPrice) / 2, maxPrice];
-  const qtyTicks = [...new Set([0, ...(limit === 10 ? [1, 2, 5] : [10, 50]), total])].filter((x) => x <= total);
+  // 좁은 화면에서는 인접 수량 눈금을 생략해 글자가 겹치지 않게 한다.
+  const qtyTicks = [0];
+  for (const qty of (limit === 10 ? [1, 2, 5] : [10, 50])) {
+    if (qty < total && xAt(qty) - xAt(qtyTicks.at(-1)) >= 36 && xAt(total) - xAt(qty) >= 36) qtyTicks.push(qty);
+  }
+  qtyTicks.push(total);
 
   return `<div class="depth-chart">
     <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="가격별 누적 매물, 최대 ${fmt(total)}개">
@@ -403,6 +410,8 @@ function upgradeEconomicsHTML(it) {
 }
 
 function render() {
+  depthObserver?.disconnect();
+  depthObserver = null;
   disposePriceDistribution();
   disposeComparison();
   legendaryForecastCleanup?.();
@@ -999,9 +1008,25 @@ async function renderDetail(it) {
       </div>
       <div id="depth-plot">${depthSVG(depth)}</div>`
       : '<p style="color:var(--ink-3);margin:0">현재 열린 매물이 없습니다.</p>';
+    const plot = document.getElementById('depth-plot');
+    let depthLimit = 10, lastWidth = 0;
+    const drawDepth = () => {
+      const width = plot?.getBoundingClientRect().width;
+      if (!width) return;
+      lastWidth = width;
+      plot.innerHTML = depthSVG(depth, depthLimit, width);
+    };
+    if (plot) {
+      drawDepth();
+      depthObserver = new ResizeObserver(() => {
+        if (plot.getBoundingClientRect().width !== lastWidth) drawDepth();
+      });
+      depthObserver.observe(plot);
+    }
     document.querySelectorAll('[data-depth-limit]').forEach(button => {
       button.onclick = () => {
-        document.getElementById('depth-plot').innerHTML = depthSVG(depth, Number(button.dataset.depthLimit));
+        depthLimit = Number(button.dataset.depthLimit);
+        drawDepth();
         document.querySelectorAll('[data-depth-limit]').forEach(option => {
           option.classList.toggle('on', option === button);
           option.setAttribute('aria-pressed', String(option === button));
