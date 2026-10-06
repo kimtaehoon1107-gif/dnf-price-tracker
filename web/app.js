@@ -1,8 +1,9 @@
+import { loadSummary } from "./summary-data.js?v=20261006-performance";
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
 import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260928-distribution';
-import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261004-recording-start';
-import { renderComparison, disposeComparison } from './comparison.js?v=20261004-korean-labels';
+import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261006-performance';
+import { renderComparison, disposeComparison } from './comparison.js?v=20261006-performance';
 import { packagePanelHTML } from './package.js?v=20261002-comparison';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
@@ -178,7 +179,7 @@ function weekdaySVG(points, key, title, baselineLabel = '아이템 평균 100', 
   const aria = points.map((point) => `${point.label}요일 ${point[key] === null ? '관측 없음' : point[key].toFixed(1)}, 표본 ${point.n}일`).join(', ');
 
   return `<div class="weekday-chart">
-    <h4>${title}</h4>
+    <h2>${title}</h2>
     <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(`${title}. ${baselineLabel}. ${aria}`)}">
       <title>${esc(`${title} · ${baselineLabel}`)}</title>
       <rect class="weekday-thursday" x="${L + slot * 3}" y="${T - 8}" width="${slot}" height="${plotH + 25}" rx="8"/>
@@ -348,10 +349,19 @@ function renderDataStatus(now = Date.now()) {
       : '. 사이트는 매시간 갱신되며 실시간 가격이 아닙니다.');
 }
 
+let chartLibrary;
+function loadChartLibrary() {
+  if (window.LightweightCharts) return Promise.resolve();
+  return chartLibrary ??= new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js';
+    script.onload = resolve;
+    script.onerror = () => { chartLibrary = undefined; script.remove(); reject(new Error('차트 라이브러리를 불러오지 못했습니다.')); };
+    document.head.append(script);
+  });
+}
 async function boot() {
-  const response = await fetch('data/summary.json', { cache: 'no-cache' });
-  if (!response.ok) throw new Error(`요약 데이터 HTTP ${response.status}`);
-  DATA = await response.json();
+  DATA = await loadSummary();
   renderDataStatus();
   setInterval(renderDataStatus, 60000);
   render();
@@ -426,6 +436,7 @@ function render() {
     }
   });
   const it = DATA.items.find((x) => x.item_id === id);
+  document.title = it ? `${it.item_name} 시세 · 던파 경매장` : id === "legendary-card" ? "레전더리 카드 재료 시세 · 던파 경매장" : "던파 경매장 시세 추적기";
   scrollTo(0, 0);
   if (id === 'compare' || id.startsWith('compare?')) {
     detailItemId = null;
@@ -853,6 +864,7 @@ async function renderLegendary() {
     if (!researchResponse.ok) throw new Error('예측 응답 실패');
     const research = await researchResponse.json();
     const { renderForecast } = await import('./research-ui.js?v=20260920-data');
+    await loadChartLibrary();
     if (location.hash.slice(1) !== 'legendary-card' || !box.isConnected) return;
     const drawForecast = () => {
       legendaryForecastCleanup?.();
@@ -987,6 +999,8 @@ async function renderDetail(it) {
     ? { ...rawSeries, ...rawSeries.max, stock: rawSeries.max?.stock ?? [], events: rawSeries.events ?? [], askGap: [] }
     : rawSeries;
   // 해시가 바뀐 사이 이전 요청이 늦게 도착하면 새 상세 화면을 덮지 않는다.
+  if (location.hash.slice(1) !== it.item_id || cardMode !== (showingMax ? 'max' : 'zero')) return;
+  await loadChartLibrary();
   if (location.hash.slice(1) !== it.item_id || cardMode !== (showingMax ? 'max' : 'zero')) return;
   if (hasDepth) {
     const depth = (s.depth ?? []).filter(level => level.price > 0 && level.qty > 0).sort((a, b) => a.price - b.price);
