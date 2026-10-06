@@ -161,18 +161,60 @@
 body{transition:padding-right 220ms ease}body.market-chat-open{padding-right:370px}#cd-panel{position:fixed;right:16px;top:82px;bottom:18px;width:338px;z-index:200;background:#fff;color:#18314c;border:1px solid #dde5ee;border-radius:16px;box-shadow:0 10px 32px #18314c18;display:flex;flex-direction:column;font:14px/1.5 system-ui,sans-serif}#cd-panel{transition:transform 220ms ease,opacity 220ms ease,visibility 220ms;transform:translateX(0);opacity:1;visibility:visible}#cd-panel.cd-closed{transform:translateX(24px);opacity:0;visibility:hidden;pointer-events:none}#cd-panel *{box-sizing:border-box}#cd-panel[hidden],#cd-launch[hidden],#cd-panel [hidden]{display:none!important}#cd-panel header{position:static;padding:16px;border-bottom:1px solid #e3e9f0;display:block;height:auto;background:white}#cd-panel .cd-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}#cd-panel button,#cd-launch{font:inherit;padding:7px 10px;border:1px solid #dce4ef;border-radius:8px;color:#234664;background:white;cursor:pointer}#cd-panel button[aria-pressed=true],#cd-panel .cd-send,#cd-launch{background:#1765cc;color:white;border-color:#1765cc}#cd-panel .cd-small{font-size:12px;color:#65788d}#cd-panel .cd-tabs{display:flex;gap:6px;margin-top:12px}#cd-list{flex:1;overflow:auto;padding:0 16px;min-height:90px}#cd-list article{padding:14px 0;border-bottom:1px solid #e4eaf1;overflow-wrap:anywhere}#cd-list p{margin:7px 0}#cd-panel .cd-link{border:0;padding:3px 0;color:#1765cc;background:transparent;font-size:12px;text-align:left}#cd-panel .cd-reply{border-left:2px solid #d7e4f4;padding:7px 10px;margin-top:8px;background:#f5f8fc}#cd-form{border-top:1px solid #e1e7ef;padding:14px 16px;background:#f6f8fc;border-radius:0 0 16px 16px;max-height:60%;overflow:auto}#cd-panel input,#cd-panel textarea{width:100%;border:1px solid #d9e3ef;background:#fff;color:#18314c;padding:9px;border-radius:8px;font:14px system-ui;min-width:0}#cd-panel textarea{min-height:64px;resize:vertical;margin:8px 0}#cd-picker{margin:8px 0;padding:10px;background:#fff;border:1px solid #dbe3ed;border-radius:8px}#cd-results{max-height:170px;overflow:auto;display:grid;gap:4px;margin-top:7px}#cd-results button{text-align:left;font-size:12px}#cd-launch{position:fixed;bottom:20px;right:20px;z-index:201;box-shadow:0 5px 20px #172b4d22;font:14px system-ui}#cd-notice{font-size:12px;color:#586d86;margin-top:5px}#cd-panel .cd-tag-label{overflow-wrap:anywhere;max-width:100%}
 @media(max-width:1150px){body.market-chat-open{padding-right:0}#cd-panel{width:min(370px,calc(100vw - 24px));top:95px;bottom:14px;right:12px}}@media(max-width:600px){#cd-panel{top:20%;width:100%;right:0;bottom:0;border-radius:18px 18px 0 0}#cd-panel button{min-height:40px}#cd-panel input,#cd-panel textarea{font-size:16px}#cd-panel.cd-closed{transform:translateY(24px)}}@media(prefers-reduced-motion:reduce){body,#cd-panel{transition:none}}
 `;
+  style.textContent += `
+/* 화면 오른쪽 레일에서 펼치는 커뮤니티 패널 */
+body{padding-right:56px}body.market-chat-open{padding-right:416px}
+#cd-rail{position:fixed;inset:0 0 0 auto;width:56px;z-index:202;background:#f5f6f8;border-left:1px solid #e8ebef;display:flex;align-items:center;flex-direction:column;padding-top:16px;gap:18px;color:#8b95a1}
+#cd-launch{position:relative;inset:auto;width:40px;height:40px;padding:0;border:0;border-radius:10px;box-shadow:none;background:transparent;color:#8b95a1;font:24px/1 system-ui;cursor:pointer}
+#cd-launch:hover,#cd-launch:focus-visible{background:#e8edf3;color:#3182f6}
+#cd-rail-chat{position:relative;display:grid;justify-items:center;gap:6px;width:48px;padding:10px 0;border:0;border-radius:10px;background:transparent;color:#8b95a1;font:11px system-ui;cursor:pointer}
+#cd-rail-chat svg{width:21px;height:21px}#cd-rail-chat[aria-pressed=true]{color:#3182f6;background:#e8f1ff}
+#cd-rail-badge{position:absolute;right:4px;top:1px;min-width:15px;height:15px;padding:0 3px;border-radius:9px;background:#3182f6;color:#fff;font:10px/15px system-ui}#cd-rail-badge[hidden]{display:none}
+#cd-panel{right:56px;top:0;bottom:0;width:360px;border:0;border-left:1px solid #e8ebef;border-radius:0;box-shadow:none;background:#fafbfc;color:#333d4b;transform:translateX(0);overflow:hidden}
+#cd-panel.cd-closed{transform:translateX(100%)}
+#cd-panel header{padding:24px 20px 16px;background:#fafbfc;border-bottom:1px solid #e8ebef}
+#cd-panel header strong{font-size:18px;letter-spacing:-.5px}#cd-panel .cd-small{color:#8b95a1}
+#cd-panel #cd-close{border:0;background:transparent;color:#8b95a1;font-size:20px;padding:0 6px}
+#cd-panel .cd-tabs{background:#f0f2f5;border-radius:10px;padding:3px;gap:3px;margin:20px 0 12px}
+#cd-panel .cd-tabs button{flex:1;border:0;background:transparent;color:#8b95a1;font-weight:600}
+#cd-panel .cd-tabs button[aria-pressed=true]{background:#fff;color:#333d4b;box-shadow:0 1px 4px #191f2810}
+#cd-panel header>.cd-link{margin:12px 16px 0 0;color:#8b95a1}
+#cd-list{padding:0 20px}#cd-list article{padding:20px 0;border-color:#edf0f3}#cd-list p{line-height:1.7;color:#4e5968}
+#cd-panel .cd-reply{background:#f2f4f6;border-color:#e5e8eb;border-radius:0 8px 8px 0}
+#cd-form{padding:18px 20px;background:#fafbfc;border-radius:0;border-color:#e8ebef}
+#cd-panel input,#cd-panel textarea{background:#f2f4f6;border-color:transparent;border-radius:10px;color:#333d4b}
+#cd-panel input:focus,#cd-panel textarea:focus{outline:2px solid #3182f6;outline-offset:1px}
+#cd-panel .cd-send{background:#3182f6;border:0;border-radius:10px;font-weight:600;padding:9px 16px}
+@media(max-width:1150px){body.market-chat-open{padding-right:56px}#cd-panel{width:360px;right:56px;top:0;bottom:0;box-shadow:-12px 0 30px #191f280c}}
+@media(max-width:600px){body,body.market-chat-open{padding-right:44px}#cd-rail{width:44px;padding-top:10px}#cd-launch{width:36px}#cd-rail-chat{width:40px}#cd-panel{width:calc(100% - 44px);right:44px;top:0;bottom:0;border-radius:0}#cd-panel header{padding:16px}#cd-list{padding:0 16px}#cd-form{padding:14px 16px}#cd-panel.cd-closed{transform:translateX(100%)}}
+`;
   document.head.append(style);
 
   const panel = document.createElement("aside");
   panel.id = "cd-panel";
   panel.setAttribute("aria-label", "시세 이야기");
-  panel.innerHTML = `<header><div class="cd-row"><strong>시세 이야기</strong><button type="button" id="cd-close" aria-label="대화 패널 접기">접기</button></div><div class="cd-small">아이템 시세와 사이트 의견을 나눠보세요.</div><div class="cd-tabs"><button type="button" id="cd-all" aria-pressed="true">전체</button><button type="button" id="cd-current" aria-pressed="false">현재 아이템</button></div><div id="cd-context" class="cd-small"></div></header><div id="cd-list"></div><form id="cd-form"><div id="cd-replying" class="cd-small"></div><label class="cd-small" for="cd-nick">닉네임</label><input id="cd-nick" maxlength="20" placeholder="모험가"><textarea id="cd-text" aria-label="이야기 내용" placeholder="이야기를 남겨보세요. @로 아이템 검색" required maxlength="200" aria-controls="cd-results" aria-autocomplete="list" aria-expanded="false"></textarea><div id="cd-picker" hidden><div class="cd-small">아이템 연결 · ↑↓ 선택 / Enter 확인</div><div id="cd-results" role="listbox" aria-label="아이템 검색 후보"></div></div><div class="cd-row"><span class="cd-small">200자 · 태그 최대 5개</span><button class="cd-send" type="submit">등록</button></div><div id="cd-notice" role="status"></div></form>`;
+  panel.innerHTML = `<header><div class="cd-row"><strong>시세 이야기</strong><button type="button" id="cd-close" aria-label="대화 패널 접기">≫</button></div><div class="cd-small">아이템 시세와 사이트 의견을 나눠보세요.</div><div class="cd-tabs"><button type="button" id="cd-all" aria-pressed="true">전체</button><button type="button" id="cd-current" aria-pressed="false">현재 아이템</button></div><div id="cd-context" class="cd-small"></div></header><div id="cd-list"></div><form id="cd-form"><div id="cd-replying" class="cd-small"></div><label class="cd-small" for="cd-nick">닉네임</label><input id="cd-nick" maxlength="20" placeholder="모험가"><textarea id="cd-text" aria-label="이야기 내용" placeholder="이야기를 남겨보세요. @로 아이템 검색" required maxlength="200" aria-controls="cd-results" aria-autocomplete="list" aria-expanded="false"></textarea><div id="cd-picker" hidden><div class="cd-small">아이템 연결 · ↑↓ 선택 / Enter 확인</div><div id="cd-results" role="listbox" aria-label="아이템 검색 후보"></div></div><div class="cd-row"><span class="cd-small">200자 · 태그 최대 5개</span><button class="cd-send" type="submit">등록</button></div><div id="cd-notice" role="status"></div></form>`;
   document.body.append(panel);
   const launch = document.createElement("button");
   launch.id = "cd-launch";
-  launch.textContent = "시세 이야기 열기";
-  launch.hidden = true;
-  document.body.append(launch);
+  launch.textContent = "≪";
+  launch.setAttribute("aria-label", "시세 이야기 열기");
+  launch.setAttribute("aria-controls", "cd-panel");
+  const rail = document.createElement("nav");
+  rail.id = "cd-rail";
+  rail.setAttribute("aria-label", "시세 이야기 사이드바");
+  const railChat = document.createElement("button");
+  railChat.id = "cd-rail-chat";
+  railChat.type = "button";
+  railChat.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 11.5a8 8 0 0 1-8 8H5l-3 2v-10a9 9 0 0 1 18 0Z"/><path d="M7 10h9M7 14h6"/></svg><span>이야기</span>';
+  railChat.setAttribute("aria-label", "시세 이야기 열기");
+  railChat.setAttribute("aria-controls", "cd-panel");
+  const railBadge = document.createElement("span");
+  railBadge.id = "cd-rail-badge";
+  railBadge.hidden = true;
+  railChat.append(railBadge);
+  rail.append(launch, railChat);
+  document.body.append(rail);
   const q = (s) => panel.querySelector(s),
     name = (id) => items.find((i) => i.id === id)?.name || "전체 이야기",
     current = () =>
@@ -426,7 +468,11 @@ body{transition:padding-right 220ms ease}body.market-chat-open{padding-right:370
     panel.classList.toggle("cd-closed", !value);
     panel.inert = !value;
     panel.setAttribute("aria-hidden", String(!value));
-    launch.hidden = value;
+    launch.textContent = value ? "≫" : "≪";
+    launch.setAttribute("aria-label", value ? "시세 이야기 접기" : "시세 이야기 열기");
+    launch.setAttribute("aria-expanded", String(value));
+    railChat.setAttribute("aria-pressed", String(value));
+    railChat.setAttribute("aria-label", value ? "시세 이야기 접기" : "시세 이야기 열기");
     document.body.classList.toggle("market-chat-open", value);
     if (focus) (value ? q("#cd-close") : launch).focus();
     window.dispatchEvent(new Event("resize"));
@@ -436,7 +482,11 @@ body{transition:padding-right 220ms ease}body.market-chat-open{padding-right:370
       window.dispatchEvent(new Event("resize"));
   });
   q("#cd-close").onclick = () => opened(false);
-  launch.onclick = () => opened(true);
+  launch.onclick = () => opened(panel.classList.contains("cd-closed"));
+  railChat.onclick = launch.onclick;
+  panel.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !query) opened(false);
+  });
 
   const extras = document.createElement("style");
   extras.textContent =
@@ -498,9 +548,9 @@ body{transition:padding-right 220ms ease}body.market-chat-open{padding-right:370
   function updateUnread() {
     news.hidden = !unread;
     news.textContent = "새 이야기 " + unread + "개 ↑";
-    launch.textContent = unread
-      ? "시세 이야기 · 새 글 " + unread
-      : "시세 이야기 열기";
+    railBadge.hidden = !unread;
+    railBadge.textContent = unread > 99 ? "99+" : String(unread);
+    railChat.title = unread ? "새 이야기 " + unread + "개" : "시세 이야기";
   }
   news.onclick = () => {
     q("#cd-list").scrollTop = 0;
