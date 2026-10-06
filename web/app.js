@@ -2,8 +2,7 @@ import { loadSummary } from "./summary-data.js?v=20261006-performance";
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
 import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260928-distribution';
-import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261006-performance';
-import { itemForecastPanel, mountForecastReview } from './forecast-review.js?v=20261007-item';
+import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261007-forward';
 import { renderComparison, disposeComparison } from './comparison.js?v=20261006-performance';
 import { packagePanelHTML } from './package.js?v=20261002-comparison';
 
@@ -945,7 +944,6 @@ async function renderDetail(it) {
         </div>
       </details>
     </div>
-    ${itemForecastPanel(it.item_id)}
     <div class="detail-metrics" aria-label="시세 보조 지표"><div class="kv">${isZeroCard ? `
       <div><div class="k">24시간 평균 ${cardTier} 최저 판매가</div><div class="v">${fmt(it.vwap24)}</div></div>
       <div><div class="k">현재 ${cardTier} 최저 판매가</div><div class="v">${fmt(it.min_ask)}</div></div>
@@ -988,7 +986,6 @@ async function renderDetail(it) {
       <div id="weekday-profile"></div>
     </div>`}`;
 
-  mountForecastReview(document.getElementById('forecast-review'),it.item_id);
   document.querySelectorAll('.upgrade-sw button').forEach((button) => {
     button.onclick = () => {
       cardMode = button.dataset.cardMode;
@@ -1180,10 +1177,10 @@ async function renderDetail(it) {
 
   desc.textContent = isZeroCard
     ? `일평균 ${cardTier} 최저 판매가 · 실제 거래가와 다릅니다.`
-    : '일별 수량 가중 중앙값 · 상단의 최근 1시간 평균 거래가와 계산 기준이 다릅니다.';
+    : s.inlineForecast ? '일별 평균 거래가(거래 수량 반영) · 점선은 요일 추가 ARIMA 실험 예측입니다.' : '일별 수량 가중 중앙값 · 상단의 최근 1시간 평균 거래가와 계산 기준이 다릅니다.';
   renderPriceDistribution(document.getElementById('c1'), isZeroCard
     ? { basis: 'ask', asOf: DATA.priceAsOf ?? DATA.builtAt, daily: d }
-    : s.distribution, events);
+    : s.inlineForecast ? { ...s.distribution, metric: 'vwap', daily: d.map(row => ({ ...row, ...(s.distribution?.daily.find(p => p.d === row.d) ?? {}), vwap: row.vwap })), forecast: s.inlineForecast } : s.distribution, events);
 
   if (!isZeroCard && s.askGap?.length) {
     const box4 = document.getElementById('c4');
