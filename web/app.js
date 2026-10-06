@@ -1,8 +1,9 @@
+import { loadSummary } from "./summary-data.js?v=20261006-performance";
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
 import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260928-distribution';
-import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261004-recording-start';
-import { renderComparison, disposeComparison } from './comparison.js?v=20261004-korean-labels';
+import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261006-performance';
+import { renderComparison, disposeComparison } from './comparison.js?v=20261006-performance';
 import { packagePanelHTML } from './package.js?v=20261002-comparison';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
@@ -178,7 +179,7 @@ function weekdaySVG(points, key, title, baselineLabel = '아이템 평균 100', 
   const aria = points.map((point) => `${point.label}요일 ${point[key] === null ? '관측 없음' : point[key].toFixed(1)}, 표본 ${point.n}일`).join(', ');
 
   return `<div class="weekday-chart">
-    <h4>${title}</h4>
+    <h2>${title}</h2>
     <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(`${title}. ${baselineLabel}. ${aria}`)}">
       <title>${esc(`${title} · ${baselineLabel}`)}</title>
       <rect class="weekday-thursday" x="${L + slot * 3}" y="${T - 8}" width="${slot}" height="${plotH + 25}" rx="8"/>
@@ -348,10 +349,19 @@ function renderDataStatus(now = Date.now()) {
       : '. 사이트는 매시간 갱신되며 실시간 가격이 아닙니다.');
 }
 
+let chartLibrary;
+function loadChartLibrary() {
+  if (window.LightweightCharts) return Promise.resolve();
+  return chartLibrary ??= new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js';
+    script.onload = resolve;
+    script.onerror = () => { chartLibrary = undefined; script.remove(); reject(new Error('차트 라이브러리를 불러오지 못했습니다.')); };
+    document.head.append(script);
+  });
+}
 async function boot() {
-  const response = await fetch('data/summary.json', { cache: 'no-cache' });
-  if (!response.ok) throw new Error(`요약 데이터 HTTP ${response.status}`);
-  DATA = await response.json();
+  DATA = await loadSummary();
   renderDataStatus();
   setInterval(renderDataStatus, 60000);
   render();
@@ -426,6 +436,7 @@ function render() {
     }
   });
   const it = DATA.items.find((x) => x.item_id === id);
+  document.title = it ? `${it.item_name} 시세 · 던파 경매장` : id === "legendary-card" ? "레전더리 카드 재료 시세 · 던파 경매장" : "던파 경매장 시세 추적기";
   scrollTo(0, 0);
   if (id === 'compare' || id.startsWith('compare?')) {
     detailItemId = null;
@@ -510,18 +521,19 @@ function weekdayTrendHTML() {
     ${group.eligibleItems ? `<div class="weekday-grid">
       ${weekdaySVG(group.points, 'price', '요일별 가격 수준', '종목별 해당 주 평균 100')}
       ${weekdaySVG(group.points.map((p) => ({ ...p, n: p.changeN })), 'change', '전날 대비 변화율 (%)', '실제 전날 가격 대비 변화율', 0)}
-    </div>` : `<p class="weekday-empty">월~일을 모두 관측한 주가 종목별로 4주 쌓이면 그래프가 표시됩니다. 지금은 요일별 유효 관측 수를 확인할 수 있습니다.</p>`}
-    ${group.eligibleItems ? `<div class="legendary-weekday-table"><table><thead><tr><th>요일</th><th>가격 수준<br>주평균 100</th><th>전날 대비</th><th>계산 표본<br>가격 / 변화</th><th>유효 관측</th></tr></thead><tbody>
+    </div>` : `<p class="weekday-empty">월~일을 모두 관측한 주가 종목별로 4주 쌓이면 그래프가 표시됩니다. 아래 숫자는 가격이나 등락률이 아니라, 분석에 사용할 수 있는 기록 수입니다.</p>`}
+    ${group.eligibleItems ? `<details class="weekday-detail"><summary>상세 수치·표본 보기</summary><div class="legendary-weekday-table"><table><thead><tr><th>요일</th><th>가격 수준<br>주평균 100</th><th>전날 대비</th><th>계산 표본<br>가격 / 변화</th><th>유효 관측</th></tr></thead><tbody>
       ${group.points.map((p) => `<tr${p.k === 4 ? ' class="weekday-thu-row"' : ''}><th>${p.label}</th>
         <td>${fmt(p.price, 1)}</td><td class="${cls(p.change)}">${pct(p.change)}</td>
         <td title="가격 ${group.eligibleItems}종 · 변화 ${p.changeItems}종">${p.n} / ${p.changeN}</td><td>${p.availableN}</td></tr>`).join('')}
-    </tbody></table></div>` : `<div class="weekday-samples" role="list" aria-label="요일별 유효 관측 수">
-      ${group.points.map(p => `<div role="listitem"${p.k === 4 ? ' class="weekday-thu-row"' : ''}><span>${p.label}</span><b>${p.availableN}</b></div>`).join('')}
+    </tbody></table></div></details>` : `<p class="desc"><b>요일별 관측 기록</b> · 단위: 종목·일</p><div class="weekday-samples" role="list" aria-label="요일별 관측 기록 수 (종목·일)">
+      ${group.points.map(p => `<div role="listitem"${p.k === 4 ? ' class="weekday-thu-row"' : ''}><span>${p.label}</span><b>${p.availableN}</b><span>종목·일</span></div>`).join('')}
     </div>`}
-    <p class="hint">가격은 각 종목의 주평균을 100으로 맞춘 뒤 종목별 요일 평균에 같은 비중을 줍니다.
+    <p class="hint">${group.eligibleItems ? `가격은 각 종목의 주평균을 100으로 맞춘 뒤 종목별 요일 평균에 같은 비중을 줍니다.
       전날 대비는 실제 전날에도 유효 관측이 있을 때만 계산하므로 가격 수준과 방향이 다를 수 있습니다.
       표본 단위는 종목·일이며 독립 표본 수가 아닙니다. 유효 관측에는 아직 4주를 채우지 못한 종목도 포함됩니다.
-      목요일은 비교를 위한 강조입니다. 관측된 패턴이며 요일 효과의 유의성·인과관계를 검증한 결과는 아닙니다.
+      목요일은 비교를 위한 강조입니다. 관측된 패턴이며 요일 효과의 유의성·인과관계를 검증한 결과는 아닙니다.`
+      : `한 종목의 하루 기록을 1종목·일로 셉니다. 예를 들어 카드 10종을 월요일에 각각 3일씩 관측하면 30종목·일입니다. 결측이나 관측 조건 미충족으로 요일별 수가 다를 수 있습니다. 기록 수가 많다는 것은 가격이 높거나 거래가 많다는 뜻이 아닙니다.`}
       <a href="guide.html#weekday">계산 기준 보기 →</a></p>
   </details>`;
 }
@@ -853,6 +865,7 @@ async function renderLegendary() {
     if (!researchResponse.ok) throw new Error('예측 응답 실패');
     const research = await researchResponse.json();
     const { renderForecast } = await import('./research-ui.js?v=20260920-data');
+    await loadChartLibrary();
     if (location.hash.slice(1) !== 'legendary-card' || !box.isConnected) return;
     const drawForecast = () => {
       legendaryForecastCleanup?.();
@@ -987,6 +1000,8 @@ async function renderDetail(it) {
     ? { ...rawSeries, ...rawSeries.max, stock: rawSeries.max?.stock ?? [], events: rawSeries.events ?? [], askGap: [] }
     : rawSeries;
   // 해시가 바뀐 사이 이전 요청이 늦게 도착하면 새 상세 화면을 덮지 않는다.
+  if (location.hash.slice(1) !== it.item_id || cardMode !== (showingMax ? 'max' : 'zero')) return;
+  await loadChartLibrary();
   if (location.hash.slice(1) !== it.item_id || cardMode !== (showingMax ? 'max' : 'zero')) return;
   if (hasDepth) {
     const depth = (s.depth ?? []).filter(level => level.price > 0 && level.qty > 0).sort((a, b) => a.price - b.price);

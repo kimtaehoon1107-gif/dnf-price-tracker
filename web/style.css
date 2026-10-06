@@ -10,13 +10,13 @@
   --line-2:    #E5E8EB;
   --ink:       #191F28;
   --ink-2:     #4E5968;
-  --ink-3:     #8B95A1;
-  --ink-4:     #B0B8C1;
-  --blue:      #3182F6;
+  --ink-3:     #626D7A;
+  --ink-4:     #626D7A;
+  --blue:      #1765CC;
   --blue-bg:   #EBF3FE;
-  --up:        #F04452;   /* 상승 */
+  --up:        #D32F40;   /* 상승 */
   --up-bg:     #FEECEE;
-  --down:      #3182F6;   /* 하락 */
+  --down:      #1765CC;   /* 하락 */
   --down-bg:   #EBF3FE;
   --gold:      #F5A623;
   --radius:    16px;
@@ -39,7 +39,8 @@
     --ink:     #E8EAED;
     --ink-2:   #B0B4BA;
     --ink-3:   #8B95A1;
-    --ink-4:   #5F6570;
+    --ink-4:   #929BA7;
+    --blue:    #79ADFF;
     --blue-bg: #17263D;
     --up-bg:   #33191D;
     --down-bg: #17263D;
@@ -315,7 +316,7 @@ a.ranking-row:hover { background: var(--page); }
 
 .weekday-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .weekday-chart { min-width: 0; padding: 12px 12px 4px; background: var(--page); border-radius: 12px; overflow-x: auto; }
-.weekday-chart h4 { margin: 0 0 2px; font-size: 13px; color: var(--ink-2); }
+.weekday-chart h4, .weekday-chart h2 { margin: 0 0 2px; font-size: 13px; color: var(--ink-2); }
 .weekday-chart svg { display: block; width: 100%; min-width: 340px; }
 .weekday-thursday { fill: var(--gold); opacity: .09; }
 .weekday-baseline { stroke: var(--line-2); stroke-width: 1; stroke-dasharray: 3 3; }
@@ -760,3 +761,18 @@ h3.sub {
 .slot .upgrade-hint.max { color: var(--gold); }
 .slot.empty { opacity: .45; justify-content: center; align-items: center; cursor: default; font-size: 12.5px; color: var(--ink-3); }
 .slot .cn .ks { margin: 2px 0; font-size: 11px; line-height: 1.35; color: var(--blue); font-weight: 600; }
+
+/* Initial layout is reserved before data and chat modules arrive. */
+.market-home #view{min-height:calc(100vh - 84px)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:600px){
+.market-home .cards{display:grid;grid-template-columns:1fr;overflow:visible}
+.market-home .cards .card{min-width:0}
+.nm .t b{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;line-height:1.45}
+.px small{font-size:12px}
+.chart-toggle{min-height:40px;font-size:12.5px}
+}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--up:#FF7B86;--down:#79ADFF}}
+
+.weekday-detail { margin-top: 14px; }
+.weekday-detail > summary { cursor: pointer; color: var(--ink-2); font-size: 13px; padding: 10px 0; min-height: 44px; }

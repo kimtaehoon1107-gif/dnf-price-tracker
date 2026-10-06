@@ -45,7 +45,7 @@ export function renderFixture(data, category, role, basis) {
  return summaryCards()+weekdayTrendHTML();
 }`, { context });
 await module.link((name) => {
-  const exports = name.includes('package.js') ? packageUI : name.includes('price-distribution.js') ? priceDistribution : name.includes('comparison.js') ? comparison : metrics;
+  const exports = name.includes('summary-data.js') ? { loadSummary: () => new Promise(() => {}) } : name.includes('package.js') ? packageUI : name.includes('price-distribution.js') ? priceDistribution : name.includes('comparison.js') ? comparison : metrics;
   return new vm.SyntheticModule(Object.keys(exports), function () {
     for (const [key, value] of Object.entries(exports)) this.setExport(key, value);
   }, { context });
@@ -69,3 +69,10 @@ const pending = render('소울 결정', '전체', 'trade', { ...data, weekdayTre
 ] } });
 assert.doesNotMatch(pending, /요일별 가격 트렌드|<svg|NaN|undefined/, '조건 충족 종목이 없으면 메인에서 요일 패널과 요약 카드를 숨김');
 console.log('7요일 정규화·전날 결측·동일 종목 비중·품목 및 역할 필터·표본 대기 숨김 테스트 통과');
+
+const pendingCard = render('카드', '딜러', 'askMax', { ...data, weekdayTrends: { items: [
+  { item_id: 'card', basis: 'askMax', ...weekdayTrend(history(1000, 3), before) },
+] } });
+assert.match(pendingCard, /요일별 관측 기록/);
+assert.match(pendingCard, /단위: 종목·일/);
+assert.doesNotMatch(pendingCard, /주평균을 100|요일별 가격 수준|<svg/);
