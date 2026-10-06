@@ -304,7 +304,7 @@ a.ranking-row:hover { background: var(--page); }
 .pos-bar { position: relative; height: 4px; margin: 7px 0 4px; border-radius: 2px; background: var(--line-2); max-width: 140px; }
 .pos-bar i { position: absolute; top: 50%; width: 10px; height: 10px; border-radius: 50%; background: var(--ink); border: 2px solid var(--card); transform: translate(-50%, -50%); }
 .depth-chart { overflow-x: auto; }
-.depth-chart svg { display: block; width: 100%; min-width: 640px; }
+.depth-chart svg { display: block; width: 100%; }
 .depth-grid { stroke: var(--line); stroke-width: 1; }
 .depth-guide { stroke: var(--line-2); stroke-width: 1; stroke-dasharray: 4 4; }
 .depth-fill { fill: var(--up-bg); opacity: .7; }

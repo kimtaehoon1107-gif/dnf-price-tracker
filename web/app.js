@@ -78,17 +78,17 @@ function depthQuote(levels, target) {
   return { filled, avg: filled === target ? cost / target : null };
 }
 
-function depthSVG(levels) {
+function depthSVG(levels, limit = 10) {
   const shown = [];
   let total = 0;
   for (const level of levels) {
-    if (total >= 100) break;
-    const qty = Math.min(level.qty, 100 - total);
+    if (total >= limit) break;
+    const qty = Math.min(level.qty, limit - total);
     if (qty > 0) { shown.push({ price: level.price, qty }); total += qty; }
   }
   if (!shown.length) return '';
 
-  const W = 900, H = 280, L = 88, R = 18, T = 16, B = 34;
+  const W = 540, H = 250, L = 76, R = 40, T = 24, B = 40;
   const plotW = W - L - R, plotH = H - T - B;
   const prices = shown.map((x) => x.price);
   const minPrice = Math.min(...prices), maxPrice = Math.max(...prices);
@@ -106,11 +106,12 @@ function depthSVG(levels) {
   }
   const area = `${line} L ${xAt(total)} ${T + plotH} L ${xAt(0)} ${T + plotH} Z`;
   const priceTicks = minPrice === maxPrice ? [minPrice] : [minPrice, (minPrice + maxPrice) / 2, maxPrice];
-  const qtyTicks = [...new Set([0, 10, total])].filter((x) => x <= total);
+  const qtyTicks = [...new Set([0, ...(limit === 10 ? [1, 2, 5] : [10, 50]), total])].filter((x) => x <= total);
 
   return `<div class="depth-chart">
     <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="가격별 누적 매물, 최대 ${fmt(total)}개">
-      <title>낮은 판매가부터 최대 ${fmt(total)}개까지의 구매 수량별 평균 가격</title>
+      <title>낮은 호가부터 최대 ${fmt(total)}개까지의 매물 사다리</title>
+      <text class="depth-axis" x="${L}" y="12">개당 판매가 · 골드</text>
       ${priceTicks.map((p) => `<line class="depth-grid" x1="${L}" y1="${yAt(p)}" x2="${W - R}" y2="${yAt(p)}"/>
         <text class="depth-axis" x="${L - 10}" y="${yAt(p) + 4}" text-anchor="end">${fmt(p)}</text>`).join('')}
       ${[10, 100].filter((q) => q <= total).map((q) => `<line class="depth-guide" x1="${xAt(q)}" y1="${T}" x2="${xAt(q)}" y2="${T + plotH}"/>`).join('')}
@@ -895,7 +896,7 @@ async function renderDetail(it) {
     <div class="price-meta price-basis">${isZeroCard ? `현재 ${cardTier} 최저 판매가` : '현재 시세 · 최근 1시간 평균 거래가 (거래 수량 반영)'}</div>
     <div class="bigpx">${fmt(representativePrice(it))}${representativePrice(it) == null ? '' : '<small>골드</small>'}</div>
     ${isZeroCard && representativePrice(it) == null ? `<div class="price-meta">${it.listings === 0 ? '현재 확인된 매물 없음' : '현재 판매가 기록 없음'}</div>` : ''}
-    ${isZeroCard ? '' : `<div class="price-meta">최근 거래 ${it.last_trade_at ? `${fmt(it.last_price)}골드 · ${priceTime(it.last_trade_at)} KST` : '기록 없음'}</div>
+    ${isZeroCard ? '' : `<div class="price-meta">최근 단건 체결가 ${it.last_trade_at ? `${fmt(it.last_price)}골드 · ${priceTime(it.last_trade_at)} KST` : '기록 없음'}</div>
       <div class="price-meta">${it.vwap1h == null ? '최근 1시간 관측 거래 없음' : `최근 1시간 거래 ${fmt(it.trades1h)}건 · 수량 ${fmt(it.api_qty1h)}개로 계산`} · ${priceTime(DATA.priceAsOf)} KST 기준</div>`}
     <div class="bigchg ${cls(it.chg)}">${it.chg === null
       ? (isZeroCard ? '24시간 평균 변화 비교 불가' : '데이터 없음')
@@ -927,7 +928,7 @@ async function renderDetail(it) {
       <div><div class="k">최근 24시간 평균 거래가</div><div class="v">${fmt(it.vwap24)}</div></div>
       <div id="price-position"><div class="k">최근 가격 중 현재 수준</div><div class="v flat">…</div></div>
       <div><div class="k">최근 24시간 수집된 거래 수량</div><div class="v">${fmt(it.api_qty24)}</div></div>
-      <div><div class="k">최저 판매가</div><div class="v">${fmt(it.min_ask)}</div></div>
+      <div><div class="k">최저 판매가</div><div class="v">${fmt(it.min_ask)}</div><div class="depth-sub" id="min-ask-qty"></div></div>
       <div><div class="k">등록 매물</div><div class="v">${fmt(it.listings)}</div></div>
       <div><div class="k">수집된 거래 기록</div><div class="v">${fmt(it.trades)} <span style="font-size:12px;color:var(--ink-3);font-weight:500">${it.g}등급</span></div></div>
       <div><div class="k">이력</div><div class="v">${it.span_days >= 1 ? it.span_days.toFixed(1) + '일' : (it.span_days * 24).toFixed(0) + '시간'}</div></div>`}
@@ -949,8 +950,8 @@ async function renderDetail(it) {
       <div class="chart" id="c4"></div>
     </div>`}
     ${hasDepth ? `<div class="panel">
-      <h3>구매 수량별 평균 가격</h3>
-      <p class="desc">확인된 매물을 개당 가격이 싼 순서로 더합니다. 최저가 한 건이 아니라 원하는 수량을 실제로 살 때의 평균 단가를 보여줍니다.</p>
+      <h3>구매 수량별 매물 가격</h3>
+      <p class="desc">확인된 매물을 개당 가격이 싼 순서로 더합니다. 선은 각 구간의 개당 판매가이며, 구매 평균가는 아래 숫자로 확인합니다. 관측 이후 판매·취소될 수 있습니다.</p>
       <div id="depth">불러오는 중…</div>
     </div>` : ''}
     ${isZeroCard ? '' : `<div class="panel" id="weekday-panel">
@@ -975,7 +976,12 @@ async function renderDetail(it) {
   // 해시가 바뀐 사이 이전 요청이 늦게 도착하면 새 상세 화면을 덮지 않는다.
   if (location.hash.slice(1) !== it.item_id || cardMode !== (showingMax ? 'max' : 'zero')) return;
   if (hasDepth) {
-    const depth = s.depth ?? [];
+    const depth = (s.depth ?? []).filter(level => level.price > 0 && level.qty > 0).sort((a, b) => a.price - b.price);
+    const minQty = document.getElementById('min-ask-qty');
+    if (minQty && depth.length && depth[0].price === Number(it.min_ask)) {
+      const qty = depth.filter(level => level.price === depth[0].price).reduce((sum, level) => sum + level.qty, 0);
+      minQty.textContent = `이 가격에 ${fmt(qty)}개 관측`;
+    }
     const q10 = depthQuote(depth, 10), q100 = depthQuote(depth, 100);
     const totalQty = depth.reduce((sum, level) => sum + level.qty, 0);
     const quote = (q, target) => q.avg !== null
@@ -987,8 +993,21 @@ async function renderDetail(it) {
         <div><div class="k">100개 구매 평균</div>${quote(q100, 100)}</div>
         <div><div class="k">현재 열린 수량</div><div class="v">${fmt(totalQty)}<small> 개</small></div></div>
       </div>
-      ${depthSVG(depth)}`
+      <div class="upgrade-sw" role="group" aria-label="매물 사다리 수량 범위">
+        <button type="button" class="on" data-depth-limit="10" aria-pressed="true">1~10개</button>
+        <button type="button" data-depth-limit="100" aria-pressed="false">1~100개</button>
+      </div>
+      <div id="depth-plot">${depthSVG(depth)}</div>`
       : '<p style="color:var(--ink-3);margin:0">현재 열린 매물이 없습니다.</p>';
+    document.querySelectorAll('[data-depth-limit]').forEach(button => {
+      button.onclick = () => {
+        document.getElementById('depth-plot').innerHTML = depthSVG(depth, Number(button.dataset.depthLimit));
+        document.querySelectorAll('[data-depth-limit]').forEach(option => {
+          option.classList.toggle('on', option === button);
+          option.setAttribute('aria-pressed', String(option === button));
+        });
+      };
+    });
   }
   const opts = {
     layout: { background: { color: 'transparent' }, textColor: css('--ink-3'), fontFamily: 'Pretendard, system-ui, sans-serif', attributionLogo: false },
