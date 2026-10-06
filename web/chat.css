@@ -37,3 +37,34 @@ body,body.market-chat-open{padding-right:0}
 #cd-panel{width:100%;right:0;bottom:72px}
 }
 #cd-panel .cd-small,#cd-panel .cd-tabs button,#cd-panel header>.cd-link{color:#626d7a}
+
+@media(max-width:600px){
+#cd-launch{width:48px;height:48px;min-width:48px;padding:12px;display:grid;place-items:center}
+}
+@media(prefers-color-scheme:dark){
+:root:not([data-theme="light"]) #cd-rail,
+:root:not([data-theme="light"]) #cd-panel,
+:root:not([data-theme="light"]) #cd-panel header,
+:root:not([data-theme="light"]) #cd-form{background:var(--card);color:var(--ink);border-color:var(--line-2)}
+:root:not([data-theme="light"]) #cd-panel p,
+:root:not([data-theme="light"]) #cd-panel .cd-small,
+:root:not([data-theme="light"]) #cd-panel .cd-link,
+:root:not([data-theme="light"]) #cd-panel #cd-close{color:var(--ink-2)}
+:root:not([data-theme="light"]) #cd-panel button,
+:root:not([data-theme="light"]) #cd-panel input,
+:root:not([data-theme="light"]) #cd-panel textarea,
+:root:not([data-theme="light"]) #cd-panel .cd-tabs,
+:root:not([data-theme="light"]) #cd-panel .cd-reply,
+:root:not([data-theme="light"]) #cd-picker{background:var(--line);color:var(--ink);border-color:var(--line-2)}
+:root:not([data-theme="light"]) #cd-panel button[aria-pressed=true],
+:root:not([data-theme="light"]) #cd-panel .cd-send{background:#1765cc;color:#fff}
+:root:not([data-theme="light"]) #cd-rail-chat{color:var(--ink-2)}
+}
+
+@media(max-width:600px){
+#cd-rail{position:static;flex:none;width:40px;height:40px;box-shadow:none;background:transparent;border:0}
+#cd-launch{width:40px;height:40px;min-width:40px;min-height:40px;padding:8px}
+#cd-panel{bottom:0}
+}
+
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) #cd-launch{background:var(--line);color:var(--ink)}}

@@ -351,7 +351,7 @@ import { loadSummary } from "./summary-data.js?v=20261006-performance";
       b.id = "cd-option-" + n;
       b.setAttribute("role", "option");
       b.setAttribute("aria-selected", String(n === active));
-      b.style.background = n === active ? "#edf4ff" : "white";
+      b.style.background = n === active ? "var(--blue-bg)" : "var(--card)";
       b.onmousedown = (e) => e.preventDefault();
       results.append(b);
     });
@@ -432,8 +432,12 @@ import { loadSummary } from "./summary-data.js?v=20261006-performance";
   };
   const mobileLayout = matchMedia("(max-width:600px)");
   function updateLaunch() {
+    const host = mobileLayout.matches ? document.querySelector(".top .inner") : document.body;
+    if (host && rail.parentElement !== host) host.append(rail);
     const value = !panel.classList.contains("cd-closed");
-    launch.textContent = mobileLayout.matches ? (value ? "이야기 닫기" : "시세 이야기") : (value ? "≫" : "≪");
+    if (mobileLayout.matches && !value) {
+      launch.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 11.5a8 8 0 0 1-8 8H5l-3 2v-10a9 9 0 0 1 18 0Z"/><path d="M7 10h9M7 14h6"/></svg>';
+    } else launch.textContent = value ? '≫' : '≪';
   }
   mobileLayout.addEventListener("change", updateLaunch);
   function opened(value, focus = true) {

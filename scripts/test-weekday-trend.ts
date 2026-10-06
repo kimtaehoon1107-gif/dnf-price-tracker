@@ -45,7 +45,7 @@ export function renderFixture(data, category, role, basis) {
  return summaryCards()+weekdayTrendHTML();
 }`, { context });
 await module.link((name) => {
-  const exports = name.includes('summary-data.js') ? { loadSummary: () => new Promise(() => {}) } : name.includes('package.js') ? packageUI : name.includes('price-distribution.js') ? priceDistribution : name.includes('comparison.js') ? comparison : metrics;
+  const exports = name.includes('forecast-review.js') ? { itemForecastPanel: () => '', mountForecastReview: () => {} } : name.includes('summary-data.js') ? { loadSummary: () => new Promise(() => {}) } : name.includes('package.js') ? packageUI : name.includes('price-distribution.js') ? priceDistribution : name.includes('comparison.js') ? comparison : metrics;
   return new vm.SyntheticModule(Object.keys(exports), function () {
     for (const [key, value] of Object.entries(exports)) this.setExport(key, value);
   }, { context });
