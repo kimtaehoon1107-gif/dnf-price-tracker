@@ -522,11 +522,11 @@ function weekdayTrendHTML() {
       ${weekdaySVG(group.points, 'price', '요일별 가격 수준', '종목별 해당 주 평균 100')}
       ${weekdaySVG(group.points.map((p) => ({ ...p, n: p.changeN })), 'change', '전날 대비 변화율 (%)', '실제 전날 가격 대비 변화율', 0)}
     </div>` : `<p class="weekday-empty">월~일을 모두 관측한 주가 종목별로 4주 쌓이면 그래프가 표시됩니다. 아래 숫자는 가격이나 등락률이 아니라, 분석에 사용할 수 있는 기록 수입니다.</p>`}
-    ${group.eligibleItems ? `<div class="legendary-weekday-table"><table><thead><tr><th>요일</th><th>가격 수준<br>주평균 100</th><th>전날 대비</th><th>계산 표본<br>가격 / 변화</th><th>유효 관측</th></tr></thead><tbody>
+    ${group.eligibleItems ? `<details class="weekday-detail"><summary>상세 수치·표본 보기</summary><div class="legendary-weekday-table"><table><thead><tr><th>요일</th><th>가격 수준<br>주평균 100</th><th>전날 대비</th><th>계산 표본<br>가격 / 변화</th><th>유효 관측</th></tr></thead><tbody>
       ${group.points.map((p) => `<tr${p.k === 4 ? ' class="weekday-thu-row"' : ''}><th>${p.label}</th>
         <td>${fmt(p.price, 1)}</td><td class="${cls(p.change)}">${pct(p.change)}</td>
         <td title="가격 ${group.eligibleItems}종 · 변화 ${p.changeItems}종">${p.n} / ${p.changeN}</td><td>${p.availableN}</td></tr>`).join('')}
-    </tbody></table></div>` : `<p class="desc"><b>요일별 관측 기록</b> · 단위: 종목·일</p><div class="weekday-samples" role="list" aria-label="요일별 관측 기록 수 (종목·일)">
+    </tbody></table></div></details>` : `<p class="desc"><b>요일별 관측 기록</b> · 단위: 종목·일</p><div class="weekday-samples" role="list" aria-label="요일별 관측 기록 수 (종목·일)">
       ${group.points.map(p => `<div role="listitem"${p.k === 4 ? ' class="weekday-thu-row"' : ''}><span>${p.label}</span><b>${p.availableN}</b><span>종목·일</span></div>`).join('')}
     </div>`}
     <p class="hint">${group.eligibleItems ? `가격은 각 종목의 주평균을 100으로 맞춘 뒤 종목별 요일 평균에 같은 비중을 줍니다.

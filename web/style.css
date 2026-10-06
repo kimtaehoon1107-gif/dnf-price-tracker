@@ -773,3 +773,6 @@ h3.sub {
 .chart-toggle{min-height:40px;font-size:12.5px}
 }
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--up:#FF7B86;--down:#79ADFF}}
+
+.weekday-detail { margin-top: 14px; }
+.weekday-detail > summary { cursor: pointer; color: var(--ink-2); font-size: 13px; padding: 10px 0; min-height: 44px; }
