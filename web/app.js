@@ -3,6 +3,7 @@ import { loadSummary } from "./summary-data.js?v=20261006-performance";
 
 import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260928-distribution';
 import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261006-performance';
+import { itemForecastPanel, mountForecastReview } from './forecast-review.js?v=20261007-item';
 import { renderComparison, disposeComparison } from './comparison.js?v=20261006-performance';
 import { packagePanelHTML } from './package.js?v=20261002-comparison';
 
@@ -944,6 +945,7 @@ async function renderDetail(it) {
         </div>
       </details>
     </div>
+    ${itemForecastPanel(it.item_id)}
     <div class="detail-metrics" aria-label="시세 보조 지표"><div class="kv">${isZeroCard ? `
       <div><div class="k">24시간 평균 ${cardTier} 최저 판매가</div><div class="v">${fmt(it.vwap24)}</div></div>
       <div><div class="k">현재 ${cardTier} 최저 판매가</div><div class="v">${fmt(it.min_ask)}</div></div>
@@ -986,6 +988,7 @@ async function renderDetail(it) {
       <div id="weekday-profile"></div>
     </div>`}`;
 
+  mountForecastReview(document.getElementById('forecast-review'),it.item_id);
   document.querySelectorAll('.upgrade-sw button').forEach((button) => {
     button.onclick = () => {
       cardMode = button.dataset.cardMode;
