@@ -1,3 +1,4 @@
+import { validateChat } from './chat.ts';
 type Rule = { key: string; seconds: number; limit: number };
 type Data = Record<string, unknown>;
 type Rpc = (name: string, data: Data) => Promise<any>;
@@ -9,6 +10,8 @@ export function rateRules(action: string, data: Data, actor: string): Rule[] {
   if (data.admin === true || action === 'admin-login' || action === 'moderate') {
     rules.push({ key: 'admin-auth', seconds: 60, limit: 20 });
   }
+  if (action === 'chat-create') rules.push({ key: `chat:${actor}`, seconds: 60, limit: 6 }, { key: `chat-hour:${actor}`, seconds: 3600, limit: 60 });
+  if (action === 'chat-delete') rules.push({ key: `chat-owner:${data.id}`, seconds: 900, limit: 10 });
   if (action === 'create') rules.push(
     { key: 'create:day', seconds: 86400, limit: 100 },
     { key: `create:${actor}`, seconds: 600, limit: 3 });
@@ -20,6 +23,7 @@ export function rateRules(action: string, data: Data, actor: string): Rule[] {
 export function validate(input: any): { action: string; data: Data } {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('요청 형식이 올바르지 않습니다.');
   const action = input.action;
+  if (typeof action === 'string' && action.startsWith('chat-')) return validateChat(input);
   if (!['list','detail','create','edit','delete','admin-login','moderate'].includes(action)) throw new Error('지원하지 않는 요청입니다.');
   const d = input.data;
   if (!d || typeof d !== 'object' || Array.isArray(d) || d.website) throw new Error('입력 항목을 확인해 주세요.');
@@ -98,7 +102,7 @@ export function createHandler(rpc: Rpc, pepper: string, allowedOrigin = origin) 
       if (!await rpc('feedback_rate_limit',{p_rules:rateRules(parsed.action,parsed.data,actor)})) {
         return response({error:'요청이 많습니다. 잠시 후 다시 시도해 주세요.'},429);
       }
-      const result=await rpc('feedback_request',{p_action:parsed.action,p_data:parsed.data});
+      const result=await rpc(parsed.action.startsWith('chat-') ? 'chat_request' : 'feedback_request',{p_action:parsed.action,p_data:parsed.data});
       if (result.error) return response({error:result.error},result.status || 400);
       return response(result);
     } catch {

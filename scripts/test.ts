@@ -25,3 +25,5 @@ import './test-package.ts';
 import './test-package-study.ts';
 import './test-package-expiry-export.ts';
 import './test-archive.ts';
+
+import './test-chat.ts';

@@ -317,6 +317,7 @@ let sortDir = -1;
 let cardMode = 'zero';
 let detailItemId = null;
 let legendaryForecastCleanup = null;
+let detailCharts = [];
 let weekdayBasis = 'trade';
 let weekdayExpanded = true;
 
@@ -410,6 +411,8 @@ function upgradeEconomicsHTML(it) {
 }
 
 function render() {
+  detailCharts.forEach(chart => chart.remove());
+  detailCharts = [];
   depthObserver?.disconnect();
   depthObserver = null;
   disposePriceDistribution();
@@ -1107,8 +1110,9 @@ async function renderDetail(it) {
       <div><div class="k">확인된 매물</div><div class="v">${fmt(latest?.listings)}<small> 건</small></div></div>
       <div><div class="k">마지막 매물 관측 · KST</div><div class="v">${priceTime(latest?.observed_at)}</div></div>`;
     const stockBox = document.getElementById('stock-chart');
+    stockBox.style.height = '360px';
     const stockChart = LightweightCharts.createChart(stockBox, {
-      ...opts, height: 360,
+      ...opts, height: 360, autoSize: true,
       leftPriceScale: { visible: true, borderVisible: false, mode: 0, scaleMargins: { top: 0.08, bottom: 0.22 } },
       rightPriceScale: { visible: true, borderVisible: false, mode: 0, scaleMargins: { top: 0.3, bottom: 0.05 } },
       timeScale: {
@@ -1121,6 +1125,7 @@ async function renderDetail(it) {
     });
     const stockPoints = observedHourlySeries(stock, 'qty');
     const pricePoints = observedHourlySeries(hourly, 'vwap');
+    detailCharts.push(stockChart);
     stockChart.addHistogramSeries({
       priceScaleId: 'right', color: css('--blue') + '55', priceLineVisible: false,
       priceFormat: { type: 'custom', minMove: 1, formatter: (v) => `${fmt(v)}개` },
@@ -1163,11 +1168,13 @@ async function renderDetail(it) {
 
   if (!isZeroCard && s.askGap?.length) {
     const box4 = document.getElementById('c4');
+    box4.style.height = '300px';
     const c4 = LightweightCharts.createChart(box4, {
-      ...opts, height: 300, rightPriceScale: { borderVisible: false },
+      ...opts, height: 300, autoSize: true, rightPriceScale: { borderVisible: false },
       timeScale: { borderVisible: false, timeVisible: true },
       localization: { locale: 'ko-KR', priceFormatter: (v) => pct(v) },
     });
+    detailCharts.push(c4);
     c4.addBaselineSeries({
       baseValue: { type: 'price', price: 0 },
       topLineColor: css('--up'), topFillColor1: css('--up') + '33', topFillColor2: css('--up') + '08',
