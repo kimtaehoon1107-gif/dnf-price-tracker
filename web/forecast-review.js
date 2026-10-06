@@ -1,6 +1,20 @@
-import {comparisonSummary} from './forecast-review-model.js';
-const item=document.querySelector('#fr-item'),horizon=document.querySelector('#fr-horizon');
-const status=document.querySelector('#fr-status'),content=document.querySelector('#fr-content');
+import {comparisonSummary,forecastItemNames} from './forecast-review-model.js?v=20261007-item';
+let dataPromise;
+export function itemForecastPanel(id){
+  if(!forecastItemNames[id])return '';
+  return `<section class="panel" id="forecast-review" aria-labelledby="forecast-review-title">
+    <h3 id="forecast-review-title">과거 예측과 실제 가격 비교</h3>
+    <p class="fr-note">2026년 10월 5일까지의 고정 연구 결과 · 미래 전망이나 자동 갱신 예측이 아닙니다.</p>
+    <div class="fr-controls"><label hidden>품목 <select id="fr-item"></select></label><label>예측 거리 <select id="fr-horizon"><option value="1">내일</option><option value="3">3일 뒤</option><option value="7">7일 뒤</option></select></label></div>
+    <p id="fr-status" role="status">비교 자료를 불러오는 중입니다.</p><div id="fr-content"></div>
+    <p class="fr-note">각 점은 서로 다른 기준일에서 직전 완료 21일로 학습한 예측입니다. 당일 미완성 자료는 제외했고, 목표는 하루 수량 가중평균(VWAP)입니다. 현재 가격 그래프의 수량 가중 중앙값과 기준이 다릅니다. 이상치 제거는 적용하지 않았습니다.</p>
+    <p class="fr-note">과거 결과를 보고 선정한 품목이며 표본이 적습니다. 새 데이터에서 미래 성능이 검증된 결과는 아닙니다. API 관측 체결은 전체 거래를 포함하지 못할 수 있습니다. <a href="research.html#forecast-review">다른 품목의 예측 비교 →</a></p>
+  </section>`;
+}
+export async function mountForecastReview(root,id){
+if(!root)return;
+const item=root.querySelector('#fr-item'),horizon=root.querySelector('#fr-horizon');
+const status=root.querySelector('#fr-status'),content=root.querySelector('#fr-content');
 const labels={last:'마지막 가격 유지',arima110:'일반 ARIMA',weekday_arima:'요일 추가 ARIMA'};
 const colors={actual:'#172b40',last:'#8995a5',arima110:'#b06a32',weekday_arima:'#327bfa'};
 const format=n=>Math.round(n).toLocaleString('ko-KR');
@@ -42,9 +56,18 @@ function render(){
     <details><summary>날짜별 수치·예측 기준일 확인</summary><div class="fr-table"><table><caption>단위: 골드 · * 적합 실패로 마지막 가격 대체</caption><thead><tr><th>목표일</th><th>예측 기준일</th><th>실제</th><th>마지막 가격</th><th>일반 ARIMA</th><th>요일 추가 ARIMA</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.target}</td><td>${r.origin}</td><td>${format(r.actual)}</td>${['last','arima110','weekday_arima'].map(m=>`<td>${format(r.pred[m])}${r.failed.includes(m)?' *':''}</td>`).join('')}</tr>`).join('')}</tbody></table></div></details>`;
 }
 try{
-  const response=await fetch('forecast-review.json?v=20261007');
-  if(!response.ok)throw new Error('fetch');
-  data=await response.json();
+  dataPromise??=fetch('forecast-review.json?v=20261007').then(response=>{
+    if(!response.ok)throw new Error('fetch');return response.json();
+  }).catch(error=>{dataPromise=null;throw error;});
+  data=await dataPromise;
+  if(!root.isConnected)return;
   item.replaceChildren(...data.items.map((i,index)=>new Option(i.name,String(index))));
+  if(id){
+    const index=data.items.findIndex(i=>i.name===forecastItemNames[id]);
+    if(index<0)throw new Error('item');
+    item.value=String(index);
+  }
   item.addEventListener('change',render);horizon.addEventListener('change',render);render();
 }catch{status.textContent='예측 비교 자료를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.';}
+}
+mountForecastReview(document.querySelector('#forecast-review'));

@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {comparisonSummary} from '../web/forecast-review-model.js';
+import {comparisonSummary,forecastItemNames} from '../web/forecast-review-model.js';
 const data=JSON.parse(readFileSync('web/forecast-review.json','utf8'));
 assert.equal(data.items.length,3);
+assert.deepEqual(Object.values(forecastItemNames).sort(),data.items.map(i=>i.name).sort());
+assert.equal(forecastItemNames['not-a-supported-item'],undefined);
 for(const item of data.items){
   const keys=new Set();
   for(const r of item.rows){
