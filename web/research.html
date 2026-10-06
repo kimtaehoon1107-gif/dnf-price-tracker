@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="style.css?v=20260919-review">
 <link rel="stylesheet" href="research.css?v=20260919-redesign">
+<link rel="stylesheet" href="forecast-review.css?v=20261007">
 </head>
 <body class="research-page">
 <header class="top">
@@ -43,9 +44,22 @@
 <h1 class="research-title">종류별 가격 흐름을 함께 봅니다</h1>
 <p class="research-intro">비슷한 아이템의 움직임을 고정 구성 지수로 비교하고, 패키지 출시·판매 종료 전후의 관측을 살펴봅니다.<br>실시간 가격이 아니며, 예측력은 발행 이후의 실제 관측으로 평가합니다.</p>
 <nav class="research-tabs" aria-label="추세 분석 구분">
-  <a href="#groups">종류별 지수·예측</a><a href="#package">패키지 이벤트</a><a href="index.html#legendary-card">레전더리 카드</a>
+  <a href="#groups">종류별 지수·예측</a><a href="#forecast-review">품목별 예측 비교</a><a href="#package">패키지 이벤트</a><a href="index.html#legendary-card">레전더리 카드</a>
 </nav>
 <main id="view" aria-live="polite"><div class="panel">분석 데이터를 불러오는 중입니다.</div></main>
+<section class="panel" id="forecast-review" aria-labelledby="forecast-review-title">
+  <p class="eyebrow">과거 재현 · 연구용 비교</p>
+  <h2 id="forecast-review-title">품목별 예측은 실제 가격과 얼마나 달랐을까?</h2>
+  <p>2026년 10월 5일까지의 고정 연구 자료입니다. 미래 전망이나 자동 갱신되는 예측이 아닙니다.</p>
+  <div class="fr-controls">
+    <label>품목 <select id="fr-item"><option>자료를 불러오는 중</option></select></label>
+    <label>예측 거리 <select id="fr-horizon"><option value="1">내일</option><option value="3">3일 뒤</option><option value="7">7일 뒤</option></select></label>
+  </div>
+  <p id="fr-status" role="status">비교 자료를 불러오는 중입니다.</p>
+  <div id="fr-content"></div>
+  <p class="fr-note">각 점은 서로 다른 기준일에서 직전 완료 21일로 학습한 예측입니다. 가로축은 실제 가격을 확인한 날짜이며, 당일 미완성 자료는 학습에서 제외했습니다. 목표는 하루 수량 가중평균(VWAP), 이상치 제거는 적용하지 않았습니다.</p>
+  <p class="fr-note">후향 결과를 보고 선정한 세 품목입니다. 표본이 적고 평가 기간도 이미 확인했으므로, 새 데이터에서 성능이 검증됐다는 뜻은 아닙니다. API 관측 체결은 전체 거래를 포함하지 못할 수 있습니다.</p>
+</section>
 <section class="panel"><h2>시간대·요일 평균 트렌드</h2><p>소울 결정·유랑악단 패키지 등 품목별 가격과 매물 건수의 평균 흐름을 자정·오전 6시 기준으로 비교합니다.</p><a href="seasonal.html">자동 갱신되는 평균 트렌드 보기 →</a></section>
 <section class="panel">
   <h2>유랑악단 패키지 삭제 전 연구</h2>
@@ -67,5 +81,6 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 <script type="module" src="research.js?v=20260928-expiry"></script>
+<script type="module" src="forecast-review.js?v=20261007"></script>
 </body>
 </html>
