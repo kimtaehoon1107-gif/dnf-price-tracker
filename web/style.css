@@ -128,6 +128,8 @@ button.weekday-summary { text-align: left; font-family: inherit; color: var(--in
 .weekday-trend .weekday-chart svg { min-width: 260px; }
 .weekday-trend .legendary-weekday-table { margin-top: 12px; }
 .weekday-trend th { white-space: nowrap; }
+.weekday-trend thead th:not(:first-child) { text-align: right; }
+.weekday-trend td { font-variant-numeric: tabular-nums; }
 .weekday-thu-row { background: rgba(245,166,35,.08); }
 .weekday-thu-row > th { color: var(--gold); }
 .weekday-samples { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; margin: 16px 0; text-align: center; }
