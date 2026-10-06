@@ -485,7 +485,8 @@ const WEEKDAY_BASES = { trade: '일반 아이템 거래가', ask0: '카드 0업 
 function weekdayGroups() {
   const ids = (DATA.items ?? []).filter((it) => matchesCategory(it, tab)
     && (tab !== '카드' || job === '전체' || it.job_role === job)).map((it) => it.item_id);
-  return Object.keys(WEEKDAY_BASES).map((basis) => summarizeWeekdays(DATA.weekdayTrends?.items ?? [], ids, basis))
+  const bases = tab === '카드' ? ['ask0', 'askMax'] : ['trade'];
+  return bases.map((basis) => summarizeWeekdays(DATA.weekdayTrends?.items ?? [], ids, basis))
     .filter((g) => g.candidates > 0);
 }
 
@@ -496,7 +497,7 @@ function selectedWeekday() {
 }
 
 function weekdayTrendHTML() {
-  if (!weekdayReady()) return '';
+  if (!weekdayReady() && !(tab === '카드' && weekdayGroups().length)) return '';
   const group = selectedWeekday(), groups = weekdayGroups();
   return `<details class="panel weekday-trend" id="weekday-trend" ${weekdayExpanded ? 'open' : ''}>
     <summary><span>요일별 가격 트렌드 <small>${esc(tab)}${tab === '카드' ? ` · ${esc(job)}` : ''}</small></span><span aria-hidden="true">⌄</span></summary>
