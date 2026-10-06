@@ -521,18 +521,19 @@ function weekdayTrendHTML() {
     ${group.eligibleItems ? `<div class="weekday-grid">
       ${weekdaySVG(group.points, 'price', '요일별 가격 수준', '종목별 해당 주 평균 100')}
       ${weekdaySVG(group.points.map((p) => ({ ...p, n: p.changeN })), 'change', '전날 대비 변화율 (%)', '실제 전날 가격 대비 변화율', 0)}
-    </div>` : `<p class="weekday-empty">월~일을 모두 관측한 주가 종목별로 4주 쌓이면 그래프가 표시됩니다. 지금은 요일별 유효 관측 수를 확인할 수 있습니다.</p>`}
+    </div>` : `<p class="weekday-empty">월~일을 모두 관측한 주가 종목별로 4주 쌓이면 그래프가 표시됩니다. 아래 숫자는 가격이나 등락률이 아니라, 분석에 사용할 수 있는 기록 수입니다.</p>`}
     ${group.eligibleItems ? `<div class="legendary-weekday-table"><table><thead><tr><th>요일</th><th>가격 수준<br>주평균 100</th><th>전날 대비</th><th>계산 표본<br>가격 / 변화</th><th>유효 관측</th></tr></thead><tbody>
       ${group.points.map((p) => `<tr${p.k === 4 ? ' class="weekday-thu-row"' : ''}><th>${p.label}</th>
         <td>${fmt(p.price, 1)}</td><td class="${cls(p.change)}">${pct(p.change)}</td>
         <td title="가격 ${group.eligibleItems}종 · 변화 ${p.changeItems}종">${p.n} / ${p.changeN}</td><td>${p.availableN}</td></tr>`).join('')}
-    </tbody></table></div>` : `<div class="weekday-samples" role="list" aria-label="요일별 유효 관측 수">
-      ${group.points.map(p => `<div role="listitem"${p.k === 4 ? ' class="weekday-thu-row"' : ''}><span>${p.label}</span><b>${p.availableN}</b></div>`).join('')}
+    </tbody></table></div>` : `<p class="desc"><b>요일별 관측 기록</b> · 단위: 종목·일</p><div class="weekday-samples" role="list" aria-label="요일별 관측 기록 수 (종목·일)">
+      ${group.points.map(p => `<div role="listitem"${p.k === 4 ? ' class="weekday-thu-row"' : ''}><span>${p.label}</span><b>${p.availableN}</b><span>종목·일</span></div>`).join('')}
     </div>`}
-    <p class="hint">가격은 각 종목의 주평균을 100으로 맞춘 뒤 종목별 요일 평균에 같은 비중을 줍니다.
+    <p class="hint">${group.eligibleItems ? `가격은 각 종목의 주평균을 100으로 맞춘 뒤 종목별 요일 평균에 같은 비중을 줍니다.
       전날 대비는 실제 전날에도 유효 관측이 있을 때만 계산하므로 가격 수준과 방향이 다를 수 있습니다.
       표본 단위는 종목·일이며 독립 표본 수가 아닙니다. 유효 관측에는 아직 4주를 채우지 못한 종목도 포함됩니다.
-      목요일은 비교를 위한 강조입니다. 관측된 패턴이며 요일 효과의 유의성·인과관계를 검증한 결과는 아닙니다.
+      목요일은 비교를 위한 강조입니다. 관측된 패턴이며 요일 효과의 유의성·인과관계를 검증한 결과는 아닙니다.`
+      : `한 종목의 하루 기록을 1종목·일로 셉니다. 예를 들어 카드 10종을 월요일에 각각 3일씩 관측하면 30종목·일입니다. 결측이나 관측 조건 미충족으로 요일별 수가 다를 수 있습니다. 기록 수가 많다는 것은 가격이 높거나 거래가 많다는 뜻이 아닙니다.`}
       <a href="guide.html#weekday">계산 기준 보기 →</a></p>
   </details>`;
 }
