@@ -2,8 +2,8 @@ import { loadSummary } from "./summary-data.js?v=20261006-performance";
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
 import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260928-distribution';
-import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261007-forward';
-import { renderComparison, disposeComparison } from './comparison.js?v=20261006-performance';
+import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261008-cleaned';
+import { renderComparison, disposeComparison } from './comparison.js?v=20261008-cleaned';
 import { packagePanelHTML } from './package.js?v=20261002-comparison';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
