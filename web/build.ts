@@ -513,10 +513,10 @@ const meta = (await query<{
   trades: number; items: number; lo: string; hi: string;
   depletion_qty: number;
 }>(`
-  SELECT (SELECT COALESCE(SUM(n), 0)::int FROM display.candles_1h) trades,
+  SELECT (SELECT COALESCE(SUM(n), 0)::int FROM candles_1h) trades,
          (SELECT COUNT(*)::int FROM items WHERE tracked) items,
-         (SELECT to_char(MIN(hour) AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') FROM display.candles_1h) lo,
-         (SELECT to_char(MAX(hour) AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') FROM display.candles_1h) hi,
+         (SELECT to_char(MIN(hour) AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') FROM candles_1h) lo,
+         (SELECT to_char(MAX(hour) AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') FROM candles_1h) hi,
          (SELECT COALESCE(SUM(qty_sold),0)::int FROM listing_deltas
           WHERE reason <> 'expired' AND invalidated_at IS NULL
             AND observed_at > now() - interval '7 days') depletion_qty`)).rows[0];
