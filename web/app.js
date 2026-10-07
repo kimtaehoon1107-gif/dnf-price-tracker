@@ -320,7 +320,7 @@ let detailItemId = null;
 let legendaryForecastCleanup = null;
 let detailCharts = [];
 let weekdayBasis = 'trade';
-let weekdayExpanded = true;
+let weekdayExpanded = typeof matchMedia === 'undefined' || !matchMedia('(max-width:600px)').matches;
 
 function renderDataStatus(now = Date.now()) {
   const time = value => Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString('ko-KR', {
@@ -614,7 +614,7 @@ function renderList() {
         <div class="dim c6">그래프 보기 →</div><div class="dim c7">—<small>매물 ${fmt(lg.total_listings)}</small></div>
       </a>` : ''}
       ${rows.map((r, i) => {
-        const color = css(r.chg > 0 ? '--up' : r.chg < 0 ? '--down' : '--ink-4');
+        const color = r.chg > 0 ? 'var(--up)' : r.chg < 0 ? 'var(--down)' : 'var(--ink-4)';
         const thin = r.price_basis === 'trade' && r.api_qty24 < 5 && r.chg !== null;
         const isCard = r.price_basis === 'ask0';
         // 좁은 화면에서는 시각을 한 줄 아래로 내려 이름 칸 폭을 지킨다.
@@ -795,6 +795,7 @@ const bySecond = (rows, key) =>
 
 // ── 레전더리 재료 시세 ─────────────────────────────────────────
 async function renderLegendary() {
+  const chartReady = Promise.resolve().then(loadChartLibrary).then(() => true, () => false);
   const view = document.getElementById('view');
   view.innerHTML = '<a class="back" href="#">← 전체 목록</a><div class="panel">레전더리 카드 시세를 불러오는 중…</div>';
   const response = await fetch('data/legendary.json', { cache: 'no-cache' });
@@ -865,7 +866,7 @@ async function renderLegendary() {
     if (!researchResponse.ok) throw new Error('예측 응답 실패');
     const research = await researchResponse.json();
     const { renderForecast } = await import('./research-ui.js?v=20260920-data');
-    await loadChartLibrary();
+    if (!await chartReady) throw new Error('차트 라이브러리를 불러오지 못했습니다.');
     if (location.hash.slice(1) !== 'legendary-card' || !box.isConnected) return;
     const drawForecast = () => {
       legendaryForecastCleanup?.();
@@ -884,6 +885,8 @@ async function renderLegendary() {
 
 // ── 상세 ───────────────────────────────────────────────────────
 async function renderDetail(it) {
+  // Start concurrently with the series request; a CDN failure must not hide non-chart data.
+  const chartReady = Promise.resolve().then(loadChartLibrary).then(() => true, () => false);
   const baseItem = it;
   const hasDepth = ['재료·소모품', '소울 결정'].includes(it.category);
   const isZeroCard = it.price_basis === 'ask0';
@@ -1001,8 +1004,6 @@ async function renderDetail(it) {
     : rawSeries;
   // 해시가 바뀐 사이 이전 요청이 늦게 도착하면 새 상세 화면을 덮지 않는다.
   if (location.hash.slice(1) !== it.item_id || cardMode !== (showingMax ? 'max' : 'zero')) return;
-  await loadChartLibrary();
-  if (location.hash.slice(1) !== it.item_id || cardMode !== (showingMax ? 'max' : 'zero')) return;
   if (hasDepth) {
     const depth = (s.depth ?? []).filter(level => level.price > 0 && level.qty > 0).sort((a, b) => a.price - b.price);
     const minQty = document.getElementById('min-ask-qty');
@@ -1118,6 +1119,15 @@ async function renderDetail(it) {
   if (weekday.state !== 'ready') document.getElementById('view').append(document.getElementById('weekday-panel'));
   }
 
+  desc.textContent = isZeroCard
+    ? `일평균 ${cardTier} 최저 판매가 · 실제 거래가와 다릅니다.`
+    : s.inlineForecast ? '일별 평균 거래가(거래 수량 반영) · 점선은 요일 추가 ARIMA 실험 예측입니다.' : '일별 수량 가중 중앙값 · 상단의 최근 1시간 평균 거래가와 계산 기준이 다릅니다.';
+  renderPriceDistribution(document.getElementById('c1'), isZeroCard
+    ? { basis: 'ask', asOf: DATA.priceAsOf ?? DATA.builtAt, daily: d }
+    : s.inlineForecast ? { ...s.distribution, metric: 'vwap', daily: d.map(row => ({ ...row, ...(s.distribution?.daily.find(p => p.d === row.d) ?? {}), vwap: row.vwap })), forecast: s.inlineForecast } : s.distribution, events);
+  const chartsAvailable = await chartReady;
+  if (location.hash.slice(1) !== it.item_id || cardMode !== (showingMax ? 'max' : 'zero')) return;
+  const chartError = '<p role="status" class="desc">차트를 불러오지 못했습니다. 가격·매물 정보는 계속 확인할 수 있습니다. 잠시 후 다시 접속해 주세요.</p>';
   const hourly = s.hourly ?? [];
   if (stock.length || hourly.length) {
     const latest = stock.at(-1);
@@ -1126,6 +1136,7 @@ async function renderDetail(it) {
       <div><div class="k">확인된 매물</div><div class="v">${fmt(latest?.listings)}<small> 건</small></div></div>
       <div><div class="k">마지막 매물 관측 · KST</div><div class="v">${priceTime(latest?.observed_at)}</div></div>`;
     const stockBox = document.getElementById('stock-chart');
+    if (!chartsAvailable) { stockBox.innerHTML = chartError; } else {
     stockBox.style.height = '360px';
     const stockChart = LightweightCharts.createChart(stockBox, {
       ...opts, height: 360, autoSize: true,
@@ -1169,20 +1180,18 @@ async function renderDetail(it) {
       ]);
     });
     const firstObserved = [...stockPoints, ...pricePoints].filter((point) => point.value !== undefined);
-    const end = stockPoints.at(-1).time;
+    const end = Math.max(...[...stockPoints, ...pricePoints].map(point => point.time));
     stockChart.timeScale().setVisibleRange({ from: Math.min(end - 3600, ...firstObserved.map((point) => point.time)), to: end });
+    }
   } else {
     document.getElementById('stock-chart').innerHTML = '<p style="color:var(--ink-3);margin:0">최근 7일의 가격과 판매 중인 수량 관측 기록이 없습니다.</p>';
   }
 
-  desc.textContent = isZeroCard
-    ? `일평균 ${cardTier} 최저 판매가 · 실제 거래가와 다릅니다.`
-    : s.inlineForecast ? '일별 평균 거래가(거래 수량 반영) · 점선은 요일 추가 ARIMA 실험 예측입니다.' : '일별 수량 가중 중앙값 · 상단의 최근 1시간 평균 거래가와 계산 기준이 다릅니다.';
-  renderPriceDistribution(document.getElementById('c1'), isZeroCard
-    ? { basis: 'ask', asOf: DATA.priceAsOf ?? DATA.builtAt, daily: d }
-    : s.inlineForecast ? { ...s.distribution, metric: 'vwap', daily: d.map(row => ({ ...row, ...(s.distribution?.daily.find(p => p.d === row.d) ?? {}), vwap: row.vwap })), forecast: s.inlineForecast } : s.distribution, events);
 
-  if (!isZeroCard && s.askGap?.length) {
+
+  if (!isZeroCard && s.askGap?.length && !chartsAvailable) {
+    document.getElementById('c4').innerHTML = chartError;
+  } else if (!isZeroCard && s.askGap?.length) {
     const box4 = document.getElementById('c4');
     box4.style.height = '300px';
     const c4 = LightweightCharts.createChart(box4, {
