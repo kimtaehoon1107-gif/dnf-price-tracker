@@ -13,7 +13,7 @@ for(const source of [{schema:'hist_a',project:null,manifest:config.frozen.manife
  for(const s of saved.manifest.shards.filter(s=>s.table==='items'))for(const raw of await readRows(store,s)){
   const r=JSON.parse(raw.row);if(r.tracked&&r.category!=='카드')items.set(r.item_id,{id:r.item_id,name:r.item_name,category:r.category,basis:'daily-trade-vwap'});
  }
- const shards=saved.manifest.shards.filter(s=>s.table==='trades'&&s.day>='2026-09-07'&&s.day<='2026-10-06');
+ const shards=saved.manifest.shards.filter(s=>s.table==='trades'&&s.day>='2026-09-07'&&s.day<='2026-09-22');
  let next=0;const seen=new Set<string>();
  await Promise.all(Array.from({length:4},async()=>{
   while(next<shards.length){const s=shards[next++];for(const raw of await readRows(store,s)){
@@ -21,14 +21,14 @@ for(const source of [{schema:'hist_a',project:null,manifest:config.frozen.manife
    const r=JSON.parse(raw.row),t=Date.parse(r.sold_date);
    if(!items.has(r.item_id)||!owns(source.schema,t,r.item_id))continue;
    const day=new Date(t+9*3600000).toISOString().slice(0,10);
-   if(day<'2026-09-08'||day>'2026-10-06')continue;
+   if(day<'2026-09-08'||day>'2026-09-22')continue;
    const u=Number(r.unit_price),qty=Number(r.count);assert(u>0&&qty>0);
    const key=r.item_id+'/'+day;if(!bins.has(key))bins.set(key,[]);bins.get(key)!.push({u,qty});
   }}
  }));
  console.log(source.schema,shards.length,'verified trade shards');
 }
-assert(sources.filter(s=>s.source!=='hist_a').every(s=>Date.parse(s.asOf)>=Date.parse('2026-10-06T15:00:00Z')));
+assert(sources.filter(s=>s.source!=='hist_a').every(s=>Date.parse(s.asOf)>=Date.parse('2026-09-22T15:00:00Z')));
 const quantile=(xs:number[],q:number)=>{const a=[...xs].sort((a,b)=>a-b),p=(a.length-1)*q,i=Math.floor(p);return a[i]+(a[Math.min(i+1,a.length-1)]-a[i])*(p-i);};
 const rows:any[]=[];
 for(const [key,trades]of bins){
@@ -42,5 +42,5 @@ for(const [key,trades]of bins){
  }
 }
 mkdirSync('data/cleaned-history',{recursive:true});
-writeFileSync('data/cleaned-history/input.json',JSON.stringify({sources,from:'2026-09-08',through:'2026-10-06',items:[...items.values()],rows},null,2));
+writeFileSync('data/cleaned-history/input.json',JSON.stringify({sources,from:'2026-09-08',through:'2026-09-22',items:[...items.values()],rows},null,2));
 console.log('Exported',bins.size,'item-days',rows.length,'method aggregates');
