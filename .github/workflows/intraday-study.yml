@@ -14,23 +14,15 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --omit=dev
-      - run: node scripts/test-intraday-study.ts
-      - run: node scripts/test-activity-study.ts
-      - run: node scripts/test-intraday-joint-forecast.ts
-      - run: node scripts/test-full-day-forecast.ts
       - name: 검증된 보관 자료 분석
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        run: node scripts/intraday-weekday-study.ts
-      - run: node scripts/render-intraday-study.ts
-      - run: node scripts/activity-study.ts
-      - run: node scripts/intraday-joint-forecast.ts
-      - run: node scripts/full-day-forecast.ts
+        run: node scripts/export-cleaned-history.ts
       - uses: actions/upload-artifact@v4
         with:
-          name: intraday-weekday-study
-          path: data/intraday-study/
+          name: cleaned-history-21day
+          path: data/cleaned-history/
           retention-days: 30
