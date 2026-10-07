@@ -26,3 +26,17 @@ assert.equal(distributionSegments(material).length,2,'재료 시세도 관측 �
 assert.equal(periodChange(material).last.d,'2026-09-20','당일을 기간 변화에서 제외');
 assert.ok(Math.abs(periodChange(material).percent-20)<1e-9,'18시간 이상 관측한 완료일만 비교');
 console.log('가격 분포 화면: KST 날짜·결측·희소 표본·불완전 원본·진행 시간 통과');
+
+const {chartRows, usableForecast} = await import('../web/price-distribution.js');
+const forward = {metric:'vwap',asOf:'2026-10-06T16:00:00Z',minTrades:5,
+ daily:[{d:'2026-10-06',vwap:100,median:90,n:20},{d:'2026-10-07',vwap:110,median:95,n:10}],
+ forecast:{status:'ready',anchor:{d:'2026-10-06',value:100},points:Array.from({length:8},(_,i)=>({d:`2026-10-${String(7+i).padStart(2,'0')}`,value:101+i}))}};
+const future=chartRows(forward);
+assert.equal(future[0].median,100,'실측과 예측은 같은 VWAP 기준');
+assert.equal(future.length,9);
+assert.equal(future.at(-1).state,'forecast');
+assert.equal(future.at(-1).d,'2026-10-14');
+assert.equal(periodChange(future),null,'future and partial days excluded from actual change');
+assert.equal(distributionSegments(future).flat().length,2,'future not drawn as observed');
+assert.equal(usableForecast({...forward,asOf:'2026-10-08T01:00:00Z'}),null,'stale forecast not shifted forward');
+assert.equal(chartRows({...forward,forecast:{status:'unavailable'}}).length,2);

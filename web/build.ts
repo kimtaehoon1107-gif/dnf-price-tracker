@@ -426,6 +426,7 @@ for (const it of items) {
   const band = it.price_basis === 'trade' && tradesPerDay >= 5 ? naiveBand(complete as Point[], 7, todayKst) : null;
   if (band) bands.set(it.item_id, band);
   writeFileSync(`${OUT}/data/series/${it.item_id}.json`, JSON.stringify({
+    completeBefore: weekdayBefore, forecastDay: todayKst,
     priceBasis: it.price_basis, daily: d, hourly: hourlyBy.get(it.item_id) ?? [],
     distribution: it.price_basis === 'trade' ? {
       asOf: quality.checkedAt, minTrades: 5,

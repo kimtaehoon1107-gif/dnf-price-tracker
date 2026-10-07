@@ -2,8 +2,7 @@ import { loadSummary } from "./summary-data.js?v=20261006-performance";
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
 import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260928-distribution';
-import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261006-performance';
-import { itemForecastPanel, mountForecastReview } from './forecast-review.js?v=20261007-item';
+import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261007-forward';
 import { renderComparison, disposeComparison } from './comparison.js?v=20261006-performance';
 import { packagePanelHTML } from './package.js?v=20261002-comparison';
 
@@ -948,7 +947,6 @@ async function renderDetail(it) {
         </div>
       </details>
     </div>
-    ${itemForecastPanel(it.item_id)}
     <div class="detail-metrics" aria-label="시세 보조 지표"><div class="kv">${isZeroCard ? `
       <div><div class="k">24시간 평균 ${cardTier} 최저 판매가</div><div class="v">${fmt(it.vwap24)}</div></div>
       <div><div class="k">현재 ${cardTier} 최저 판매가</div><div class="v">${fmt(it.min_ask)}</div></div>
@@ -991,7 +989,6 @@ async function renderDetail(it) {
       <div id="weekday-profile"></div>
     </div>`}`;
 
-  mountForecastReview(document.getElementById('forecast-review'),it.item_id);
   document.querySelectorAll('.upgrade-sw button').forEach((button) => {
     button.onclick = () => {
       cardMode = button.dataset.cardMode;
@@ -1124,10 +1121,10 @@ async function renderDetail(it) {
 
   desc.textContent = isZeroCard
     ? `일평균 ${cardTier} 최저 판매가 · 실제 거래가와 다릅니다.`
-    : '일별 수량 가중 중앙값 · 상단의 최근 1시간 평균 거래가와 계산 기준이 다릅니다.';
+    : s.inlineForecast ? '일별 평균 거래가(거래 수량 반영) · 점선은 요일 추가 ARIMA 실험 예측입니다.' : '일별 수량 가중 중앙값 · 상단의 최근 1시간 평균 거래가와 계산 기준이 다릅니다.';
   renderPriceDistribution(document.getElementById('c1'), isZeroCard
     ? { basis: 'ask', asOf: DATA.priceAsOf ?? DATA.builtAt, daily: d }
-    : s.distribution, events);
+    : s.inlineForecast ? { ...s.distribution, metric: 'vwap', daily: d.map(row => ({ ...row, ...(s.distribution?.daily.find(p => p.d === row.d) ?? {}), vwap: row.vwap })), forecast: s.inlineForecast } : s.distribution, events);
   const chartsAvailable = await chartReady;
   if (location.hash.slice(1) !== it.item_id || cardMode !== (showingMax ? 'max' : 'zero')) return;
   const chartError = '<p role="status" class="desc">차트를 불러오지 못했습니다. 가격·매물 정보는 계속 확인할 수 있습니다. 잠시 후 다시 접속해 주세요.</p>';
@@ -1189,6 +1186,7 @@ async function renderDetail(it) {
   } else {
     document.getElementById('stock-chart').innerHTML = '<p style="color:var(--ink-3);margin:0">최근 7일의 가격과 판매 중인 수량 관측 기록이 없습니다.</p>';
   }
+
 
 
   if (!isZeroCard && s.askGap?.length && !chartsAvailable) {

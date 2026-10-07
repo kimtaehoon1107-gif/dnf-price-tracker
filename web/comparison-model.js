@@ -1,4 +1,4 @@
-import { distributionRows } from './price-distribution.js?v=20261006-performance';
+import { distributionRows } from './price-distribution.js?v=20261007-forward';
 
 // 맥스업 자료가 없으면 0업 자료로 대체하지 않는다.
 export function comparisonSource(item, series, stage, asOf) {
