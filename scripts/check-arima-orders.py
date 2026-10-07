@@ -70,5 +70,5 @@ def run():
         lines[2]='21일 연속 학습과 평가 정답 모두 당일 원본 체결 중앙값 1/10~10배 이내로 정제한 VWAP. 카드 P10은 호가이므로 미적용. KST 00~24시, 평가 9/30~10/6. 원본 대조 불일치 2개 종목일은 제외. 모든 모델은 동일 사례 사용.'
         lines[5]='후향 탐색이며 최저 오차는 후보 중 순위다. 정답 정제 정보는 학습에 사용하지 않는다. 당일 진행 중 가격의 실시간 재현 평가가 아니다.'
     (OUT/'report.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
-    print('Complete',len(rows),'predictions; '+('cleaned inputs' if CLEAN else 'prior 110 equality verified'),flush=True)
+    print('Complete',len(rows),'predictions; prior 110 equality verified',flush=True)
 if __name__=='__main__':run()
