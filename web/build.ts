@@ -628,7 +628,10 @@ const randomWalk = {
 writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
   builtAt: new Date().toISOString(),
   priceAsOf: quality.checkedAt,
-  cleaning: { version: 'daily-median-10x-v1', timezone: 'Asia/Seoul', days: displayCleaning },
+  cleaning: { version: 'daily-median-10x-v1', timezone: 'Asia/Seoul',
+    excludedTrades: displayCleaning.reduce((n,r) => n + Number(r.excluded_n),0),
+    excludedQty: displayCleaning.reduce((n,r) => n + Number(r.excluded_qty),0),
+    unverifiedItemDays: displayCleaning.filter(r => !r.verified).length },
   meta, health, quality, collection, weekday, weekdaySample, randomWalk, items: withMeta, legendary, marketRanking,
   cardWeekday: cardWeekdaySummary,
   weekdayTrends,

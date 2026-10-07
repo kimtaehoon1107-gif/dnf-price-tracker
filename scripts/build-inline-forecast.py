@@ -19,7 +19,7 @@ def forecast(series, fit_model=ARIMA):
     days = {r['d']: r for r in series['daily'] if r['d'] < before and r['d'] < today.isoformat()}
     end = today - timedelta(days=1)
     dates = [(end - timedelta(days=i)).isoformat() for i in reversed(range(21))]
-    base = dict(model='weekday-arima110-v1', issuedAt=series['distribution']['asOf'],
+    base = dict(model='weekday-arima110-median10x-v2', preprocessing='daily-median-10x-v1', issuedAt=series['distribution']['asOf'],
                 trainFrom=dates[0], trainThrough=dates[-1], points=[])
     if any(d not in days for d in dates):
         return dict(base, status='unavailable', reason='최근 21일의 연속 완료 일봉이 부족합니다.')

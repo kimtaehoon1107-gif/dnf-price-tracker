@@ -5,7 +5,7 @@ export async function exportSeasonal(client:PoolClient,asOf:string) {
   const items=(await client.query("SELECT item_id,item_name,category FROM items WHERE tracked ORDER BY item_name")).rows;
   const rows=(await client.query(`
     SELECT item_id,extract(epoch FROM hour)::float8*1000 t,vwap::float8 price,qty::float8 qty
-    FROM candles_1h JOIN items USING(item_id)
+    FROM display.candles_1h JOIN items USING(item_id)
     WHERE tracked AND category<>'카드' AND hour >= $1::timestamptz-interval '57 days' AND hour<$1::timestamptz`,[asOf])).rows;
   const snaps=(await client.query(`
     SELECT DISTINCT ON (s.item_id,date_trunc('hour',s.captured_at)) s.item_id,
