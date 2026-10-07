@@ -42,6 +42,8 @@ const collection = (await query<{ last_success: Date | null; stale: string[] }>(
       COALESCE(array_agg(item_name ORDER BY item_name) FILTER (
         WHERE t IS NULL OR t < now()-make_interval(secs=>poll_interval_sec*5)), '{}') AS stale
     FROM last`)).rows[0];
+// Display reads are deliberately separate from immutable research protocols.
+const displayCleaning = (await query('SELECT * FROM display.cleaning_days ORDER BY item_id,day')).rows;
 const OUT = 'dist';
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(`${OUT}/data/series`, { recursive: true });
@@ -69,7 +71,7 @@ const items = (await query<{
            (SUM(unit_price::numeric*count) FILTER (WHERE sold_date BETWEEN now()-interval '48 hours' AND now()-interval '24 hours')
              / NULLIF(SUM(count) FILTER (WHERE sold_date BETWEEN now()-interval '48 hours' AND now()-interval '24 hours'),0))::float8 AS vwap_prev,
            COALESCE(SUM(count) FILTER (WHERE sold_date > now()-interval '24 hours'),0)::int AS api_qty24
-    FROM trades t JOIN items i USING (item_id)
+    FROM display.trades t JOIN items i USING (item_id)
     WHERE i.category <> '카드'
     GROUP BY t.item_id
   ),
@@ -115,13 +117,13 @@ const items = (await query<{
     SELECT t.item_id,
            (SUM(t.unit_price::numeric*t.count) / NULLIF(SUM(t.count),0))::float8 AS vwap1h,
            COUNT(*)::int AS trades1h, SUM(t.count)::int AS api_qty1h
-    FROM trades t JOIN items i USING (item_id)
+    FROM display.trades t JOIN items i USING (item_id)
     WHERE i.category <> '카드' AND t.sold_date > now()-interval '1 hour' AND t.sold_date <= now()
     GROUP BY t.item_id
   ),
   last_trade AS (
     SELECT DISTINCT ON (t.item_id) t.item_id, t.unit_price, t.sold_date
-    FROM trades t JOIN items i USING (item_id)
+    FROM display.trades t JOIN items i USING (item_id)
     WHERE i.category <> '카드'
     ORDER BY t.item_id, t.sold_date DESC, t.id DESC
   )
@@ -163,7 +165,7 @@ const daily = (await history('daily', 'd', ['item_id', 'd'])<{
          (array_agg(c ORDER BY hour DESC))[1]::float8 AS c,
          (SUM(vwap*qty)/SUM(qty))::float8 AS vwap,
          SUM(qty)::int AS qty, SUM(n)::int AS n
-    FROM candles_1h b JOIN items i USING (item_id)
+    FROM display.candles_1h b JOIN items i USING (item_id)
     WHERE i.category <> '카드'
     GROUP BY 1,2
   ), card_daily AS (
@@ -184,7 +186,7 @@ const hourly = (await history('hourly', 't', ['item_id', 't'])<{ item_id: string
     SELECT b.item_id,
          to_char(hour AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') AS t,
          vwap::float8 AS vwap, qty
-    FROM candles_1h b JOIN items i USING (item_id)
+    FROM display.candles_1h b JOIN items i USING (item_id)
     WHERE hour >= date_trunc('hour', now() - interval '7 days') AND i.category <> '카드'
   ), card_hourly AS (
     SELECT s.item_id,
@@ -232,7 +234,7 @@ const askGap = (await history('askGap', 't', ['item_id', 't'])<{
   FROM listing_snapshots s JOIN items i USING (item_id)
   CROSS JOIN LATERAL (
     SELECT SUM(t.unit_price::numeric*t.count) / NULLIF(SUM(t.count),0) AS vwap
-    FROM trades t
+    FROM display.trades t
     WHERE t.item_id = s.item_id
       AND t.sold_date <= s.captured_at
       AND t.sold_date > s.captured_at - interval '24 hours'
@@ -301,7 +303,7 @@ const hourlyBy = byItem(hourly);
 const distributions = process.env.BUILD_DATABASE_URL ? (await query(`
   SELECT item_id,kind,to_char(bucket AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') AS d,
     to_char(bucket AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') AS t,
-    q25,median,q75,n,qty,l,h,vwap FROM price_distributions ORDER BY item_id,kind,bucket`)).rows : [];
+    q25,median,q75,n,qty,l,h,vwap FROM display.price_distributions ORDER BY item_id,kind,bucket`)).rows : [];
 const distributionsBy = byItem(distributions);
 const cardDailyMaxBy = byItem(cardDailyMax);
 const cardHourlyMaxBy = byItem(cardHourlyMax);
@@ -323,7 +325,7 @@ const WEEKDAY_MIN_HISTORY_DAYS = 14;
 const WEEKDAY_MIN_TRADES = 25;
 const weekdayEligibleSql = `
   SELECT t.item_id, i.category
-  FROM trades t JOIN items i USING (item_id)
+  FROM display.trades t JOIN items i USING (item_id)
   WHERE i.category <> '카드'
   GROUP BY t.item_id, i.category
   HAVING MAX(sold_date) - MIN(sold_date) > make_interval(days => $1::int)
@@ -333,7 +335,7 @@ const weekday = (await query<{ dow: string; k: number; n: number; ret: number; s
   WITH span AS (${weekdayEligibleSql}),
   d AS (SELECT t.item_id,(t.sold_date AT TIME ZONE 'Asia/Seoul')::date dd,
     SUM(t.unit_price::numeric*t.count)/SUM(t.count) vwap, SUM(t.count)::int qty
-    FROM trades t JOIN span s USING (item_id)
+    FROM display.trades t JOIN span s USING (item_id)
     WHERE (t.sold_date AT TIME ZONE 'Asia/Seoul')::date
           < (now() AT TIME ZONE 'Asia/Seoul')::date
     GROUP BY 1,2),
@@ -351,7 +353,7 @@ const weekdaySampleDb = (await query<{
   WITH span AS (${weekdayEligibleSql}),
   d AS (
     SELECT t.item_id, (t.sold_date AT TIME ZONE 'Asia/Seoul')::date dd
-    FROM trades t JOIN span s USING (item_id)
+    FROM display.trades t JOIN span s USING (item_id)
     WHERE (t.sold_date AT TIME ZONE 'Asia/Seoul')::date
           < (now() AT TIME ZONE 'Asia/Seoul')::date
     GROUP BY 1,2
@@ -428,6 +430,7 @@ for (const it of items) {
   writeFileSync(`${OUT}/data/series/${it.item_id}.json`, JSON.stringify({
     completeBefore: weekdayBefore, forecastDay: todayKst,
     priceBasis: it.price_basis, daily: d, hourly: hourlyBy.get(it.item_id) ?? [],
+    cleaning: displayCleaning.filter(r => r.item_id === it.item_id),
     distribution: it.price_basis === 'trade' ? {
       asOf: quality.checkedAt, minTrades: 5,
       daily: (distributionsBy.get(it.item_id) ?? []).filter(x => x.kind === 'day'),
@@ -449,7 +452,7 @@ const PARTS = ['숲속의 유랑악단 아바타 풀세트 상자', '숲속의 �
   '숲속의 유랑악단 오라 상자', '숲속의 유랑악단 칭호 상자', '숲속의 유랑악단 세라 상자'];
 const vw = (await query<{ item_name: string; vwap: number; n: number }>(`
   SELECT i.item_name, (SUM(t.unit_price::numeric*t.count)/SUM(t.count))::float8 vwap, COUNT(*)::int n
-  FROM trades t JOIN items i USING (item_id)
+  FROM display.trades t JOIN items i USING (item_id)
   WHERE t.sold_date > now() - interval '24 hours'
     AND (i.item_name = ANY($1) OR i.item_name = '숲속의 유랑악단 패키지')
   GROUP BY 1`, [PARTS])).rows;
@@ -466,7 +469,7 @@ const packageEvent = (await query<{
          to_char(e.starts_at AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') starts,
          to_char(e.ends_at   AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') ends,
          (SELECT to_char(MIN(c.hour) AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD')
-            FROM candles_1h c JOIN items i USING (item_id)
+            FROM display.candles_1h c JOIN items i USING (item_id)
            WHERE i.category = '유랑악단 패키지') first_seen
   FROM events e WHERE e.type = '패키지'
     AND 'e974d2eac46f0c8b23b83d4da389fa57' = ANY(e.related_item_ids) ORDER BY e.starts_at DESC LIMIT 1`)).rows[0] ?? null;
@@ -510,10 +513,10 @@ const meta = (await query<{
   trades: number; items: number; lo: string; hi: string;
   depletion_qty: number;
 }>(`
-  SELECT (SELECT COALESCE(SUM(n), 0)::int FROM candles_1h) trades,
+  SELECT (SELECT COALESCE(SUM(n), 0)::int FROM display.candles_1h) trades,
          (SELECT COUNT(*)::int FROM items WHERE tracked) items,
-         (SELECT to_char(MIN(hour) AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') FROM candles_1h) lo,
-         (SELECT to_char(MAX(hour) AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') FROM candles_1h) hi,
+         (SELECT to_char(MIN(hour) AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') FROM display.candles_1h) lo,
+         (SELECT to_char(MAX(hour) AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') FROM display.candles_1h) hi,
          (SELECT COALESCE(SUM(qty_sold),0)::int FROM listing_deltas
           WHERE reason <> 'expired' AND invalidated_at IS NULL
             AND observed_at > now() - interval '7 days') depletion_qty`)).rows[0];
@@ -554,7 +557,7 @@ const rwRows = (await history('rwRows', 't', ['item_id', 't'])<{
 }>(`
   SELECT c.item_id, to_char(c.hour AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') t,
          c.vwap::float8 vwap, c.n
-  FROM candles_1h c JOIN items i USING (item_id)
+  FROM display.candles_1h c JOIN items i USING (item_id)
   WHERE i.tracked AND i.category <> '카드' AND c.vwap > 0
   ORDER BY c.item_id, c.hour`)).rows;
 
@@ -625,6 +628,7 @@ const randomWalk = {
 writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
   builtAt: new Date().toISOString(),
   priceAsOf: quality.checkedAt,
+  cleaning: { version: 'daily-median-10x-v1', timezone: 'Asia/Seoul', days: displayCleaning },
   meta, health, quality, collection, weekday, weekdaySample, randomWalk, items: withMeta, legendary, marketRanking,
   cardWeekday: cardWeekdaySummary,
   weekdayTrends,

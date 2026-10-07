@@ -7,6 +7,17 @@ jobs:
   study:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: archive_verify
+          POSTGRES_PASSWORD: temporary-build-only
+          POSTGRES_DB: archive_verify
+        ports: ['55432:5432']
+        options: >-
+          --health-cmd "pg_isready -U archive_verify -d archive_verify"
+          --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -14,6 +25,10 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --omit=dev
+      - name: 정제 SQL 검증
+        env:
+          DISPLAY_TEST_URL: postgresql://archive_verify:temporary-build-only@127.0.0.1:55432/archive_verify
+        run: node scripts/test-display-prices-db.ts
       - name: 검증된 보관 자료 분석
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
