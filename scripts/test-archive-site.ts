@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process';
 import pg from 'pg';
 import { readManifest, restore, r2Store, TABLES, quote, type Store } from '../src/archive.ts';
 import { unifyMarket, installBuildClock } from '../src/build-unified.ts';
+import { buildDisplayPrices } from '../src/build-display-prices.ts';
 import { buildPriceDistribution } from '../src/build-price-distribution.ts';
 import type { HistoryOwner } from '../src/history-merge.ts';
 
@@ -50,6 +51,7 @@ try {
   // 연구 보관본이 유지한 정리 전 체결을 운영 조회 창에 되살리지 않는다.
   await client.query('DELETE FROM trades WHERE sold_date<(SELECT raw_from FROM candle_pipeline_state WHERE singleton)');
   await buildPriceDistribution(client);
+  await buildDisplayPrices(client);
   await client.query(`CREATE VIEW collection_runs AS SELECT id,item_id,source,started_at,finished_at,sold_rows,sold_new,
     sold_span_min,saturated,listing_rows,deltas_found,CASE WHEN status='failed' THEN 'archived failure' ELSE NULL END AS error FROM collection_quality;
     CREATE TABLE collection_health(id bigint,checked_at timestamptz,last_collect_at timestamptz,gap_min numeric,stale_items integer,action text);
@@ -60,7 +62,7 @@ try {
   const cut = new Date(Date.parse(asOf)-6*3600000).toISOString();
   const ids = (await client.query('SELECT item_id FROM items ORDER BY item_id')).rows.map(r=>r.item_id);
   const lastA = (await client.query('SELECT max(id)::text AS id FROM trades WHERE ingested_at<$1',[cut])).rows[0].id;
-  await client.query('ALTER SCHEMA public RENAME TO reference; CREATE SCHEMA public; CREATE SCHEMA hist_a; CREATE SCHEMA hist_b; CREATE SCHEMA hist_c');
+  await client.query('ALTER SCHEMA display RENAME TO reference_display; ALTER SCHEMA public RENAME TO reference; CREATE SCHEMA public; CREATE SCHEMA hist_a; CREATE SCHEMA hist_b; CREATE SCHEMA hist_c');
   for(const table of [...Object.keys(TABLES),'collection_health']) {
     for(const source of ['hist_a','hist_b'])
       await client.query(`CREATE TABLE ${source}.${quote(table)} AS SELECT * FROM reference.${quote(table)}`);

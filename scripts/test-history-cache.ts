@@ -49,6 +49,10 @@ try {
     WHERE i.category='카드' OR u=0;
     INSERT INTO legendary_card_floor (captured_at,min_unit_price,min_item_id,min_item_name,p10,median,scanned,with_listings,total_listings,upgrade)
     SELECT hour,100,'b','테스트 카드',110,120,165,100,200,0 FROM candles_1h WHERE item_id='a'`);
+  // Cache equivalence uses a fixed display fixture; filtering itself has a separate SQL test.
+  await client.query(`CREATE SCHEMA display;
+    CREATE VIEW display.trades AS SELECT * FROM public.trades;
+    CREATE VIEW display.candles_1h AS SELECT * FROM public.candles_1h`);
   await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
   const asOf = (await client.query('SELECT now() at')).rows[0].at.toISOString();
   // 실제 사이트 쿼리 9개를 그대로 대조한다. 테스트용으로 SQL을 따로 복사하지 않는다.

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import type { Client } from 'pg';
 import { quote } from './archive.ts';
 import { mergeTradeHistory, mergeSnapshotHistory, type HistoryOwner } from './history-merge.ts';
+import { buildDisplayPrices } from './build-display-prices.ts';
 import { buildPriceDistribution } from './build-price-distribution.ts';
 
 export async function installBuildClock(client: Client) {
@@ -85,6 +86,7 @@ export async function unifyMarket(client: Client, sources: string[], owners: His
   await client.query('INSERT INTO public.candle_pipeline_state VALUES(true,$1,$2,$3)',[state.raw_from,maxId,state.refreshed_at]);
   // 정리 전 통합 원본에서 수량 분위수를 계산한다. 오래된 불완전 원본은 봉과 대조해 제외한다.
   await buildPriceDistribution(client);
+  await buildDisplayPrices(client);
   // 보관본에 남은 정리 전 원본 때문에 현재가/요일 표본의 운영 조회 창이 늘어나지 않게 한다.
   // 장기 봉은 위에서 복원했으며 원본 전체는 출처별 분석 테이블과 R2에 그대로 남아 있다.
   await client.query('DELETE FROM public.trades WHERE sold_date<$1',[state.raw_from]);

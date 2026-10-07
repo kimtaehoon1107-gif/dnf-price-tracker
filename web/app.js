@@ -2,8 +2,8 @@ import { loadSummary } from "./summary-data.js?v=20261006-performance";
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
 import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260928-distribution';
-import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261007-forward';
-import { renderComparison, disposeComparison } from './comparison.js?v=20261006-performance';
+import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261008-cleaned';
+import { renderComparison, disposeComparison } from './comparison.js?v=20261008-cleaned';
 import { packagePanelHTML } from './package.js?v=20261002-comparison';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
@@ -651,7 +651,7 @@ function renderList() {
     </div>
 
     <p class="hint">
-      <b>최근 1시간 평균 거래가</b>는 ${priceTime(DATA.priceAsOf)} KST 기준 직전 60분의 총 거래금액을 총수량으로 나눈 값입니다. 1시간 내 관측 거래이 없으면 평균을 표시하지 않고 최근 거래가를 따로 보여줍니다. 둘째 줄의 시각은 최근 거래의 KST 시각이며, 오늘이 아니면 날짜로 표시합니다. 표본이 적거나 고가 대량 거래이 있으면 평균도 크게 움직일 수 있습니다.<br>
+      <b>최근 1시간 평균 거래가</b>는 ${priceTime(DATA.priceAsOf)} KST 기준 직전 60분의 총 거래금액을 총수량으로 나눈 값입니다. 1시간 내 관측 거래이 없으면 평균을 표시하지 않고 최근 거래가를 따로 보여줍니다. 둘째 줄의 시각은 최근 거래의 KST 시각이며, 오늘이 아니면 날짜로 표시합니다. 체결 가격은 KST 당일 원본 체결 단가 중앙값의 1/10 미만·10배 초과를 제외한 뒤 계산합니다. 원본은 보존하며 카드 호가에는 적용하지 않습니다. 오늘의 기준은 수집에 따라 바뀔 수 있습니다.<br>
       기본 정렬은 <b>최근 24시간 거래 금액</b>입니다. 변동률로 정렬하면 하루 한두 건 거래된 아이템의 의미 없는 ±40%가 맨 위를 차지합니다.
       같은 이유로 24시간 거래 기록이 5개 미만인 변동률에는 <b>?</b>를 붙였습니다.<br>
       <b>24시간 평균 거래가 대비</b>은 현재 최저 판매가를 <b>24시간 평균 거래가</b>과 비교한 값입니다. 카드는 대표 가격 자체가 호가라 표시하지 않으며, 거래가를 관측하지 않아 거래대금도 없습니다.<br>
@@ -1122,6 +1122,14 @@ async function renderDetail(it) {
   desc.textContent = isZeroCard
     ? `일평균 ${cardTier} 최저 판매가 · 실제 거래가와 다릅니다.`
     : s.inlineForecast ? '일별 평균 거래가(거래 수량 반영) · 점선은 요일 추가 ARIMA 실험 예측입니다.' : '일별 수량 가중 중앙값 · 상단의 최근 1시간 평균 거래가와 계산 기준이 다릅니다.';
+  if (!isZeroCard && s.cleaning) {
+    const excluded = s.cleaning.reduce((n, r) => n + Number(r.excluded_n), 0);
+    const qty = s.cleaning.reduce((n, r) => n + Number(r.excluded_qty), 0);
+    const unknown = s.cleaning.filter(r => !r.verified).length;
+    desc.textContent += ` KST 당일 체결 단가 중앙값의 1/10 미만·10배 초과 제외: 전체 이력 ${fmt(excluded)}건·${fmt(qty)}개. 원본은 보존합니다.` +
+      (unknown ? ` 원본 대조 불가 ${unknown}일은 정제 가격 표시에서 제외했습니다.` : '') +
+      ' 오늘의 중앙값은 수집에 따라 바뀔 수 있습니다.';
+  }
   renderPriceDistribution(document.getElementById('c1'), isZeroCard
     ? { basis: 'ask', asOf: DATA.priceAsOf ?? DATA.builtAt, daily: d }
     : s.inlineForecast ? { ...s.distribution, metric: 'vwap', daily: d.map(row => ({ ...row, ...(s.distribution?.daily.find(p => p.d === row.d) ?? {}), vwap: row.vwap })), forecast: s.inlineForecast } : s.distribution, events);

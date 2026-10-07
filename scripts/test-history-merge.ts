@@ -95,6 +95,10 @@ try {
     assert.deepEqual((await client.query(`SELECT ${fields} FROM merged_listing_snapshots ORDER BY item_id,captured_at,upgrade`)).rows,
       (await client.query(`SELECT ${fields} FROM public.listing_snapshots ORDER BY item_id,captured_at,upgrade`)).rows);
 
+    // Keep the query-equivalence fixture independent of filtering (tested separately).
+    await client.query(`CREATE SCHEMA display;
+      CREATE TABLE display.trades AS SELECT item_id,sold_date,unit_price,count FROM public.trades;
+      CREATE TABLE display.candles_1h AS SELECT item_id,hour,o,h,l,c,vwap,qty,n FROM public.candles_1h`);
     const build = readFileSync('web/build.ts', 'utf8');
     const queries = [...build.matchAll(/const \w+ = \(await history\('([^']+)', '([^']+)', (\[[^\]]+\])\)<[\s\S]*?>\(`([\s\S]*?)`(?:, (\[[^\n]*\]))?\)\).rows;/g)];
     assert.equal(queries.length, 9);
@@ -104,6 +108,8 @@ try {
     await client.query(`CREATE TEMP VIEW trades AS SELECT * FROM merged_trades;
       CREATE TEMP VIEW listing_snapshots AS SELECT * FROM merged_listing_snapshots;
       CREATE TEMP TABLE candles_1h ON COMMIT DROP AS ${candleSql('merged_trades')}`);
+    await client.query(`TRUNCATE display.trades; INSERT INTO display.trades SELECT item_id,sold_date,unit_price,count FROM merged_trades;
+      TRUNCATE display.candles_1h; INSERT INTO display.candles_1h SELECT item_id,hour,o,h,l,c,vwap,qty,n FROM pg_temp.candles_1h`);
     for (const [i,q] of queries.entries()) assert.deepEqual(
       (await client.query(q[4], q[5] ? [asOf] : [])).rows, expected[i], `실제 쿼리 ${q[1]}`);
     assert.deepEqual(await researchExport(client as any, asOf, asOf), research, '연구 출력 일치');

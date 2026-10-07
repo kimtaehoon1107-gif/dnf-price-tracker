@@ -96,7 +96,7 @@ export function renderPriceDistribution(root, data, events = []) {
     <div class="pd-plot"></div><div class="pd-thursdays" aria-label="목요일 · 실제 패치 여부와 별개"></div><div class="pd-events"></div>
     <div class="pd-status"></div><div class="pd-announcement" aria-live="polite"></div>
     <details class="pd-help" ${ask ? 'hidden' : ''}><summary>주요 거래 가격대란?</summary><p>관측한 거래를 개당 가격순으로 놓고, 누적 수량이 25%와 75%에 도달하는 가격을 표시합니다. 가운데 50%에 해당하는 가격 구간이며 동일 가격에 거래가 몰리면 포함 수량은 더 많을 수 있습니다. 미래 가격의 예측 범위가 아닙니다. 거래 5건 미만은 표시 기준상 점만 남기며, 5건 이상이라고 통계적 신뢰성을 보장하지 않습니다.</p></details>
-    <details class="pd-raw" ${legendary ? 'hidden' : ''}><summary>${ask ? '관측 최저·최고 호가와 횟수' : '원본 고가·저가와 평균 확인'}</summary><p></p></details>
+    <details class="pd-raw" ${legendary ? 'hidden' : ''}><summary>${ask ? '관측 최저·최고 호가와 횟수' : '고가·저가와 평균 확인'}</summary><p></p></details>
     <p class="hint">${ask ? '가격이 확인된 관측만 평균합니다. 빈 구간은 매물 없음과 수집 공백을 구분할 수 없어 연결하지 않습니다.' : '수집된 거래 수량은 전체 거래량의 일부입니다. API가 최근 거래를 최대 100건까지만 제공해 누락이 있을 수 있습니다. 빈 구간은 거래 관측이 없으며 무거래와 수집 공백을 구분할 수 없습니다. 원본이 불완전한 과거 구간은 분포를 표시하지 않습니다.'}</p>`;
   const $ = s => root.querySelector(s);
   if(data.forecast) $('.pd-forecast-note').textContent = forecast
