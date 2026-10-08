@@ -64,12 +64,13 @@ if (mode === 'capture') {
   const remote = remoteArchive(), previous = await readManifest(remote);
   assert.equal(current.parent, previous?.id ?? null, '추출 후 최신 보관본이 변경됐습니다. 다시 추출하세요');
   if (previous) assert(Date.parse(current.createdAt) > Date.parse(previous.manifest.createdAt), '과거 실행으로 최신 보관본을 덮을 수 없습니다');
-  const manifest = await combine(previous?.manifest ?? null, current, remote, local, remote);
-  manifest.parent = previous?.id ?? null;
   const client = await target();
+  let manifest: Manifest;
   let rows: number;
   let archivedResearchSha256:string;
   try {
+    manifest = await combine(previous?.manifest ?? null, current, remote, local, remote, client);
+    manifest.parent = previous?.id ?? null;
     await restore(client,current,{get:async key=>(await local.get(key))??remote.get(key),put:local.put});
     const actual = researchResult(await loadResearch(client as any, current.createdAt, current.createdAt));
     const expected = JSON.parse(await readFile(resolve(root, 'expected-research.json'), 'utf8'));
