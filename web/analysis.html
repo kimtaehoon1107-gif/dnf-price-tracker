@@ -41,6 +41,13 @@
 
 <main>
 
+<h1 class="page-title">분석</h1>
+<nav class="guide-jumps" aria-label="이 페이지의 절">
+  <a href="#random-walk">01 가격은 랜덤워크인가?</a>
+  <a href="#predictability">02 가격을 예측할 수 있는가?</a>
+  <a href="#limits">03 한계</a>
+</nav>
+
 <p class="lead">
   던파 경매장에서 <b>아이템 가치가 언제 오르고 언제 내리는지</b> 판단하려면 과거 시세가 필요합니다.
   그러나 Neople 오픈 API는 최근 체결 100건 또는 최대 1개월까지만 제공합니다.
@@ -62,7 +69,7 @@
 
 
 <!-- 01 -->
-<h2 class="sec"><span class="n">01</span>가격은 랜덤워크인가?</h2>
+<h2 class="sec" id="random-walk"><span class="n" aria-hidden="true">01</span>가격은 랜덤워크인가?</h2>
 
 <p>
   관측된 가격 변화에 단기적인 반전 또는 지속 신호가 있는지 살펴봅니다.
@@ -141,7 +148,7 @@
 
 
 <!-- 02 -->
-<h2 class="sec"><span class="n">02</span>가격을 예측할 수 있는가?</h2>
+<h2 class="sec" id="predictability"><span class="n" aria-hidden="true">02</span>가격을 예측할 수 있는가?</h2>
 
 <div class="method">
   <h4>방법 — 분해 후 추세 외삽</h4>
@@ -174,11 +181,17 @@
 <div class="table-scroll"><table id="fc-horizons"></table></div>
 <p class="method-note">평가 건수는 종목·평가일·예측 거리의 조합 수입니다. 겹치는 학습 구간과 종목 간 상관 때문에 독립 표본 수를 뜻하지 않습니다. 평가 건수가 적을수록 수치는 잠정적입니다.</p>
 
-<h3 class="sub">상세 화면에 예측을 그리지 않는 이유</h3>
+<h3 class="sub">일반 아이템 상세 화면에 예측을 그리지 않는 이유</h3>
 <p>
   위 평가에서 모델 오차가 naive보다 컸습니다. 신뢰할 수 없는 예측을 그린 뒤 주의를 덧붙이는 것보다
   <b>표시하지 않는 편이 낫다고 판단해</b> 일반 아이템 상세 화면에는 과거 가격·체결 수량과 가격 위치만 제공합니다.
   모델 평가는 이 절에 계속 기록합니다.
+</p>
+<p class="note quiet">
+  <b>예외 3종.</b> 에픽·레전더리 소울 결정과 닳아버린 순례의 증표의 상세 차트에는 요일 추가 ARIMA의 7일 예측선을
+  <b>‘실험 예측 · 검증 중’</b>으로 그립니다. 이 3종은 결과를 알고 난 뒤 고른 품목이고, 과거 재현에서 7일 뒤 평가는 품목마다 1건뿐입니다.
+  예측을 발행한 당시 값을 저장해 나중의 실제 가격과 비교하는 평가는 아직 이 예측에 연결되지 않았으므로, 성능이 검증된 예측이 아닙니다.
+  <a href="research.html#forecast-review">과거 재현 결과 보기 →</a>
 </p>
 <p>
   방향 없이 폭만 정하는 대안도 과거 자료로 재구성해 점검했습니다. 중심은 마지막 완료 일봉 가격, 폭은 과거 하루 변동폭(|로그 변화|의
@@ -208,7 +221,7 @@
 
 
 <!-- 03 -->
-<h2 class="sec"><span class="n">03</span>한계</h2>
+<h2 class="sec" id="limits"><span class="n" aria-hidden="true">03</span>한계</h2>
 
 <p><b>이 문서의 수치를 어디까지 신뢰할 수 있는지</b> 밝혀 둡니다.</p>
 

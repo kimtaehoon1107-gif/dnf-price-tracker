@@ -22,7 +22,7 @@
 .compare-selected b { display: block; margin-top: 4px; font-size: 15px; }
 .compare-date { margin: 14px 0; }
 .compare-date input { display: block; width: 100%; margin-top: 10px; accent-color: var(--blue); }
-.compare-link { font-size: 13px; margin-left: auto; }
+.compare-link { display: inline-flex; align-items: center; min-height: 44px; font-size: 13px; margin-left: auto; }
 @media(prefers-color-scheme:dark) { .comparison { --compare-second: #e8b575; } }
 @media(max-width:600px) {
   .comparison select { font-size: 16px; }
