@@ -54,6 +54,20 @@ export function periodChange(rows) {
   return { first, last, percent: (last.median / first.median - 1) * 100 };
 }
 
+// 1·2·2.5·5 × 10^k 간격의 눈금. "4130.0만" 같은 어중간한 값이 축에 나오지 않게 한다.
+// 연구 페이지 forecast-review-model.js의 niceTicks와 같은 규칙이다. [lo, hi]는 화면에 보이는 값 범위.
+export function axisTicks(lo, hi, count = 6) {
+  if (!(hi > lo)) return { ticks: Number.isFinite(lo) ? [lo] : [], step: 0 };
+  const raw = (hi - lo) / count, pow = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * pow).find(s => s >= raw);
+  const ticks = [];
+  for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + step * 1e-6; v += step) ticks.push(Number(v.toPrecision(12)));
+  return { ticks, step };
+}
+export function axisLabel(p) {
+  const trim = n => Number(n.toFixed(2)).toLocaleString('ko-KR');
+  return p >= 1e8 ? `${trim(p / 1e8)}억` : p >= 1e4 ? `${trim(p / 1e4)}만` : fmt(p);
+}
 export function isThursday(day) { return new Date(`${day}T00:00:00Z`).getUTCDay() === 4; }
 
 export function renderThursdayMarkers(root, rows, position, onSelect) {
@@ -149,10 +163,9 @@ export function renderPriceDistribution(root, data, events = []) {
     const lo = prices.length ? Math.min(...prices) : 0, hi = prices.length ? Math.max(...prices) : 1;
     const pad = Math.max((hi-lo)*.15, hi*.002, 1), y = p => B - (p-lo+pad)/(hi-lo+2*pad)*(B-T);
     positions = new Map(rows.map((r,i) => [r.time, { x: x(i), y: r.median == null ? null : y(r.median) }]));
-    const axis = p => p >= 1e8 ? `${(p/1e8).toFixed(2)}억` : p >= 1e4 ? `${(p/1e4).toFixed(1)}만` : fmt(p);
     let svg = `<svg viewBox="0 0 ${width} ${H}" role="slider" tabindex="0" aria-label="날짜별 ${ask ? priceLabel : '거래 가격'}. 좌우 화살표로 날짜 선택" aria-valuemin="0" aria-valuemax="${rows.length-1}"><text x="${L}" y="15">골드</text>`;
-    if (prices.length) for (let i=0;i<4;i++) { const p=lo+(hi-lo)*i/3; if(hi===lo&&i)break;
-      svg+=`<line x1="${L}" x2="${width-R}" y1="${y(p)}" y2="${y(p)}" stroke="var(--line-2)"/><text x="${L-8}" y="${y(p)+4}" text-anchor="end">${axis(p)}</text>`; }
+    if (prices.length) for (const p of (hi===lo ? [lo] : axisTicks(lo-pad, hi+pad).ticks))
+      svg+=`<line x1="${L}" x2="${width-R}" y1="${y(p)}" y2="${y(p)}" stroke="var(--line-2)"/><text x="${L-8}" y="${y(p)+4}" text-anchor="end">${axisLabel(p)}</text>`;
     else svg+=`<text x="${(L+width-R)/2}" y="130" text-anchor="middle">${ask ? '가격 관측 자료 없음' : '분포 자료 없음'}</text>`;
     const barW = Math.max(1,(width-L-R)/rows.length-3);
     rows.forEach((r,i) => { if(!ask && r.state==='ready' && hasBand(r))svg+=`<rect x="${x(i)-barW/2}" y="${y(r.q75)}" width="${barW}" height="${Math.max(1,y(r.q25)-y(r.q75))}" fill="var(--ink-3)" opacity=".18"/>`; });
