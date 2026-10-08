@@ -68,6 +68,10 @@ jobs:
       - run: npm ci --omit=dev
       - name: 보관 회귀 검사
         run: node --no-warnings scripts/test-archive.ts
+      - name: 카드 보관 형식 이전 검사
+        env:
+          ARCHIVE_VERIFY_URL: postgresql://archive_verify:temporary-verification-only@127.0.0.1:55432/archive_verify
+        run: node --no-warnings scripts/test-archive-card-schema.ts
       - name: 읽기 전용으로 시세·품질 기록과 기존 연구 입력 추출
         env:
           DATABASE_URL: ${{ secrets[matrix.source.secret] }}

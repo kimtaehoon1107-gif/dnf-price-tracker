@@ -1,5 +1,6 @@
 // 시세 보관 전용: 삭제된 운영 행은 보관본에 남기고, 같은 키의 수정은 최신 관측으로 갱신한다.
 import assert from 'node:assert/strict';
+import { isDeepStrictEqual } from 'node:util';
 import { createHash } from 'node:crypto';
 import { gzipSync, gunzipSync } from 'node:zlib';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -187,7 +188,41 @@ export async function capture(client: DB, store: Store, previous?: Manifest, max
   return manifest;
 }
 
-export async function combine(previous: Manifest | null, current: Manifest, oldStore: Store, newStore: Store, output: Store) {
+export async function upgradeCardArchive(previous: Manifest, current: Manifest, store: Store, output: Store, client: DB) {
+  const table = 'legendary_card_floor', added = { name: 'cheapest10', type: 'jsonb' };
+  if (isDeepStrictEqual(previous.columns, current.columns)) return previous;
+  const oldColumns = previous.columns[table];
+  assert(oldColumns && !oldColumns.some(c => c.name === added.name), '스키마 변경: 지원하지 않는 보관 형식 이전');
+  const columns = { ...previous.columns, [table]: [...oldColumns, added] };
+  assert.deepEqual(current.columns, columns, '스키마 변경: cheapest10 추가 외에는 자동 이전하지 않습니다');
+  const shards: Shard[] = [];
+  for (const shard of previous.shards) {
+    if (shard.table !== table) { shards.push(shard); continue; }
+    const oldRows = await readRows(store, shard), rows: Row[] = [];
+    for (let i = 0; i < oldRows.length; i += 1000) {
+      // PostgreSQL이 JSON 원문을 변환한다. JS Number를 거치면 큰 가격/ID의 정밀도를 잃는다.
+      const batch = oldRows.slice(i, i + 1000);
+      const result = await client.query(`SELECT key, (row::jsonb || '{"cheapest10":null}'::jsonb)::text AS row
+        FROM jsonb_to_recordset($1::jsonb) AS input(key text,row text)`, [JSON.stringify(batch)]);
+      assert.equal(result.rows.length, batch.length);
+      rows.push(...result.rows);
+    }
+    const bytes = encode(rows);
+    // 이전 소스 해시는 구형 행 형식의 해시이므로 재사용하지 않는다.
+    const migrated: Shard = { table, day: shard.day, hash: hash(bytes), bytes: bytes.length, rows: rows.length };
+    await output.put(objectKey(migrated), bytes);
+    await readRows(output, migrated);
+    shards.push(migrated);
+  }
+  return { ...previous, columns, shards };
+}
+
+export async function combine(previous: Manifest | null, current: Manifest, oldStore: Store, newStore: Store, output: Store, schemaClient?: DB) {
+  if (previous && schemaClient) {
+    previous = await upgradeCardArchive(previous, current, oldStore, output, schemaClient);
+    const original = oldStore;
+    oldStore = { get: async key => (await output.get(key)) ?? original.get(key), put: original.put };
+  }
   if (previous) assert.deepEqual(current.columns, previous.columns, '스키마 변경: 보관 형식 이전이 필요합니다');
   const shards = new Map((previous?.shards ?? []).map(s => [`${s.table}/${s.day}`, s]));
   for (const s of current.shards) {
