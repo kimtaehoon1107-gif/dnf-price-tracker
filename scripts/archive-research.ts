@@ -115,7 +115,9 @@ if (mode === 'capture') {
     const current = await source();
     assert(Date.parse(current.createdAt) >= Date.parse(manifest.createdAt));
     assert.equal(current.parent, archived.id, '조회 중 최신 보관본이 변경됐습니다. 새 폴더에서 다시 실행하세요');
-    manifest = await combine(manifest, current, remote, local, local);
+    const schemaClient = await target();
+    try { manifest = await combine(manifest, current, remote, local, local, schemaClient); }
+    finally { await schemaClient.end(); }
     manifest.parent = archived.id;
     store = { get: async key => (await local.get(key)) ?? remote.get(key), put: local.put };
   }
