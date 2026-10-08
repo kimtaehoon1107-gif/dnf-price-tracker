@@ -1,17 +1,34 @@
+/* 색은 style.css의 테마 변수를 따른다. 선 색은 흰 배경 4.5:1 이상, 다크 배경 7:1 이상으로 골랐다. */
+:root{--fr-actual:#172b40;--fr-last:#667789;--fr-arima110:#a35a1f;--fr-weekday_arima:#1f66e0}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--fr-actual:#e8eaed;--fr-last:#9aa6b5;--fr-arima110:#e0a070;--fr-weekday_arima:#79adff}}
 #forecast-review{scroll-margin-top:90px}
+[data-forecast-review][hidden]{display:none}
+.fr-badge{margin:14px 0;padding:11px 14px;border-radius:10px;background:var(--page);border-left:3px solid var(--gold);font-size:13px;line-height:1.7;color:var(--ink-2)}
+.fr-badge b{margin-right:6px;color:var(--ink)}
 .fr-controls{display:flex;gap:20px;flex-wrap:wrap;margin:20px 0}
 .fr-controls label{display:flex;gap:10px;align-items:center;font-size:13px}
 .fr-controls label[hidden]{display:none}
-.fr-controls select{max-width:100%;padding:9px;border:1px solid #dce2ea;border-radius:8px;background:#fff;color:#172b40}
-.fr-scores{display:flex;gap:24px;flex-wrap:wrap;padding:16px;background:#f7f9fc;border-radius:12px;margin:16px 0}
-.fr-scores span{display:block;font-size:12px;color:#65758a}
-.fr-scores strong{font-size:20px}
-.fr-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;margin:16px 0}
+.fr-controls select{max-width:100%;min-height:40px;padding:9px;border:1px solid var(--line-2);border-radius:8px;background:var(--card);color:var(--ink);font:inherit}
+.fr-scores{display:flex;gap:24px;flex-wrap:wrap;padding:16px;background:var(--page);border-radius:12px;margin:16px 0}
+.fr-scores span{display:block;font-size:12px;color:var(--ink-3)}
+.fr-scores strong{font-size:20px;color:var(--ink)}
+.fr-low{margin:16px 0;padding:14px 16px;border-radius:12px;background:var(--page);font-size:13px;color:var(--ink-2);line-height:1.7}
+.fr-legend{display:flex;gap:8px 16px;flex-wrap:wrap;font-size:12px;margin:16px 0;color:var(--ink-2)}
+.fr-key{display:inline-flex;align-items:center;gap:6px}
 .fr-plot{overflow-x:auto}
-.fr-chart{width:100%;min-width:650px;display:block}
-.fr-note{font-size:12px;color:#65758a;line-height:1.8}
+.fr-chart{width:100%;display:block}
+.fr-grid{stroke:var(--line-2)}
+.fr-axis{font-size:12px;fill:var(--ink-3)}
+.fr-line{stroke:var(--c);fill:none}
+.fr-dot{fill:var(--c);stroke:var(--c)}
+.fr-dot.failed{fill:var(--card)}
+.fr-s-actual{--c:var(--fr-actual)}.fr-s-last{--c:var(--fr-last)}.fr-s-arima110{--c:var(--fr-arima110)}.fr-s-weekday_arima{--c:var(--fr-weekday_arima)}
+.fr-note{font-size:12px;color:var(--ink-3);line-height:1.8}
 .fr-table{overflow-x:auto;margin:16px 0}
 .fr-table table{width:100%;white-space:nowrap;font-size:12px;border-collapse:collapse}
-.fr-table th,.fr-table td{text-align:right;padding:9px;border-bottom:1px solid #e5eaf0}
+.fr-table caption{padding-bottom:8px;text-align:left;color:var(--ink-3)}
+.fr-table th,.fr-table td{text-align:right;padding:9px;border-bottom:1px solid var(--line-2)}
 .fr-table th:first-child,.fr-table td:first-child{text-align:left}
+.fr-table tr.fr-dim td,.fr-table tr.fr-dim th[scope=row]{color:var(--ink-3)}
+[data-forecast-review] details summary,#forecast-review details summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-size:13px;font-weight:600}
 @media(max-width:600px){.fr-controls{display:grid;gap:12px}.fr-controls label{justify-content:space-between}.fr-scores{gap:14px}.fr-scores strong{font-size:17px}}
