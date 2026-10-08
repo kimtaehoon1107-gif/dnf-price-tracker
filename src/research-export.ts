@@ -3,14 +3,16 @@ import { HistoryCache } from './history-cache.ts';
 import { loadResearch, PACKAGE_ID, PART_IDS } from './research-data.ts';
 import { RESEARCH_VERSION, eventWindow, scoreIssues, type Issue } from './research.ts';
 
-export async function researchExport(client: PoolClient, asOf: string, through: string, cache = new HistoryCache(client)) {
-  const data = await loadResearch(client, asOf, through, RESEARCH_VERSION, cache);
+export async function researchExport(client: PoolClient, asOf: string, through: string, cache = new HistoryCache(client), cleaned = false) {
+  const data = await loadResearch(client, asOf, through, RESEARCH_VERSION, cache, cleaned);
+  const original = cleaned ? await loadResearch(client, asOf, through, RESEARCH_VERSION, cache) : data;
   const batches = (await client.query<{ origin: string; issued_at: Date; data_as_of: Date; issues: Issue[] }>(
     'SELECT origin,issued_at,data_as_of,issues FROM research_forecast_batches WHERE version=$1 ORDER BY origin', [RESEARCH_VERSION])).rows;
   const actuals = (await client.query<{ target: string; values: Record<string, number | null> }>(
     'SELECT target,values FROM research_actuals WHERE version=$1 ORDER BY target', [RESEARCH_VERSION])).rows;
   const latest = batches.at(-1);
   const series = data.series.map((s) => ({ ...s,
+    originalDaily: cleaned ? original.series.find(r => r.id === s.id)?.daily : undefined,
     issue: latest?.issues.find((i) => i.series === s.id) ?? null,
     scores: scoreIssues(batches.flatMap((b) => b.issues.filter((i) => i.series === s.id)),
       new Map(actuals.map((a) => [a.target, a.values[s.id] ?? null]))),
@@ -56,6 +58,7 @@ export async function researchExport(client: PoolClient, asOf: string, through: 
     components: components.map((c) => ({ id: c.id, name: c.name, ...eventWindow(c.daily, d, data.before) })),
   })) : [];
   return { version: RESEARCH_VERSION, asOf, before: data.before,
+    cleaning: cleaned ? 'daily-median-10x-v1' : null,
     methodNote: '9월 20일 카드의 시간별 마지막 무매물 상태를 반영하도록 집계를 수정했습니다. 수정 전 예측·평가 기록은 별도로 보존하며, 아래 성적은 수정 후 새 발행분입니다.',
     issuedAt: latest?.issued_at ?? null, origin: latest?.origin ?? null, dataAsOf: latest?.data_as_of ?? null,
     series, package: { id: PACKAGE_ID, event, daily, components, stages, fee: 0.03,
