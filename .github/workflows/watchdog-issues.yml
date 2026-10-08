@@ -1,0 +1,37 @@
+name: 감시견 이슈 정리
+
+# 감시견 이슈는 "복구되면 수동으로 닫아 주세요"라서 쌓이기만 했다. 수집이 복구된 것으로 보이면 닫는다.
+# 수집·배포와 달리 놓쳐도 다음 시각에 처리되면 되는 부수 작업이라 GitHub schedule을 쓴다.
+on:
+  schedule:
+    - cron: '25 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '닫지 않고 판단만 출력'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+  actions: read
+
+concurrency:
+  group: watchdog-issues
+  cancel-in-progress: false
+
+jobs:
+  close-recovered:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: 복구된 감시견 이슈 닫기
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: node --no-warnings scripts/close-watchdog-issues.ts
