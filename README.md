@@ -62,33 +62,81 @@
 
 ## 어떻게 돌아가나
 
+2026-10-08 기준입니다. 현재 수집은 **B 56종 · C 16종**으로 나누고, 일시중지한 A의 과거 자료는 검증된 R2 보관본에서 읽습니다. 운영 DB에 과거 전체를 다시 넣지 않고, GitHub Actions의 일회성 PostgreSQL에서 이력을 합칩니다.
+
+### 수집 → 이력 통합 → 사이트 배포
+
 ```mermaid
 flowchart TD
-    cron["Supabase pg_cron<br/>실행 예약"]
     api["Neople API<br/>최근 체결 · 열린 매물"]
-    collect["GitHub Actions · 수집<br/>55분 실행 · 아이템별 주기"]
-    db[("Supabase Postgres<br/>원본 체결 · 매물 · 시간봉")]
-    build["GitHub Actions · 빌드·배포<br/>DB 조회 → 정적 사이트 생성"]
+    cron["B·C Supabase pg_cron / pg_net<br/>수집 예약 · 지연 감시 · 복구 호출"]
+    collect["GitHub Actions · 경매장 수집<br/>B·C 각각 hot / rest · 55분 내부 루프"]
+    b[("Supabase B · 56종<br/>체결 · 매물 · 시간봉 · 공통 상태")]
+    c[("Supabase C · 16종<br/>체결 · 매물 · 시간봉")]
+    build["GitHub Actions · 사이트 배포"]
+    cache[("R2 · 빌드 재사용 캐시<br/>변경 묶음만 DB에서 갱신")]
+    history[("R2 · 검증된 장기 보관본<br/>A 최종 이력 + B·C 과거 이력")]
+    replica["Actions 일회성 PostgreSQL<br/>담당 품목·전환 시각에 맞춰 이력 통합"]
+    render["정합성 검사 · 가격 정제 · 차트 데이터<br/>실험 예측 계산 · 정적 파일 생성"]
     pages["GitHub Pages<br/>시세 · 차트 · 분석"]
 
-    cron -. "15분마다 · pg_net" .-> collect
-    collect <-->|"조회 · 응답"| api
-    collect -->|"체결 · 매물 저장"| db
-    cron -. "매시 2분 · 시간봉 집계" .-> db
-    cron -. "매시 5분 · pg_net" .-> build
-    db -->|"원본 · 집계 데이터"| build
-    build -->|"HTML · JSON 배포"| pages
+    cron -. "15분마다 수집 실행 요청" .-> collect
+    api -->|"API 응답"| collect
+    collect -->|"B 담당 품목"| b
+    collect -->|"C 담당 품목"| c
+    cron -. "각 DB 매시 2분 집계" .-> b
+    cron -. "각 DB 매시 2분 집계" .-> c
+    cron -. "B에서 매시 5분 배포 요청" .-> build
+    build -. "검사·통합 작업 실행" .-> replica
+    b -->|"해시 대조 후 변경분"| cache
+    c -->|"해시 대조 후 변경분"| cache
+    cache -->|"현재 자료 재현"| replica
+    history -->|"보관 이력 복원"| replica
+    replica --> render --> pages
 ```
 
-점선은 예약된 작업의 실행, 실선은 API 조회·응답과 데이터 흐름입니다. `pg_net`은 GitHub의 `workflow_dispatch` API를 호출하며, 시간봉 집계는 DB 안에서 실행됩니다.
+실선은 데이터 흐름, 점선은 작업 실행·예약입니다. DB에서 캐시를 갱신하고 일회성 DB를 구성하는 과정은 사이트 배포 작업 안에서 실행됩니다. 사이트 관련 코드가 main에 반영될 때와 수동 요청으로도 배포합니다.
 
-이 저장소에서는 GitHub Actions의 예약 실행이 40회 넘는 기회 중 거의 생성되지 않았습니다. Supabase의 `pg_cron`이 `pg_net`으로 `workflow_dispatch`를 호출하도록 변경했습니다. 운영 상태는 트리거 호출 결과와 별도로 실제 수집 성공 기록을 기준으로 확인합니다.
+시간봉 집계는 각 운영 DB 안에서 실행하며, 수집·집계 지연과 원본 대조 불일치를 검사합니다. 수집 감시견은 전체 수집 공백과 품목별 지연을 나눠 확인하고 복구 실행·GitHub Issue 알림을 요청합니다. 단, 감시견도 같은 Supabase의 pg_cron 위에 있어 해당 기반 서비스의 장애까지 독립적으로 감시하지는 못합니다.
 
-감시도 두 단계입니다. 전체 수집기가 살아 있는지와 각 아이템이 자기 폴링 주기 안에 갱신되는지를 따로 봅니다. 전역 가동률만 봤을 때 개별 아이템이 설정 주기의 최대 70배까지 굶었던 일을 반영한 구조입니다.
+### 정기 보관과 배포 후 예측 검증
 
-개별 체결은 최근 분석에 필요한 기간만 보존하고, 장기 가격 이력은 1시간 OHLC·VWAP 봉으로 압축합니다. 예측과 차트는 봉을 사용하므로 개별 체결을 영구 보관하지 않아도 가격 시계열은 계속 늘어납니다.
+```mermaid
+flowchart TD
+    db[("Supabase B·C<br/>보존 중인 원본 · 연구 기록")]
+    archive["GitHub Actions · R2 정기 보관<br/>매일 KST 11:37 예약 · 수동 실행 가능"]
+    verify["R2 업로드·재다운로드<br/>현재·전체 보관본 실제 복원 · 연구 입력 재현"]
+    history[("R2 · 검증된 장기 보관본<br/>기존 과거 행도 보존")]
+    prune["검증된 내용과 일치하는<br/>14일 초과 매물·호가 원본만 정리"]
+    pages["사이트 배포 성공<br/>공개된 최신 가격 JSON"]
+    forecast["GitHub Actions · 개별 평균 거래가 예측 검증<br/>배포 성공 후 실행 · 매일 KST 03:40 예약도 운영"]
+    journal[("R2 · 예측 발행·실측 기록<br/>입력·예측 보존 · 후속 실제값 대조")]
 
-시세 조회는 DB를 매시간 정적 파일로 구워 GitHub Pages에 올립니다. 대신 임의 아이템을 실시간으로 검색할 수 없고, Neople API가 브라우저 직접 호출에 필요한 CORS 헤더를 제공하지 않아 추적 종목은 수집기에서 관리합니다. 피드백 게시판은 Supabase Edge Function으로 글을 즉시 조회·저장합니다.
+    db -->|"해시 대조 후 변경 자료 추출"| archive
+    archive --> verify
+    history -->|"기존 보관본과 병합"| verify
+    verify -->|"통과한 경우만 최신 보관본 발행"| history
+    verify -. "검증 통과 후" .-> prune
+    prune -->|"보관이 확인된 행만 정리"| db
+    pages -. "workflow_run 성공 조건" .-> forecast
+    pages -->|"공개 JSON 조회"| forecast
+    forecast --> journal
+```
+
+보관 검증에 실패하면 최신 보관본을 바꾸거나 원본 정리를 진행하지 않습니다. B·C의 보관 경로는 분리하며, 오래된 매물·호가 원본을 운영 DB에서 정리해도 검증된 R2 이력은 유지합니다. 보관본과 빌드 캐시는 용도가 다르고, 예측 발행 기록도 별도로 관리합니다.
+
+배포 후 예측 검증은 공개 JSON을 사용하므로 운영 DB 원본을 다시 추출하지 않습니다. 화면용 실험 예측 계산과 별도 작업이며, 검증 실행의 성공은 예측 정확도가 입증됐다는 뜻이 아닙니다. 기존 고정 구성 지수의 예측·실측 기록은 사이트 빌드 과정에서 B에 저장하는 별도 연구 흐름으로 유지합니다.
+
+| 실행 작업 | 설정·구현 |
+|---|---|
+| B·C 경매장 수집 및 예약·감시 | [collect.yml](.github/workflows/collect.yml) · [scheduler.sql](sql/scheduler.sql) · [watchdog.sql](sql/watchdog.sql) |
+| R2 + B·C 통합 사이트 빌드·배포 | [pages.yml](.github/workflows/pages.yml) · [build-history-site.ts](scripts/build-history-site.ts) · [이력 담당 경계](config/history-sources.json) |
+| 정기 보관·실제 복원 검증·원본 정리 | [archive-research.yml](.github/workflows/archive-research.yml) · [보관 정책](docs/archive-retention.md) |
+| 개별 평균 거래가 예측 발행·평가 | [daily-vwap-forecast.yml](.github/workflows/daily-vwap-forecast.yml) · [record-daily-vwap.ts](scripts/record-daily-vwap.ts) |
+
+[GitHub Actions 실행 기록](https://github.com/kimtaehoon1107-gif/dnf-price-tracker/actions)에서 각 작업의 단계와 결과를 확인할 수 있습니다. 예약 시각은 실행 보장 시각이 아니며, 실제 수집 성공 기록과 공개 데이터 기준 시각을 따로 확인합니다.
+
+시세 조회는 정적 파일을 제공하므로 방문자의 조회가 운영 DB 읽기를 직접 늘리지 않습니다. 추적 품목은 수집기에서 관리하고, 피드백 게시판은 별도의 Supabase B Edge Function으로 즉시 조회·저장합니다.
 
 ## 수집하는 것
 
