@@ -30,5 +30,6 @@
 .fr-table th,.fr-table td{text-align:right;padding:9px;border-bottom:1px solid var(--line-2)}
 .fr-table th:first-child,.fr-table td:first-child{text-align:left}
 .fr-table tr.fr-dim td,.fr-table tr.fr-dim th[scope=row]{color:var(--ink-3)}
-[data-forecast-review] details summary,#forecast-review details summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-size:13px;font-weight:600}
+/* summary에 display:flex를 주면 펼침 표시가 사라지므로 padding으로 높이를 맞춘다 */
+[data-forecast-review] details summary,#forecast-review details summary{padding-block:12px;cursor:pointer;font-size:13px;font-weight:600}
 @media(max-width:600px){.fr-controls{display:grid;gap:12px}.fr-controls label{justify-content:space-between}.fr-scores{gap:14px}.fr-scores strong{font-size:17px}}
