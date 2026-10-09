@@ -30,3 +30,4 @@ import './test-chat.ts';
 import './test-forecast-review.ts';
 import './test-research-cleaned.ts';
 import './test-detail-chart-failure.ts';
+import './test-watchdog-issues.ts';
