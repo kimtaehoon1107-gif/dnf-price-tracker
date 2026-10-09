@@ -32,7 +32,7 @@ assert.equal(wins.last.wins,null);
 assert.equal(wins.arima110.wins,1);
 assert.equal(wins.weekday_arima.wins,1);
 
-// 화면이 근거로 삼는 규칙: 7일 뒤는 품목마다 1건뿐이라 평균 오차를 비교하지 않는다.
+// 화면이 근거로 삼는 규칙: 7일 뒤는 품목마다 한 주(7건)에 못 미쳐 평균 오차를 비교하지 않는다.
 const table=overview(data.items);
 assert.equal(table.length,9);
 for(const row of table.filter(r=>r.h===7))assert(row.n<MIN_COMPARABLE,'7일 뒤는 비교 최소 건수에 못 미친다');

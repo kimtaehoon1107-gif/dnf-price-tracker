@@ -29,14 +29,14 @@ function groups() {
       <button type="button" class="link-btn" id="toggle-small">${showSmall ? '기본 목록으로' : `소수 구성 ${small.length}개도 보기`}</button>
       (${small.map((g) => `${esc(g.label)} ${g.basket.members.length}종`).join(' · ')}) 소수 구성도 발행·평가 기록은 그대로 보존합니다.</p>` : ''}
     <section class="panel"><h3>구성이 고정된 ${esc(s.label)} 지수</h3>
-      <p class="desc">${esc(basis)} · 기준 주간 ${esc(b.baseDate)}의 각 종목 평균을 100으로 환산한 뒤 동일 비중으로 평균합니다.</p>
+      <p class="desc">${esc(basis)} · 기준 주간 ${esc(b.baseDate)}에 고정한 각 종목 기준 가격으로 나눈 뒤 동일 비중으로 평균합니다. ${b.basis === 'trade' ? '체결 지수의 분자는 이상치 제외 일평균이며, 기존 기준 가격·구성은 유지합니다.' : '카드 호가는 체결 이상치 제외 대상이 아닙니다.'}</p>
       <div class="kv research-kv"><div><div class="k">최근 유효 지수 · ${esc(lastValid?.d ?? '없음')}</div><div class="v">${fmt(lastValid?.value, 2)}</div></div>
         <div><div class="k">${esc(lastDay?.d ?? '')} 관측 구성종목</div><div class="v">${lastDay?.coverage ?? 0}<small> / ${b.members.length}종</small></div></div></div>
       <p class="hint">${b.members.length < MIN_MEMBERS ? `구성이 ${b.members.length}종이라 개별 아이템의 흐름에 가깝습니다. ` : ''}매일 동일한 종목을 비교하며 하나라도 관측이 없으면 그날 지수는 공백입니다.
         ${b.basis === 'trade' ? '무거래일·수집 누락은 보간하지 않습니다. 적은 체결로 계산된 일평균도 포함됩니다.' : '카드 호가는 시간별 마지막 관측을 평균하며 하루 18시간 이상이어야 사용합니다.'}
         2026-09-16에 정한 구성을 과거에도 적용한 설명용 지수입니다. 당시 시장 전체를 재현한 지수나 과거 투자 성과가 아닙니다.</p>
     </section>
-    <section class="panel" id="group-forecast"></section>
+    <details class="panel"><summary>정제 전 발행 예측·평가 기록 보기</summary><p class="hint">기존 발행 기록은 원본 체결 기준입니다. 아래 실측·예측·성적은 정제한 현재 지수와 구분해 보존합니다.</p><div id="group-forecast"></div></details>
     <section class="panel"><h3>구성 아이템별 흐름</h3><p class="desc">등급·종류별 움직임이 같은 방향인지 비교합니다. 선택한 아이템도 자신의 기준 주간 평균이 100입니다.</p>
       <label for="member-select" class="research-label">비교할 구성 아이템</label>
       <select id="member-select" class="research-select">${s.members.map((m) => `<option value="${m.id}">${esc(m.name)}</option>`).join('')}</select>
@@ -54,7 +54,13 @@ function groups() {
     if (!showSmall && small.some((g) => g.id === selected)) location.hash = 'groups';
     else render();
   };
-  disposers.push(renderForecast(document.getElementById('group-forecast'), s, data));
+  const record = document.getElementById('group-forecast');
+  let recordDrawn = false;
+  record.parentElement.ontoggle = () => {
+    if (!record.parentElement.open || recordDrawn) return;
+    recordDrawn = true;
+    disposers.push(renderForecast(record, {...s, daily: s.originalDaily ?? s.daily}, data));
+  };
   let disposeMember;
   const draw = () => {
     disposeMember?.();

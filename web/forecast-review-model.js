@@ -5,7 +5,7 @@ export const forecastItemNames={
   f9941d3fa0b8253bb0b2567a29b1299f:'닳아버린 순례의 증표',
 };
 // 평균 오차를 나란히 놓고 비교해도 되는 최소 평가 수. 요일 모델은 일곱 요일을 한 번씩은 봐야
-// 판단할 수 있으므로 한 주(7건)로 둔다. 실측: 7일 뒤는 품목마다 1건뿐이라 0.77% 같은 값이 크게 보였다.
+// 판단할 수 있으므로 한 주(7건)로 둔다. 실측(2026-10-06 자료): 7일 뒤는 품목마다 2건뿐이라 그 평균이 큰 숫자로 보였다.
 export const MIN_COMPARABLE=7;
 const error=(r,model)=>Math.abs(r.pred[model]/r.actual-1)*100;
 export function comparisonSummary(rows){

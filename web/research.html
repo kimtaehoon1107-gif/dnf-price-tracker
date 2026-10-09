@@ -56,6 +56,7 @@
 
 <h1 class="research-title">종류별 가격 흐름을 함께 봅니다</h1>
 <p class="research-intro">비슷한 아이템의 움직임을 고정 구성 지수로 비교하고, 패키지 출시·판매 종료 전후의 관측을 살펴봅니다. 실시간 가격이 아닙니다.<br>지수 예측은 발행 이후의 실제 관측으로 평가합니다. ‘품목별 예측 비교’는 이미 알려진 과거를 되돌려 본 재현이라 예측력의 증거로 쓰지 않습니다.</p>
+<p class="hint">가격 흐름·패키지 지표: 동일 아이템·KST 날짜의 체결 단가 중앙값 1/10 미만·10배 초과를 제외한 수량 가중평균입니다. 경계값은 포함하며 원본은 보존합니다. 원본 대조가 불완전한 날은 공백입니다. 카드 호가에는 이 규칙을 적용하지 않습니다. 기존 발행 예측·평가는 별도 원본 기준 기록입니다.</p>
 <nav class="research-tabs" aria-label="추세 분석 구분">
   <a href="#groups">종류별 지수·예측</a><a href="#forecast-review">품목별 예측 비교</a><a href="#package">패키지 이벤트</a><a class="research-ext" href="index.html#legendary-card">레전더리 카드 시세 →</a>
 </nav>
@@ -64,7 +65,7 @@
 <section class="panel" id="forecast-review-panel" data-forecast-review aria-labelledby="forecast-review-title" hidden>
   <p class="eyebrow">과거 재현 · 연구용 비교</p>
   <h2 id="forecast-review-title">품목별 예측은 실제 가격과 얼마나 달랐을까?</h2>
-  <p>2026년 10월 5일까지의 고정 연구 자료입니다. 미래 전망이나 자동 갱신되는 예측이 아닙니다.</p>
+  <p>2026년 10월 6일까지의 고정 연구 자료입니다. 미래 전망이나 자동 갱신되는 예측이 아닙니다.</p>
   <p class="fr-badge" role="note"><b>해석 주의</b> 결과를 알고 난 뒤 고른 3품목 · 평가 구간 약 1주 · 같은 시장이라 서로 독립이 아님 → 성능이 검증된 결과가 아닙니다.</p>
   <div id="fr-summary"></div>
   <div class="fr-controls">
@@ -73,7 +74,7 @@
   </div>
   <p id="fr-status" role="status">비교 자료를 불러오는 중입니다.</p>
   <div id="fr-content"></div>
-  <p class="fr-note">각 점은 서로 다른 기준일에서 직전 완료 21일로 학습한 예측입니다. 가로축은 실제 가격을 확인한 날짜이며, 당일 미완성 자료는 학습에서 제외했습니다. 목표는 하루 수량 가중평균(VWAP), 이상치 제거는 적용하지 않았습니다. API 관측 체결은 전체 거래를 포함하지 못할 수 있습니다.</p>
+  <p class="fr-note">각 점은 서로 다른 기준일에서 직전 완료 21일로 학습한 예측입니다. 가로축은 실제 가격을 확인한 날짜이며, 당일 미완성 자료는 학습에서 제외했습니다. 학습과 실제 정답 모두 이상치를 제외한 하루 수량 가중평균(VWAP)입니다. API 관측 체결은 전체 거래를 포함하지 못할 수 있습니다.</p>
 </section>
 <section class="related" aria-labelledby="related-title">
   <h2 id="related-title">관련 연구</h2>
@@ -93,7 +94,7 @@
 </footer>
 
 </div>
-<script type="module" src="research.js?v=20261007-research"></script>
-<script type="module" src="forecast-review.js?v=20261007-review"></script>
+<script type="module" src="research.js?v=20261009-research"></script>
+<script type="module" src="forecast-review.js?v=20261009-review"></script>
 </body>
 </html>
