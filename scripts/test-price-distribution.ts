@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { distributionRows, distributionSegments, periodChange } from '../web/price-distribution.js';
+import { axisLabel, axisTicks, distributionRows, distributionSegments, periodChange } from '../web/price-distribution.js';
 const data = { asOf:'2026-09-21T05:30:00Z',minTrades:5,
   daily:[{d:'2026-09-18',median:100,n:10},{d:'2026-09-20',median:120,n:2},{d:'2026-09-21',median:null,n:8}],
   hourly:[{t:'2026-09-20T15:00:00Z',median:100,n:5},{t:'2026-09-20T17:00:00Z',median:101,n:5}] };
@@ -40,3 +40,20 @@ assert.equal(periodChange(future),null,'future and partial days excluded from ac
 assert.equal(distributionSegments(future).flat().length,2,'future not drawn as observed');
 assert.equal(usableForecast({...forward,asOf:'2026-10-08T01:00:00Z'}),null,'stale forecast not shifted forward');
 assert.equal(chartRows({...forward,forecast:{status:'unavailable'}}).length,2);
+
+// 축 눈금: 둥근 값만, 보이는 범위 안에서, 3~6개. 실제 화면에서 "5100.0만, 4776.7만, 4453.3만, 4130.0만"이 나오던 범위로 확인한다.
+{
+  const lo = 41300000 - 0.15 * 9700000, hi = 51000000 + 0.15 * 9700000;
+  const { ticks, step } = axisTicks(lo, hi);
+  assert.deepEqual(ticks.map(axisLabel), ['4,000만', '4,250만', '4,500만', '4,750만', '5,000만']);
+  assert(ticks.every(v => v >= lo && v <= hi) && step === 2500000);
+  for (const [a, b] of [[280000, 310000], [1049531, 1384755], [8.5e7, 1.3e8], [92, 101], [9500, 12500]]) {
+    const { ticks: t, step: s } = axisTicks(a, b);
+    assert(t.length >= 2 && t.length <= 7 && t.every(v => v >= a && v <= b), `${a}~${b} 눈금 ${t}`);
+    assert([1, 2, 2.5, 5, 10].some(m => Math.abs(s / 10 ** Math.floor(Math.log10(s)) - m) < 1e-9), `${a}~${b} 간격 ${s}가 1·2·2.5·5 배수가 아님`);
+    assert(t.every(v => Math.abs(v / s - Math.round(v / s)) < 1e-9), `${a}~${b} 눈금이 간격의 배수가 아님`);
+  }
+  assert.deepEqual(axisTicks(5, 5).ticks, [5]);
+  assert.equal(axisLabel(125000000), '1.25억');
+  assert.equal(axisLabel(9500), '9,500');
+}
