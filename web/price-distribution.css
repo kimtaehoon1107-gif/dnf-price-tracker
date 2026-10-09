@@ -25,7 +25,7 @@
 .price-distribution .pd-thursdays button, .comparison .pd-thursdays button { position: absolute; transform: translateX(-50%); width: 44px; height: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--ink-2); font-size: 11px; }
 .pd-announcement { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .pd-help, .pd-raw { margin-top: 14px; font-size: 12px; color: var(--ink-2); }
-.pd-help summary, .pd-raw summary { cursor: pointer; }
+.pd-help summary, .pd-raw summary { cursor: pointer; padding-block: 12px; } /* display를 바꾸면 펼침 표시가 사라지므로 padding으로 높이를 맞춘다 */
 .pd-help p { line-height: 1.7; max-width: 680px; }
 .pd-events { display: flex; flex-wrap: wrap; gap: 6px; }
 .pd-events button { font-size: 11px; padding: 4px 8px; }
