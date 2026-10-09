@@ -480,7 +480,7 @@ const legendaryRows = (await history('legendaryRows', 'captured_at', ['captured_
       min_unit_price, min_item_name, p10, median, scanned, with_listings, total_listings,
       to_jsonb(legendary_card_floor)->'cheapest10' AS cheapest10
     FROM legendary_card_floor WHERE upgrade = 0 ORDER BY captured_at, id`)).rows;
-const research = await researchExport(client, quality.checkedAt, quality.through, historyCache);
+const research = await researchExport(client, quality.checkedAt, quality.through, historyCache, true);
 writeFileSync(`${OUT}/data/research.json`, JSON.stringify(research));
 const legendary = legendaryRows.slice(-1);
 writeFileSync(`${OUT}/data/legendary.json`, JSON.stringify(legendarySeries(legendaryRows, quality.checkedAt)));
