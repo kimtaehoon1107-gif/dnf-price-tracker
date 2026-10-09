@@ -27,6 +27,7 @@ on:
       - 'config/package-study-members.json'
       - 'src/card-weekday.ts'
       - 'src/weekday-trend.ts'
+      - 'src/series-split.ts'
       - 'src/candle-check.ts'
       - 'src/db.ts'
       - 'src/history-cache.ts'

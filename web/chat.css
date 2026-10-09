@@ -8,7 +8,7 @@ body{padding-right:56px}body.market-chat-open{padding-right:416px}
 #cd-rail{position:fixed;inset:0 0 0 auto;width:56px;z-index:202;background:#f5f6f8;border-left:1px solid #e8ebef;display:flex;align-items:center;flex-direction:column;padding-top:16px;gap:18px;color:#626d7a}
 #cd-launch{position:relative;inset:auto;width:40px;height:40px;padding:0;border:0;border-radius:10px;box-shadow:none;background:transparent;color:#626d7a;font:24px/1 system-ui;cursor:pointer}
 #cd-launch:hover,#cd-launch:focus-visible{background:#e8edf3;color:#1765cc}
-#cd-rail-chat{position:relative;display:grid;justify-items:center;gap:6px;width:48px;padding:10px 0;border:0;border-radius:10px;background:transparent;color:#626d7a;font:11px system-ui;cursor:pointer}
+#cd-rail-chat{position:relative;display:grid;justify-items:center;gap:6px;width:48px;padding:10px 0;border:0;border-radius:10px;background:transparent;color:#626d7a;font:12px system-ui;cursor:pointer}
 #cd-rail-chat svg{width:21px;height:21px}#cd-rail-chat[aria-pressed=true]{color:#1765cc;background:#e8f1ff}
 #cd-rail-badge{position:absolute;right:4px;top:1px;min-width:15px;height:15px;padding:0 3px;border-radius:9px;background:#1765cc;color:#fff;font:10px/15px system-ui}#cd-rail-badge[hidden]{display:none}
 #cd-panel{right:56px;top:0;bottom:0;width:360px;border:0;border-left:1px solid #e8ebef;border-radius:0;box-shadow:none;background:#fafbfc;color:#333d4b;transform:translateX(0);overflow:hidden}
@@ -64,6 +64,7 @@ body,body.market-chat-open{padding-right:0}
 @media(max-width:600px){
 #cd-rail{position:static;flex:none;width:40px;height:40px;box-shadow:none;background:transparent;border:0}
 #cd-launch{width:40px;height:40px;min-width:40px;min-height:40px;padding:8px}
+#cd-launch::after{content:"";position:absolute;inset:-2px}
 #cd-panel{bottom:0}
 }
 

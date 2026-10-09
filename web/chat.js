@@ -1,4 +1,4 @@
-import { loadSummary } from "./summary-data.js?v=20261006-performance";
+import { loadSummary } from "./summary-data.js?v=20261010-ux-polish";
 (async () => {
   const summary = await loadSummary();
   const items = summary.items.flatMap((i) =>

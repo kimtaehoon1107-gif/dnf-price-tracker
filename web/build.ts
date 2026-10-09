@@ -20,6 +20,7 @@ import { researchExport } from '../src/research-export.ts';
 import { weekdayTrend, WEEKDAY_MIN_WEEKS } from '../src/weekday-trend.ts';
 import { summarizeWeekdays } from './metrics.js';
 import { exportSeasonal } from '../src/seasonal-export.ts';
+import { splitSeries, askGapPath } from '../src/series-split.ts';
 
 const pool = await buildPool();
 const client = await pool.connect();
@@ -427,7 +428,8 @@ for (const it of items) {
   // 참고 범위는 화면에 그리지 않고 분석 페이지의 과거 재구성 평가에만 쓴다. D등급 제외 규칙은 예측과 같다.
   const band = it.price_basis === 'trade' && tradesPerDay >= 5 ? naiveBand(complete as Point[], 7, todayKst) : null;
   if (band) bands.set(it.item_id, band);
-  writeFileSync(`${OUT}/data/series/${it.item_id}.json`, JSON.stringify({
+  // 상세 화면이 처음에 쓰는 핵심 파일과, 패널이 보일 때 받는 호가 차이 파일로 나눠 쓴다(src/series-split.ts).
+  const { core, askGapFile } = splitSeries({
     completeBefore: weekdayBefore, forecastDay: todayKst,
     priceBasis: it.price_basis, daily: d, hourly: hourlyBy.get(it.item_id) ?? [],
     cleaning: displayCleaning.filter(r => r.item_id === it.item_id),
@@ -444,7 +446,9 @@ for (const it of items) {
       hourly: cardHourlyMaxBy.get(it.item_id) ?? [],
       stock: cardStockMaxBy.get(it.item_id) ?? [],
     } : null,
-  }));
+  });
+  writeFileSync(`${OUT}/data/series/${it.item_id}.json`, JSON.stringify(core));
+  if (askGapFile) writeFileSync(`${OUT}/data/series/${askGapPath(it.item_id)}`, JSON.stringify(askGapFile));
 }
 
 // ── 패키지 해체 마진 ───────────────────────────────────────────
@@ -642,7 +646,7 @@ writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
   },
 }));
 
-for (const f of ['index.html', 'ranking.html', 'analysis.html', 'guide.html', 'feedback.html', 'feedback.js', 'feedback.css', 'chat.js', 'chat.css', 'summary-data.js', 'favicon.svg', 'app.js', 'price-distribution.js', 'price-distribution.css', 'comparison.js', 'comparison-model.js', 'comparison.css', 'metrics.js', 'ranking.js', 'style.css', 'research.html', 'research.js', 'research-ui.js', 'research.css', 'package.js', 'package.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
+for (const f of ['index.html', 'ranking.html', 'analysis.html', 'guide.html', 'feedback.html', 'feedback.js', 'feedback.css', 'chat.js', 'chat.css', 'summary-data.js', 'favicon.svg', 'og-image.png', 'app.js', 'price-distribution.js', 'price-distribution.css', 'comparison.js', 'comparison-model.js', 'comparison.css', 'metrics.js', 'ranking.js', 'style.css', 'research.html', 'research.js', 'research-ui.js', 'research.css', 'package.js', 'package.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
 writeFileSync(`${OUT}/.nojekyll`, '');
 for (const f of ['seasonal.html','seasonal.js','seasonal.css','forecast-review.js','forecast-review-model.js','forecast-review.css','forecast-review.json']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
 

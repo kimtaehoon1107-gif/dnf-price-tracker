@@ -26,6 +26,7 @@
 @media(prefers-color-scheme:dark) { .comparison { --compare-second: #e8b575; } }
 @media(max-width:600px) {
   .comparison select { font-size: 16px; }
+  .compare-date input { height: 44px; margin-top: 0; }
   .comparison button { min-height: 44px; }
   .compare-selectors { grid-template-columns: 1fr; }
   .compare-summaries { gap: 14px; }

@@ -1,9 +1,9 @@
-import { loadSummary } from "./summary-data.js?v=20261006-performance";
+import { loadSummary } from "./summary-data.js?v=20261010-ux-polish";
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
 import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260928-distribution';
-import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261008-cleaned';
-import { renderComparison, disposeComparison } from './comparison.js?v=20261008-cleaned';
+import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261010-ux-polish';
+import { renderComparison, disposeComparison } from './comparison.js?v=20261010-ux-polish';
 import { packagePanelHTML } from './package.js?v=20261002-comparison';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
@@ -80,6 +80,7 @@ function depthQuote(levels, target) {
 }
 
 let depthObserver = null;
+let askGapObserver = null;
 
 function depthSVG(levels, limit = 10, width = 540) {
   const shown = [];
@@ -168,7 +169,9 @@ function weekdayProfile(days, events) {
 }
 
 function weekdaySVG(points, key, title, baselineLabel = '아이템 평균 100', reference = 100) {
-  const W = 420, H = 220, L = 28, R = 14, T = 34, B = 34;
+  // 좁은 화면에서는 그림 자체를 작게(300×190) 그려, 화면 폭에 맞춰 줄어들 때 글자가 7~9px까지 작아지지 않게 한다.
+  const narrow = typeof matchMedia !== 'undefined' && matchMedia('(max-width:600px)').matches;
+  const W = narrow ? 300 : 420, H = narrow ? 190 : 220, L = 28, R = narrow ? 6 : 14, T = 34, B = 34;
   const plotW = W - L - R, plotH = H - T - B;
   const maxDeviation = Math.max(5, ...points.map((point) => Math.abs((point[key] ?? reference) - reference))) * 1.2;
   const low = reference - maxDeviation, high = reference + maxDeviation;
@@ -320,7 +323,7 @@ let detailItemId = null;
 let legendaryForecastCleanup = null;
 let detailCharts = [];
 let weekdayBasis = 'trade';
-let weekdayExpanded = typeof matchMedia === 'undefined' || !matchMedia('(max-width:600px)').matches;
+let weekdayExpanded = false; // 목록이 첫 화면에 보이도록 모든 화면 폭에서 접어 둔다. 상단 요약 카드나 제목 줄로 연다.
 
 function renderDataStatus(now = Date.now()) {
   const time = value => Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString('ko-KR', {
@@ -425,6 +428,8 @@ function render() {
   detailCharts = [];
   depthObserver?.disconnect();
   depthObserver = null;
+  askGapObserver?.disconnect();
+  askGapObserver = null;
   disposePriceDistribution();
   disposeComparison();
   legendaryForecastCleanup?.();
@@ -471,7 +476,7 @@ function summaryCards() {
     <div class="card">
       <div class="k">추적 아이템</div>
       <div class="v">${m.items}<small>종</small></div>
-      <div class="sub">거래 ${fmt(m.trades)}건 · ${m.lo}~${m.hi}</div>
+      <div class="sub">거래 ${fmt(m.trades)}건 · <span class="nowrap">${m.lo}~</span><wbr><span class="nowrap">${m.hi}</span></div>
     </div>
     ${lg ? `<a class="card hl" href="#legendary-card">
       <div class="k">레전더리 0업 카드</div>
@@ -598,7 +603,7 @@ function renderList() {
         <span class="r">#</span>
         <span data-k="item_name">아이템</span>
         <span class="r" data-k="display_price" title="일반 아이템: 최근 1시간 수량 가중평균 · 카드: 0업 최저 판매가">현재 시세</span>
-        <span class="r" data-k="chg">24시간 변동</span>
+        <span class="r" data-k="chg"><span class="lh-full">24시간 변동</span><span class="lh-short" aria-hidden="true">24h 변동</span></span>
         <span class="r h5" data-k="turnover">수집된 거래 금액</span>
         <span class="r h6">14일 추이</span>
         <span class="r h7" data-k="gap" title="현재 최저 판매가를 최근 24시간 평균 거래가와 비교한 값">24시간 평균<br>거래가 대비</span>
@@ -1122,17 +1127,22 @@ async function renderDetail(it) {
   desc.textContent = isZeroCard
     ? `일평균 ${cardTier} 최저 판매가 · 실제 거래가와 다릅니다.`
     : s.inlineForecast ? '일별 평균 거래가(거래 수량 반영) · 점선은 요일 추가 ARIMA 실험 예측입니다.' : '일별 수량 가중 중앙값 · 상단의 최근 1시간 평균 거래가와 계산 기준이 다릅니다.';
+  let calcNote = null;
   if (!isZeroCard && s.cleaning) {
     const excluded = s.cleaning.reduce((n, r) => n + Number(r.excluded_n), 0);
     const qty = s.cleaning.reduce((n, r) => n + Number(r.excluded_qty), 0);
     const unknown = s.cleaning.filter(r => !r.verified).length;
-    desc.textContent += ` KST 당일 체결 단가 중앙값의 1/10 미만·10배 초과 제외: 전체 이력 ${fmt(excluded)}건·${fmt(qty)}개. 원본은 보존합니다.` +
-      (unknown ? ` 원본 대조 불가 ${unknown}일은 정제 가격 표시에서 제외했습니다.` : '') +
-      ' 오늘의 중앙값은 수집에 따라 바뀔 수 있습니다.';
+    // 차트가 먼저 보이도록 설명문에서 빼고 차트 아래 접는 안내(price-distribution.js)로 보낸다.
+    calcNote = {
+      summary: excluded ? `계산 기준 · 이상 체결 ${fmt(excluded)}건 제외` : '계산 기준',
+      text: `KST 당일 체결 단가 중앙값의 1/10 미만·10배 초과 제외: 전체 이력 ${fmt(excluded)}건·${fmt(qty)}개. 원본은 보존합니다.` +
+        (unknown ? ` 원본 대조 불가 ${unknown}일은 정제 가격 표시에서 제외했습니다.` : '') +
+        ' 오늘의 중앙값은 수집에 따라 바뀔 수 있습니다.',
+    };
   }
   renderPriceDistribution(document.getElementById('c1'), isZeroCard
     ? { basis: 'ask', asOf: DATA.priceAsOf ?? DATA.builtAt, daily: d }
-    : s.inlineForecast ? { ...s.distribution, metric: 'vwap', daily: d.map(row => ({ ...row, ...(s.distribution?.daily.find(p => p.d === row.d) ?? {}), vwap: row.vwap })), forecast: s.inlineForecast } : s.distribution, events);
+    : s.inlineForecast ? { ...s.distribution, metric: 'vwap', daily: d.map(row => ({ ...row, ...(s.distribution?.daily.find(p => p.d === row.d) ?? {}), vwap: row.vwap })), forecast: s.inlineForecast } : s.distribution, events, calcNote);
   const chartsAvailable = await chartReady;
   if (location.hash.slice(1) !== it.item_id || cardMode !== (showingMax ? 'max' : 'zero')) return;
   const chartError = '<p role="status" class="desc">차트를 불러오지 못했습니다. 가격·매물 정보는 계속 확인할 수 있습니다. 잠시 후 다시 접속해 주세요.</p>';
@@ -1197,9 +1207,7 @@ async function renderDetail(it) {
 
 
 
-  if (!isZeroCard && s.askGap?.length && !chartsAvailable) {
-    document.getElementById('c4').innerHTML = chartError;
-  } else if (!isZeroCard && s.askGap?.length) {
+  const drawAskGap = (rows) => {
     const box4 = document.getElementById('c4');
     box4.style.height = '300px';
     const c4 = LightweightCharts.createChart(box4, {
@@ -1214,10 +1222,10 @@ async function renderDetail(it) {
       bottomLineColor: css('--down'), bottomFillColor1: css('--down') + '08', bottomFillColor2: css('--down') + '33',
       lineWidth: 2,
       priceFormat: { type: 'custom', formatter: (v) => pct(v) },
-    }).setData(s.askGap.map((x) => ({ time: Math.floor(Date.parse(x.t) / 1000), value: x.gap })));
+    }).setData(rows.map((x) => ({ time: Math.floor(Date.parse(x.t) / 1000), value: x.gap })));
     // 갭은 두 값의 비율이므로 원자료(호가·체결)를 함께 보여야 검증할 수 있다.
     // 퍼센트만으로는 2천 골드의 −9.8%와 3억 골드의 −9.8%가 구분되지 않는다.
-    const gapAt = bySecond(s.askGap, 't');
+    const gapAt = bySecond(rows, 't');
     attachTooltip(c4, box4, (param) => {
       const row = gapAt.get(param.time);
       if (!row) return null;
@@ -1228,8 +1236,41 @@ async function renderDetail(it) {
       ]);
     });
     c4.timeScale().fitContent();
-  } else if (!isZeroCard) {
-    document.getElementById('c4').innerHTML = '<p style="color:var(--ink-3);margin:0">비교할 판매가와 직전 24시간 거래 데이터가 아직 없습니다.</p>';
+  };
+  if (!isZeroCard) {
+    const box4 = document.getElementById('c4');
+    const isCurrent = () => location.hash.slice(1) === it.item_id && cardMode === (showingMax ? 'max' : 'zero');
+    // 호가 차이 행은 압축 기준 115KB로 가장 커서 첫 화면에 필요한 핵심 파일에서 뺐다(src/series-split.ts).
+    // 핵심 파일에 askGap이 들어 있는 옛 형식이면 그대로 쓰고, 아니면 패널이 화면 근처에 올 때 별도 파일을 받는다.
+    const showAskGap = async () => {
+      let rows = s.askGap;
+      if (rows === undefined && s.askGapCount > 0) {
+        box4.innerHTML = '<p role="status" class="desc">불러오는 중…</p>';
+        try {
+          const response = await fetch(`data/series/${it.item_id}.askgap.json`, { cache: 'no-cache' });
+          if (!response.ok) throw new Error(`호가 차이 데이터 HTTP ${response.status}`);
+          rows = (await response.json()).askGap;
+        } catch (error) {
+          console.error(error);
+          if (isCurrent()) box4.innerHTML = '<p role="status" class="desc">호가 차이 자료를 불러오지 못했습니다. 가격·매물 정보는 계속 확인할 수 있습니다. 잠시 후 다시 접속해 주세요.</p>';
+          return;
+        }
+        if (!isCurrent()) return;
+      }
+      box4.innerHTML = '';
+      if (!rows?.length) box4.innerHTML = '<p style="color:var(--ink-3);margin:0">비교할 판매가와 직전 24시간 거래 데이터가 아직 없습니다.</p>';
+      else if (!chartsAvailable) box4.innerHTML = chartError;
+      else drawAskGap(rows);
+    };
+    if (s.askGap === undefined && s.askGapCount > 0 && typeof IntersectionObserver !== 'undefined') {
+      askGapObserver = new IntersectionObserver((entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        askGapObserver.disconnect();
+        askGapObserver = null;
+        showAskGap();
+      }, { rootMargin: '600px 0px' });
+      askGapObserver.observe(box4.closest('.panel') ?? box4);
+    } else await showAskGap();
   }
 }
 
