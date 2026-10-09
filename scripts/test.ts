@@ -28,4 +28,5 @@ import './test-archive.ts';
 
 import './test-chat.ts';
 import './test-forecast-review.ts';
+import './test-research-cleaned.ts';
 import './test-detail-chart-failure.ts';
