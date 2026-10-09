@@ -10,7 +10,7 @@ const GAP_ROWS = [{ t: '2026-10-06T00:00:00Z', min_ask: 90, vwap: 100, gap: -10 
 const core = (extra: object) => ({ daily: [], depth: [], hourly: [], stock: [{ t: '2026-10-06T00:00:00Z', qty: 10, listings: 2 }], events: [], ...extra });
 const source = readFileSync('web/app.js', 'utf8');
 
-async function run({ series, askGapResponse, observer }: { series: object; askGapResponse?: () => object; observer?: boolean }) {
+async function run({ series, askGapResponse, observer, early }: { series: object; askGapResponse?: () => object; observer?: boolean; early?: { id: string; response: Promise<unknown> } }) {
   const nodes = new Map<string, any>();
   const node = (id: string) => {
     if (id === 'depth-plot') return null;
@@ -35,6 +35,7 @@ async function run({ series, askGapResponse, observer }: { series: object; askGa
     constructor(cb: any, opts: any) { this.cb = cb; this.opts = opts; observers.push(this); }
     observe(target: any) { this.target = target; } disconnect() { this.disconnected = true; }
     trigger(isIntersecting = true) { this.cb([{ isIntersecting }]); } };
+  if (early) { early.response.catch(() => {}); context.__seriesRequest = early; } // index.html <head>가 미리 요청해 둔 시계열 파일(공유 링크로 상세에 바로 들어온 경우)
   vm.createContext(context);
   const module = new vm.SourceTextModule(source + '\nexport {renderDetail}; export function fixture() { DATA = {builtAt: "2026-10-07T00:00:00Z"}; }', { context });
   await module.link((name) => {
@@ -90,4 +91,18 @@ for (const series of [core({}), core({ askGapCount: 0 })]) {
   assert.equal(r.gapCalls().length, 0);
   assert.match(r.c4(), /차트를 불러오지 못했습니다/);
 }
-console.log('호가 차이 지연 로딩: 별도 파일 1회·화면 근처에서만·실패 안내·빈 값·옛 형식 호환 통과');
+// ⑥ 공유 링크로 들어와 시계열 파일을 미리 요청해 둔 경우: 그 응답을 이어받아 화면을 그리고, 같은 파일을 다시 요청하지 않는다.
+{
+  const r = await run({ series: core({}), early: { id: 'sample', response: Promise.resolve({ ok: true, json: async () => core({ askGapCount: 2 }) }) } });
+  assert.equal(r.calls.filter((u) => u === 'data/series/sample.json').length, 0, '미리 요청한 응답을 이어받으면 직접 요청하지 않는다');
+  assert.deepEqual(r.gapCalls(), ['data/series/sample.askgap.json'], '이어받은 시계열로 호가 차이도 정상 처리');
+  assert.equal(r.errors.length, 0);
+}
+// ⑦ 미리 한 요청이 실패하면 직접 한 번 다시 요청해 정상으로 그린다.
+{
+  const r = await run({ series: core({ askGapCount: 2 }), early: { id: 'sample', response: Promise.reject(new Error('network')) } });
+  assert.equal(r.calls.filter((u) => u === 'data/series/sample.json').length, 1, '실패하면 직접 한 번 요청');
+  assert.deepEqual(r.gapCalls(), ['data/series/sample.askgap.json']);
+  assert.equal(r.errors.length, 0);
+}
+console.log('호가 차이 지연 로딩: 별도 파일 1회·화면 근처에서만·실패 안내·빈 값·옛 형식 호환 · 시계열 선요청 이어받기·실패 복구 통과');

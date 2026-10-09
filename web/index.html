@@ -14,6 +14,16 @@
   window.__summaryRequest = fetch('data/summary.json', { cache: 'no-cache' });
   window.__summaryRequest.catch(() => {}); // 모듈이 이어받기 전에 실패해도 '처리되지 않은 오류'로 찍히지 않게 한다.
 </script>
+<!-- 공유 링크로 상세 화면(#품목번호)에 바로 들어오면 그 품목의 시계열 파일도 지금 요청한다. 화면 코드가 상세를 그릴 때까지 기다리면
+     그 사이 시작된 글꼴 다운로드와 회선을 나눠 쓰느라 늦게 도착한다. app.js의 fetchSeries()가 이 요청을 이어받고, 실패하면 직접 다시 요청한다.
+     요청 주소·옵션은 app.js와 같아야 하고, 스타일시트보다 앞에 둬야 CSS 다운로드를 기다리지 않는다. (scripts/test-series-early.ts가 확인) -->
+<script>
+  { const id = location.hash.match(/^#([0-9a-f]{32})$/)?.[1];
+    if (id) {
+      window.__seriesRequest = { id, response: fetch(`data/series/${id}.json`, { cache: 'no-cache' }) };
+      window.__seriesRequest.response.catch(() => {}); // 이어받기 전에 실패해도 '처리되지 않은 오류'로 찍히지 않게 한다.
+    } }
+</script>
 <!-- app.js가 정적으로 불러오는 모듈을 병렬로 미리 받는다. 안 하면 app.js를 받아 읽은 뒤에야 하위 모듈을 찾아 3단계로 이어진다.
      목록과 ?v= 값은 import 그래프와 같아야 한다. (scripts/test-module-preload.ts가 대조) -->
 <link rel="modulepreload" href="summary-data.js?v=20261010-ux-polish">
@@ -96,7 +106,7 @@
 </footer>
 
 </div>
-<script type="module" src="app.js?v=20261010-ux-polish"></script>
+<script type="module" src="app.js?v=20261010-early-series"></script>
 <script type="module" src="chat.js?v=20261010-ux-polish"></script>
 
 </body>

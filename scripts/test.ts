@@ -33,6 +33,7 @@ import './test-detail-chart-failure.ts';
 import './test-module-preload.ts';
 import './test-series-split.ts';
 import './test-askgap-lazy.ts';
+import './test-series-early.ts';
 import './test-font-loading.ts';
 import './test-share-meta.ts';
 import './test-watchdog-issues.ts';

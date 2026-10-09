@@ -889,6 +889,20 @@ async function renderLegendary() {
 }
 
 // ── 상세 ───────────────────────────────────────────────────────
+// 시계열 파일 요청. 공유 링크로 상세에 바로 들어온 경우 index.html <head>가 같은 품목의 파일을 미리 요청해 둔다(window.__seriesRequest).
+// 같은 품목이면 그 응답을 한 번만 이어받고, 없거나 다른 품목이거나 실패했으면 직접 요청한다. 요청 주소·옵션은 index.html과 같아야 한다.
+async function fetchSeries(itemId) {
+  const early = globalThis.__seriesRequest;
+  globalThis.__seriesRequest = undefined;
+  if (early?.id === itemId) {
+    try {
+      const response = await early.response;
+      if (response.ok) return response;
+    } catch { /* 미리 한 요청이 실패하면 아래에서 직접 다시 요청한다 */ }
+  }
+  return fetch(`data/series/${itemId}.json`, { cache: 'no-cache' });
+}
+
 async function renderDetail(it) {
   // Start concurrently with the series request; a CDN failure must not hide non-chart data.
   const chartReady = Promise.resolve().then(loadChartLibrary).then(() => true, () => false);
@@ -1001,7 +1015,7 @@ async function renderDetail(it) {
     };
   });
 
-  const response = await fetch(`data/series/${it.item_id}.json`, { cache: 'no-cache' });
+  const response = await fetchSeries(it.item_id);
   if (!response.ok) throw new Error(`시계열 데이터 HTTP ${response.status}`);
   const rawSeries = await response.json();
   const s = showingMax
