@@ -22,15 +22,31 @@
 .pd-period-change { margin: 0 0 18px; padding: 12px 14px; border-radius: 8px; background: var(--page); font-size: 13px; line-height: 1.7; }
 .pd-thursdays { height: 44px; position: relative; }
 .pd-thursdays:empty { display: none; }
-.price-distribution .pd-thursdays button, .comparison .pd-thursdays button { position: absolute; transform: translateX(-50%); width: 44px; height: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--ink-2); font-size: 11px; }
+.price-distribution .pd-thursdays button, .comparison .pd-thursdays button { position: absolute; transform: translateX(-50%); width: 44px; height: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--ink-2); font-size: 12px; }
 .pd-announcement { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .pd-help, .pd-raw { margin-top: 14px; font-size: 12px; color: var(--ink-2); }
-.pd-help summary, .pd-raw summary { cursor: pointer; padding-block: 12px; } /* display를 바꾸면 펼침 표시가 사라지므로 padding으로 높이를 맞춘다 */
+.pd-help summary, .pd-raw summary { cursor: pointer; padding-block: 13px; } /* display를 바꾸면 펼침 표시가 사라지므로 padding으로 높이를 맞춘다 */
 .pd-help p { line-height: 1.7; max-width: 680px; }
 .pd-events { display: flex; flex-wrap: wrap; gap: 6px; }
-.pd-events button { font-size: 11px; padding: 4px 8px; }
+.pd-events button { font-size: 12px; padding: 4px 8px; }
 @media(max-width:600px) {
   .price-distribution button { min-height: 44px; }
   .pd-readout { align-items: flex-start; }
   .pd-price { font-size: 22px; }
+  /* 차트를 기간 버튼 바로 아래에 두고 읽는 값·범례·안내는 차트 아래로 내린다.
+     보이는 순서만 바꾼다. DOM 순서가 그대로라 키보드·스크린리더 순서는 달라지지 않는다. */
+  .price-distribution { display: flex; flex-direction: column; }
+  .pd-plot { order: 1; }
+  .pd-thursdays { order: 2; }
+  .pd-events { order: 3; }
+  .pd-status { order: 4; }
+  .pd-readout { order: 5; margin-top: 12px; }
+  .pd-legend { order: 6; margin-top: 14px; }
+  .pd-help.calc-note { order: 7; margin-top: 4px; }
+  .pd-period-change { order: 8; margin: 12px 0 0; }
+  .pd-recording-start { order: 9; }
+  .pd-forecast-note { order: 10; }
+  .pd-help { order: 11; }
+  .pd-raw { order: 12; }
+  .price-distribution > p.hint:last-child { order: 13; }
 }

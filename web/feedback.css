@@ -7,6 +7,7 @@
 .fb-button.primary { background: var(--blue); color: white; border-color: var(--blue); }
 .fb-button.danger { background: var(--up-bg); color: var(--up); }
 .fb-button.subtle { background: transparent; border-color: transparent; padding: 7px 0; }
+@media (max-width: 780px) { .fb-button.subtle { min-height: 44px; min-width: 44px; } }
 .fb-button:hover { filter: brightness(.94); }
 .fb-button:disabled { opacity: .45; cursor: default; }
 .fb-button:focus-visible, .feedback-post:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }

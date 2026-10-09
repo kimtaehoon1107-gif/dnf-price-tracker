@@ -90,7 +90,7 @@ export function renderThursdayMarkers(root, rows, position, onSelect) {
 let cleanup = () => {};
 export function disposePriceDistribution() { cleanup(); cleanup = () => {}; }
 
-export function renderPriceDistribution(root, data, events = []) {
+export function renderPriceDistribution(root, data, events = [], calcNote = null) {
   disposePriceDistribution();
   const legendary = data?.basis === 'legendary';
   const ask = data?.basis === 'ask' || legendary;
@@ -109,6 +109,7 @@ export function renderPriceDistribution(root, data, events = []) {
     <p class="hint pd-forecast-note" ${data.forecast ? '' : 'hidden'}></p>
     <div class="pd-plot"></div><div class="pd-thursdays" aria-label="목요일 · 실제 패치 여부와 별개"></div><div class="pd-events"></div>
     <div class="pd-status"></div><div class="pd-announcement" aria-live="polite"></div>
+    ${calcNote ? '<details class="pd-help calc-note"><summary></summary><p></p></details>' : ''}
     <details class="pd-help" ${ask ? 'hidden' : ''}><summary>주요 거래 가격대란?</summary><p>관측한 거래를 개당 가격순으로 놓고, 누적 수량이 25%와 75%에 도달하는 가격을 표시합니다. 가운데 50%에 해당하는 가격 구간이며 동일 가격에 거래가 몰리면 포함 수량은 더 많을 수 있습니다. 미래 가격의 예측 범위가 아닙니다. 거래 5건 미만은 표시 기준상 점만 남기며, 5건 이상이라고 통계적 신뢰성을 보장하지 않습니다.</p></details>
     <details class="pd-raw" ${legendary ? 'hidden' : ''}><summary>${ask ? '관측 최저·최고 호가와 횟수' : '고가·저가와 평균 확인'}</summary><p></p></details>
     <p class="hint">${ask ? '가격이 확인된 관측만 평균합니다. 빈 구간은 매물 없음과 수집 공백을 구분할 수 없어 연결하지 않습니다.' : '수집된 거래 수량은 전체 거래량의 일부입니다. API가 최근 거래를 최대 100건까지만 제공해 누락이 있을 수 있습니다. 빈 구간은 거래 관측이 없으며 무거래와 수집 공백을 구분할 수 없습니다. 원본이 불완전한 과거 구간은 분포를 표시하지 않습니다.'}</p>`;
@@ -116,6 +117,12 @@ export function renderPriceDistribution(root, data, events = []) {
   if(data.forecast) $('.pd-forecast-note').textContent = forecast
     ? `실험 예측 · 검증 중 | 요일 추가 ARIMA(1,1,0) · 학습 ${forecast.trainFrom}–${forecast.trainThrough} (21일). 점선은 오늘 추정과 내일부터 7일의 일평균 예상값입니다. 오늘 수집 중인 실제 가격에서 연결하지 않습니다. 과거 오차가 미래 성능을 보장하지 않습니다.`
     : data.forecast.reason ?? '최신 예측을 사용할 수 없습니다.';
+  if (calcNote) {
+    const note = $('.calc-note');
+    note.querySelector('summary').textContent = calcNote.summary;
+    note.querySelector('p').textContent = calcNote.text;
+    note.open = typeof matchMedia === 'undefined' || !matchMedia('(max-width:600px)').matches; // 좁은 화면에서는 접어 둔다
+  }
   // 선택한 기간이 아니라 해당 가격 기준의 전체 제공 이력에서 찾는다.
   const firstRecordedDate = data.daily.filter(row => (ask || mean ? row.vwap : row.median) > 0)
     .map(row => row.d).sort()[0];
@@ -151,9 +158,13 @@ export function renderPriceDistribution(root, data, events = []) {
     root.querySelectorAll('[data-period]').forEach(b => b.setAttribute('aria-pressed', String(String(state.period) === b.dataset.period)));
     $('.pd-extent').textContent = `${rows[0].d}–${rows.at(-1).d} · 일별`;
     const change = periodChange(rows);
-    $('.pd-period-change').textContent = change
-      ? `기간 변화 ${change.percent >= 0 ? '+' : ''}${change.percent.toFixed(2)}% · ${fmt(change.first.median)} → ${fmt(change.last.median)} 골드 (${change.first.d}–${change.last.d} · 완료 관측일 기준)`
-      : '기간 변화: 가격이 있는 완료 관측일이 2일 이상 필요합니다.';
+    const changeBox = $('.pd-period-change');
+    if (change) {
+      // 날짜가 하이픈에서 끊겨 두 줄로 갈라지지 않도록 날짜마다 줄바꿈을 막는다.
+      const day = d => { const s = document.createElement('span'); s.className = 'nowrap'; s.textContent = d; return s; };
+      changeBox.replaceChildren(`기간 변화 ${change.percent >= 0 ? '+' : ''}${change.percent.toFixed(2)}% · ${fmt(change.first.median)} → ${fmt(change.last.median)} 골드 (`,
+        day(change.first.d), '–', day(change.last.d), ' · 완료 관측일 기준)');
+    } else changeBox.textContent = '기간 변화: 가격이 있는 완료 관측일이 2일 이상 필요합니다.';
     const box = $('.pd-plot'), width = box.clientWidth;
     if (width < 100) return;
     const L = 68, R = 14, T = 28, B = 228, V = ask && !legendary ? 228 : 308, H = ask && !legendary ? 260 : 340;

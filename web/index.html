@@ -8,19 +8,44 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="style.css?v=20261007-mobile-detail">
-<link rel="stylesheet" href="research.css?v=20260919-redesign">
+<!-- 첫 화면에 필요한 데이터를 스크립트 체인과 따로 지금 요청한다. summary-data.js의 loadSummary()가 이 요청을 이어받는다.
+     요청 옵션은 summary-data.js와 같아야 하고, 스타일시트보다 앞에 둬야 CSS 다운로드를 기다리지 않는다. (scripts/test-module-preload.ts가 확인) -->
+<script>
+  window.__summaryRequest = fetch('data/summary.json', { cache: 'no-cache' });
+  window.__summaryRequest.catch(() => {}); // 모듈이 이어받기 전에 실패해도 '처리되지 않은 오류'로 찍히지 않게 한다.
+</script>
+<!-- app.js가 정적으로 불러오는 모듈을 병렬로 미리 받는다. 안 하면 app.js를 받아 읽은 뒤에야 하위 모듈을 찾아 3단계로 이어진다.
+     목록과 ?v= 값은 import 그래프와 같아야 한다. (scripts/test-module-preload.ts가 대조) -->
+<link rel="modulepreload" href="summary-data.js?v=20261010-ux-polish">
+<link rel="modulepreload" href="metrics.js?v=20260928-distribution">
+<link rel="modulepreload" href="price-distribution.js?v=20261010-ux-polish">
+<link rel="modulepreload" href="comparison.js?v=20261010-ux-polish">
+<link rel="modulepreload" href="comparison-model.js?v=20261010-ux-polish">
+<link rel="modulepreload" href="package.js?v=20261002-comparison">
+<!-- 글꼴 스타일시트는 첫 화면을 막지 않게 받는다(다 받으면 media를 all로 바꿔 적용). 외부 서버가 느려도 첫 화면이 기다리지 않는다. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap"></noscript>
+<link rel="stylesheet" href="style.css?v=20261010-ux-polish">
+<link rel="stylesheet" href="research.css?v=20261010-ux-polish">
 <link rel="stylesheet" href="package.css?v=20261002-comparison">
-<link rel="stylesheet" href="price-distribution.css?v=20261002-comparison">
-<link rel="stylesheet" href="comparison.css?v=20261002-comparison">
-<link rel="stylesheet" href="chat.css?v=20261007-mobile-detail">
+<link rel="stylesheet" href="price-distribution.css?v=20261010-ux-polish">
+<link rel="stylesheet" href="comparison.css?v=20261010-ux-polish">
+<link rel="stylesheet" href="chat.css?v=20261010-ux-polish">
 
 <meta name="theme-color" content="#ffffff">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <meta property="og:title" content="던파 경매장 시세 추적기">
 <meta property="og:description" content="아이템별 가격 흐름, 관측 거래량과 매물 현황을 확인하세요. 비공식 개인 프로젝트입니다.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="던파 경매장 시세 추적기">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:url" content="https://kimtaehoon1107-gif.github.io/dnf-price-tracker/">
+<meta property="og:image" content="https://kimtaehoon1107-gif.github.io/dnf-price-tracker/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="던파 경매장 시세 추적기 — 아이템별 가격 흐름, 관측 거래량, 매물 현황">
+<meta name="twitter:card" content="summary_large_image">
 </head>
 <body class="market-home">
 <header class="top">
@@ -71,8 +96,8 @@
 </footer>
 
 </div>
-<script type="module" src="app.js?v=20261008-cleaned-20261007-mobile-detail"></script>
-<script type="module" src="chat.js?v=20261007-mobile-detail"></script>
+<script type="module" src="app.js?v=20261010-ux-polish"></script>
+<script type="module" src="chat.js?v=20261010-ux-polish"></script>
 
 </body>
 </html>

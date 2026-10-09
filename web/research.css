@@ -38,3 +38,11 @@
 }
 .link-btn { padding: 0; border: 0; background: none; color: var(--blue); font: inherit; font-weight: 600; cursor: pointer; }
 .link-btn:hover { text-decoration: underline; }
+/* 모바일 터치 영역: 보이는 모양은 그대로 두고 눌리는 영역만 44px 이상으로 넓힌다. */
+@media (max-width: 780px) {
+  .research-tabs a { min-height: 44px; }
+  .research-select { min-height: 44px; }
+  .research-links a { padding-block: 12px; margin-block: -12px; }
+  .research-page details > summary, .link-btn { position: relative; }
+  .research-page details > summary::after, .link-btn::after { content: ''; position: absolute; inset: -12px 0; }
+}
