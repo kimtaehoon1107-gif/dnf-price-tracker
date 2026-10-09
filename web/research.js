@@ -1,7 +1,8 @@
-import { esc, fmt, timeText, plot, renderForecast } from './research-ui.js?v=20260920-data';
+import { esc, fmt, timeText, plot, renderForecast, palette, legendKey } from './research-ui.js?v=20261007-review';
 
-let data, disposers = [];
+let data, dataPromise, disposers = [];
 const view = document.getElementById('view');
+const review = document.getElementById('forecast-review-panel');
 const clearCharts = () => { disposers.forEach((f) => f()); disposers = []; };
 const signed = (v, unit = '%') => v == null ? '관측 대기' : `${v >= 0 ? '+' : ''}${fmt(v, 2)}${unit}`;
 
@@ -19,8 +20,10 @@ function groups() {
   const groups = showSmall ? all : all.filter((s) => s.basket.members.length >= MIN_MEMBERS);
   const s = groups.find((g) => g.id === selected) ?? groups[0];
   const b = s.basket, lastDay = s.daily.at(-1), lastValid = s.daily.filter((p) => p.value != null).at(-1);
-  const basis = { trade: '일별 체결 VWAP', ask0: '0업 일평균 최저호가', askMax: '맥스업 일평균 최저호가' }[b.basis];
-  view.innerHTML = `<label class="research-label" for="group-select">비교할 종류</label>
+  const basis = { trade: '일별 체결 VWAP(수량 가중 평균가)', ask0: '0업 일평균 최저호가', askMax: '맥스업 일평균 최저호가' }[b.basis];
+  const colors = palette();
+  view.innerHTML = `<h2 class="sr-only">종류별 지수·예측</h2>
+    <label class="research-label" for="group-select">비교할 종류</label>
     <select id="group-select" class="research-select">${groups.map((g) => `<option value="${g.id}" ${g.id === s.id ? 'selected' : ''}>${esc(g.label)} · ${g.basket.members.length}종</option>`).join('')}</select>
     ${small.length ? `<p class="hint">화면 정리를 위해 기본 목록에는 구성 ${MIN_MEMBERS}종 이상인 지수만 표시합니다.
       <button type="button" class="link-btn" id="toggle-small">${showSmall ? '기본 목록으로' : `소수 구성 ${small.length}개도 보기`}</button>
@@ -37,7 +40,7 @@ function groups() {
     <section class="panel"><h3>구성 아이템별 흐름</h3><p class="desc">등급·종류별 움직임이 같은 방향인지 비교합니다. 선택한 아이템도 자신의 기준 주간 평균이 100입니다.</p>
       <label for="member-select" class="research-label">비교할 구성 아이템</label>
       <select id="member-select" class="research-select">${s.members.map((m) => `<option value="${m.id}">${esc(m.name)}</option>`).join('')}</select>
-      <div class="stock-legend"><span>● 전체 지수</span><span style="color:#307be8">● 선택한 아이템</span></div><div id="member-chart" class="chart"></div>
+      <div class="stock-legend">${legendKey(colors.ink, '전체 지수')}${legendKey(colors.blue, '선택한 아이템')}</div><div id="member-chart" class="chart"></div>
       <details class="research-details"><summary>고정 구성 ${b.members.length}종 · 제외 ${b.excluded?.length ?? 0}종과 기준 가격</summary>
         <div class="table-scroll"><table><thead><tr><th>아이템</th><th>기준 주간 평균</th><th>기준 관측일</th></tr></thead><tbody>
           ${b.members.map((m) => `<tr><th><a href="index.html#${m.id}">${esc(m.name)}</a></th><td>${fmt(m.base, 0)} 골드</td><td>${m.baseDays}일</td></tr>`).join('')}
@@ -63,8 +66,8 @@ function groups() {
     disposeMember?.();
     const member = s.members.find((m) => m.id === document.getElementById('member-select').value);
     disposeMember = plot(document.getElementById('member-chart'), [
-      { label: s.label, color: '#27364b', points: s.daily.slice(-90) },
-      { label: member.name, color: '#307be8', points: member.daily.slice(-90) },
+      { label: s.label, color: colors.ink, points: s.daily.slice(-90) },
+      { label: member.name, color: colors.blue, points: member.daily.slice(-90) },
     ]);
   };
   document.getElementById('member-select').onchange = draw;
@@ -76,19 +79,25 @@ function packageStudy() {
   const p = data.package;
   if (!p.event) { view.innerHTML = '<div class="panel">연결된 패키지 이벤트가 없습니다.</div>'; return; }
   const labels = { price: '패키지 체결 VWAP', parts: '구성품 5종 합계', margin: '수수료 반영 해체 마진', qty: 'API 관측 체결 수량', stock: '관측 매물 잔량', benchmark: p.benchmark };
-  view.innerHTML = `<section class="panel"><h3>${esc(p.event.name)} · 이벤트 관측</h3>
+  const colors = palette();
+  // 판매 종료는 대상이 삭제돼 사후 비교가 불가능하고, 출시는 관측 시작 전이다. 계산 가능한 단계만 고르게 한다.
+  const usable = p.stages.map((s, i) => ({ s, i })).filter(({ s }) => !s.unavailableReason && s.label !== '판매 종료' && s.metrics?.price?.ready);
+  const why = (s) => s.label === '판매 종료' ? '대상이 삭제돼 사후 가격이 정의되지 않습니다' : s.date < p.firstObserved ? `관측 시작(${p.firstObserved}) 전이라 이전 가격을 복원할 수 없습니다` : '전후 7일 관측이 아직 채워지지 않았습니다';
+  view.innerHTML = `<h2 class="sr-only">패키지 이벤트</h2>
+  <section class="panel"><h3>${esc(p.event.name)} · 이벤트 관측</h3>
     <p class="desc">출시 ${esc(p.event.starts)} · 판매 종료 ${esc(p.event.ends)} · 완료 일봉 첫 관측 ${esc(p.firstObserved ?? '없음')}</p>
     <p>출시 전 자료가 없어 출시 충격을 계산할 수 없습니다. 패키지와 구성 상자는 11월 5일 06시에 삭제되므로 삭제 후 가격 상승도 분석할 수 없습니다.</p>
     <p><a href="package-study.html">삭제 전 가격 변화·해체 마진 연구와 21종 자료 점검 →</a></p>
     <p class="hint">전 7일(-7~-1)과 이후 7일(0~+6)을 달력 날짜로 비교합니다. 양쪽 7일을 모두 관측해야 변화율을 계산합니다.
       관측 전후 차이이며, 다른 패치·공급 변화·요일 효과를 제거한 인과효과 추정은 아닙니다.</p>
     <a href="${esc(p.event.source_url)}" target="_blank" rel="noopener">공식 판매 공지 ↗</a>
-    <label class="research-label" for="stage-select">비교할 사건</label>
-    <select class="research-select" id="stage-select">${p.stages.map((s, i) => `<option value="${i}" ${s.label === '판매 종료' ? 'selected' : ''}>${s.label} · ${s.date}</option>`).join('')}</select>
-    <div id="event-window"></div>
+    ${usable.length ? `<label class="research-label" for="stage-select">비교할 사건</label>
+    <select class="research-select" id="stage-select">${usable.map(({ s, i }) => `<option value="${i}">${s.label} · ${s.date}</option>`).join('')}</select>
+    <div id="event-window"></div>`
+      : `<div class="research-status" role="status"><b>지금 계산할 수 있는 전후 비교가 없습니다.</b><ul>${p.stages.map((s) => `<li>${esc(s.label)} · ${esc(s.date)} — ${why(s)}.</li>`).join('')}</ul>삭제 전 가격 변화와 해체 마진은 아래 그래프와 <a href="package-study.html">삭제 전 연구</a>에서 확인할 수 있습니다.</div>`}
   </section>
   <section class="panel"><h3>패키지와 구성품 가격</h3><p class="desc">패키지 체결 VWAP과 구성품 5종의 일별 VWAP 합계입니다. 다섯 가격이 모두 있는 날에만 합산합니다.</p>
-    <div class="stock-legend"><span>● 패키지</span><span style="color:#bb7820">● 구성품 합계</span></div><div id="package-price" class="chart"></div>
+    <div class="stock-legend">${legendKey(colors.ink, '패키지')}${legendKey(colors.warm, '구성품 합계')}</div><div id="package-price" class="chart"></div>
     <label class="research-label" for="part-select">구성품 개별 가격</label><select class="research-select" id="part-select">${p.components.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>
     <div id="part-chart" class="chart"></div>
   </section>
@@ -108,47 +117,65 @@ function packageStudy() {
       ${s.components.map((c) => `<tr><th>${esc(c.name)}</th><td>${c.preN}/7 · ${c.postN}/7</td><td>${fmt(c.pre, 0)}</td><td>${fmt(c.post, 0)}</td><td>${signed(c.change)}</td></tr>`).join('')}
       </tbody></table></div><p class="hint">${s.date < p.firstObserved ? '사건이 관측 시작 전이라 이전 가격을 복원할 수 없습니다.' : !w.ready ? '예정된 비교 기간 또는 관측이 아직 완성되지 않았습니다. 조건 충족 시 자동 계산합니다.' : '기간 전체 관측을 충족했습니다. 전후 차이를 사건의 영향으로 단정하지 않습니다.'}</p>`;
   };
-  document.getElementById('stage-select').onchange = renderStage;
-  renderStage();
+  if (usable.length) {
+    document.getElementById('stage-select').onchange = renderStage;
+    renderStage();
+  }
   const points = (key) => p.daily.map((r) => ({ d: r.d, value: r[key] }));
   disposers.push(plot(document.getElementById('package-price'), [
-    { label: '패키지', color: '#27364b', points: points('price') }, { label: '구성품 합계', color: '#bb7820', points: points('parts') },
+    { label: '패키지', color: colors.ink, points: points('price') }, { label: '구성품 합계', color: colors.warm, points: points('parts') },
   ], '골드'));
-  disposers.push(plot(document.getElementById('package-margin'), [{ label: '해체 마진', color: '#27364b', points: points('margin') }], '%'));
+  disposers.push(plot(document.getElementById('package-margin'), [{ label: '해체 마진', color: colors.ink, points: points('margin') }], '%'));
   disposers.push(plot(document.getElementById('package-qty'), [
-    { label: '관측 체결 수량', color: '#307be8', points: points('qty') }, { label: '관측 매물 잔량', color: '#8a94a3', points: points('stock') },
+    { label: '관측 체결 수량', color: colors.blue, points: points('qty') }, { label: '관측 매물 잔량', color: colors.gray, points: points('stock') },
   ], '개'));
   const base = p.daily.find((d) => d.price > 0 && d.benchmark > 0);
   if (base) disposers.push(plot(document.getElementById('package-context'), ['price', 'benchmark'].map((key, i) => ({
-    label: i ? p.benchmark : '패키지', color: i ? '#307be8' : '#27364b', points: p.daily.filter((d) => d.d >= base.d).map((d) => ({ d: d.d, value: d[key] === null ? null : d[key] / base[key] * 100 })),
+    label: i ? p.benchmark : '패키지', color: i ? colors.blue : colors.ink, points: p.daily.filter((d) => d.d >= base.d).map((d) => ({ d: d.d, value: d[key] === null ? null : d[key] / base[key] * 100 })),
   }))));
   else document.getElementById('package-context').textContent = '공통 관측일을 기다리고 있습니다.';
   let disposePart;
   const drawPart = () => {
     disposePart?.();
     const c = p.components.find((c) => c.id === document.getElementById('part-select').value);
-    disposePart = plot(document.getElementById('part-chart'), [{ label: c.name, color: '#307be8', points: c.daily }], '골드');
+    disposePart = plot(document.getElementById('part-chart'), [{ label: c.name, color: colors.blue, points: c.daily }], '골드');
   };
   document.getElementById('part-select').onchange = drawPart;
   drawPart(); disposers.push(() => disposePart?.());
 }
 
-function render() {
-  if (!data) return;
+// 탭 세 개가 같은 방식으로 동작한다: 종류별 지수·예측 / 품목별 예측 비교 / 패키지 이벤트.
+// 예측 비교는 research.json 없이 자기 자료만 쓰므로 그 탭에서는 기다리지 않는다.
+const TABS = { groups: '#groups', review: '#forecast-review', package: '#package' };
+const TITLES = { groups: '종류별 추세와 패키지 분석', review: '품목별 예측 비교', package: '패키지 이벤트' };
+const currentTab = () => location.hash.startsWith('#forecast-review') ? 'review' : location.hash === '#package' ? 'package' : 'groups';
+// research.html 머리말이 먼저 시작해 둔 요청이 있으면 이어받는다(모듈 로딩과 데이터 요청을 겹치게 하려는 것).
+const loadData = () => dataPromise ??= Promise.resolve(window.__research ?? fetch('data/research.json', { cache: 'no-cache' }))
+  .then((response) => { if (!response.ok) throw new Error('데이터 응답 실패'); return response.json(); })
+  .catch((error) => { dataPromise = window.__research = undefined; throw error; });
+
+async function render() {
   clearCharts();
-  const pkg = location.hash === '#package';
-  document.querySelectorAll('.research-tabs a').forEach((a) => a.classList.toggle('on', a.hash === (pkg ? '#package' : '#groups')));
-  if (pkg) packageStudy(); else groups();
+  const tab = currentTab();
+  document.querySelectorAll('.research-tabs a[href^="#"]').forEach((a) => {
+    const on = a.hash === TABS[tab];
+    a.classList.toggle('on', on);
+    if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
+  review.hidden = tab !== 'review';
+  view.hidden = tab === 'review'; // 비어 있는 본문이 미리 잡아 둔 높이만큼 빈 공간을 만들지 않게 한다.
+  document.title = `${TITLES[tab]} — 던파 경매장`;
+  if (tab === 'review') { view.replaceChildren(); return; }
+  try {
+    data ??= await loadData();
+    if (currentTab() !== tab) return; // 기다리는 사이 다른 탭으로 옮겼다.
+    document.getElementById('built').textContent = `${timeText(data.asOf)} KST 기준`;
+    if (tab === 'package') packageStudy(); else groups();
+  } catch (error) {
+    clearCharts();
+    view.innerHTML = '<div class="panel">분석 데이터를 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>';
+    console.error(error);
+  }
 }
-try {
-  const response = await fetch('data/research.json', { cache: 'no-cache' });
-  if (!response.ok) throw new Error('데이터 응답 실패');
-  data = await response.json();
-  document.getElementById('built').textContent = `${timeText(data.asOf)} KST 기준`;
-  render();
-  addEventListener('hashchange', render);
-} catch (error) {
-  clearCharts();
-  view.innerHTML = '<div class="panel">분석 데이터를 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>';
-  console.error(error);
-}
+addEventListener('hashchange', render);
+render();

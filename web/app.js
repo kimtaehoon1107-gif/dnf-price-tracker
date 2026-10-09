@@ -865,7 +865,7 @@ async function renderLegendary() {
     const researchResponse = await fetch('data/research.json', { cache: 'no-cache' });
     if (!researchResponse.ok) throw new Error('예측 응답 실패');
     const research = await researchResponse.json();
-    const { renderForecast } = await import('./research-ui.js?v=20260920-data');
+    const { renderForecast } = await import('./research-ui.js?v=20261007-review');
     if (!await chartReady) throw new Error('차트 라이브러리를 불러오지 못했습니다.');
     if (location.hash.slice(1) !== 'legendary-card' || !box.isConnected) return;
     const drawForecast = () => {

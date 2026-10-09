@@ -3,14 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 인라인 스크립트는 앞선 스타일시트를 기다리므로 스타일시트보다 위에 둔다. 데이터 요청을 가장 먼저 보낸다. -->
+<script>if (location.hash !== '#forecast-review') window.__research = fetch('data/research.json', { cache: 'no-cache' });</script>
 <title>종류별 추세와 패키지 분석 — 던파 경매장</title>
-<meta name="description" content="던전앤파이터 경매장 시세를 아이템별 주기로 수집해 가격과 관측 거래량을 보여줍니다.">
+<meta name="description" content="고정 구성 지수의 예측 평가, 품목별 예측 비교, 유랑악단 패키지 출시·판매 종료 전후 관측을 한곳에서 봅니다. 실시간 가격이 아닌 비공식 개인 프로젝트입니다.">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta property="og:title" content="종류별 추세와 패키지 분석 — 던파 경매장">
+<meta property="og:description" content="고정 구성 지수의 예측 평가와 패키지 출시·판매 종료 전후 관측. 과거 관측을 바탕으로 한 실험 결과입니다.">
+<meta property="og:type" content="website">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="style.css?v=20260919-review">
-<link rel="stylesheet" href="research.css?v=20260919-redesign">
-<link rel="stylesheet" href="forecast-review.css?v=20261007">
+<link rel="stylesheet" href="style.css?v=20261006-font-restore">
+<link rel="stylesheet" href="research.css?v=20261007-research">
+<link rel="stylesheet" href="forecast-review.css?v=20261007-review">
+<!-- 모듈 체인(research.js → research-ui.js)이 끝나기 전에 데이터와 차트 라이브러리를 먼저 받기 시작한다. -->
+<link rel="modulepreload" href="research-ui.js?v=20261007-review">
+<link rel="modulepreload" href="forecast-review-model.js?v=20261007-review">
+<script defer src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body class="research-page">
 <header class="top">
@@ -42,30 +55,31 @@
 <div class="wrap">
 
 <h1 class="research-title">종류별 가격 흐름을 함께 봅니다</h1>
-<p class="research-intro">비슷한 아이템의 움직임을 고정 구성 지수로 비교하고, 패키지 출시·판매 종료 전후의 관측을 살펴봅니다.<br>실시간 가격이 아니며, 예측력은 발행 이후의 실제 관측으로 평가합니다.</p>
+<p class="research-intro">비슷한 아이템의 움직임을 고정 구성 지수로 비교하고, 패키지 출시·판매 종료 전후의 관측을 살펴봅니다. 실시간 가격이 아닙니다.<br>지수 예측은 발행 이후의 실제 관측으로 평가합니다. ‘품목별 예측 비교’는 이미 알려진 과거를 되돌려 본 재현이라 예측력의 증거로 쓰지 않습니다.</p>
 <p class="hint">가격 흐름·패키지 지표: 동일 아이템·KST 날짜의 체결 단가 중앙값 1/10 미만·10배 초과를 제외한 수량 가중평균입니다. 경계값은 포함하며 원본은 보존합니다. 원본 대조가 불완전한 날은 공백입니다. 카드 호가에는 이 규칙을 적용하지 않습니다. 기존 발행 예측·평가는 별도 원본 기준 기록입니다.</p>
 <nav class="research-tabs" aria-label="추세 분석 구분">
-  <a href="#groups">종류별 지수·예측</a><a href="#forecast-review">품목별 예측 비교</a><a href="#package">패키지 이벤트</a><a href="index.html#legendary-card">레전더리 카드</a>
+  <a href="#groups">종류별 지수·예측</a><a href="#forecast-review">품목별 예측 비교</a><a href="#package">패키지 이벤트</a><a class="research-ext" href="index.html#legendary-card">레전더리 카드 시세 →</a>
 </nav>
 <main id="view" aria-live="polite"><div class="panel">분석 데이터를 불러오는 중입니다.</div></main>
-<section class="panel" id="forecast-review" aria-labelledby="forecast-review-title">
+<!-- id를 해시(#forecast-review)와 다르게 둔다. 같으면 탭을 열 때 브라우저가 이 섹션으로 스크롤해 탭 막대가 가려진다. -->
+<section class="panel" id="forecast-review-panel" data-forecast-review aria-labelledby="forecast-review-title" hidden>
   <p class="eyebrow">과거 재현 · 연구용 비교</p>
   <h2 id="forecast-review-title">품목별 예측은 실제 가격과 얼마나 달랐을까?</h2>
   <p>2026년 10월 6일까지의 고정 연구 자료입니다. 미래 전망이나 자동 갱신되는 예측이 아닙니다.</p>
+  <p class="fr-badge" role="note"><b>해석 주의</b> 결과를 알고 난 뒤 고른 3품목 · 평가 구간 약 1주 · 같은 시장이라 서로 독립이 아님 → 성능이 검증된 결과가 아닙니다.</p>
+  <div id="fr-summary"></div>
   <div class="fr-controls">
     <label>품목 <select id="fr-item"><option>자료를 불러오는 중</option></select></label>
     <label>예측 거리 <select id="fr-horizon"><option value="1">내일</option><option value="3">3일 뒤</option><option value="7">7일 뒤</option></select></label>
   </div>
   <p id="fr-status" role="status">비교 자료를 불러오는 중입니다.</p>
   <div id="fr-content"></div>
-  <p class="fr-note">각 점은 서로 다른 기준일에서 직전 완료 21일로 학습한 예측입니다. 가로축은 실제 가격을 확인한 날짜이며, 당일 미완성 자료는 학습에서 제외했습니다. 학습과 실제 정답 모두 이상치를 제외한 하루 수량 가중평균(VWAP)입니다.</p>
-  <p class="fr-note">후향 결과를 보고 선정한 세 품목입니다. 표본이 적고 평가 기간도 이미 확인했으므로, 새 데이터에서 성능이 검증됐다는 뜻은 아닙니다. API 관측 체결은 전체 거래를 포함하지 못할 수 있습니다.</p>
+  <p class="fr-note">각 점은 서로 다른 기준일에서 직전 완료 21일로 학습한 예측입니다. 가로축은 실제 가격을 확인한 날짜이며, 당일 미완성 자료는 학습에서 제외했습니다. 학습과 실제 정답 모두 이상치를 제외한 하루 수량 가중평균(VWAP)입니다. API 관측 체결은 전체 거래를 포함하지 못할 수 있습니다.</p>
 </section>
-<section class="panel"><h2>시간대·요일 평균 트렌드</h2><p>소울 결정·유랑악단 패키지 등 품목별 가격과 매물 건수의 평균 흐름을 자정·오전 6시 기준으로 비교합니다.</p><a href="seasonal.html">자동 갱신되는 평균 트렌드 보기 →</a></section>
-<section class="panel">
-  <h2>유랑악단 패키지 삭제 전 연구</h2>
-  <p>패키지와 구성 상자는 11월 5일 06시에 삭제됩니다. 삭제 전 가격 변화와 해체 마진을 관측하며, 삭제 후 가격 상승은 분석하지 않습니다.</p>
-  <a href="package-study.html">21종 자료 상태·분석 규칙 보기 →</a>
+<section class="related" aria-labelledby="related-title">
+  <h2 id="related-title">관련 연구</h2>
+  <a class="related-card" href="seasonal.html"><b>시간대·요일 평균 트렌드</b><span>소울 결정·유랑악단 패키지 등 품목별 가격과 매물 건수의 평균 흐름을 자정·오전 6시 기준으로 비교합니다. 자동으로 갱신됩니다.</span></a>
+  <a class="related-card" href="package-study.html"><b>유랑악단 패키지 삭제 전 연구</b><span>패키지와 구성 상자는 11월 5일 06시에 삭제됩니다. 삭제 전 가격 변화와 해체 마진만 관측하며, 삭제 후 가격 상승은 분석하지 않습니다. 21종 자료 상태와 분석 규칙을 볼 수 있습니다.</span></a>
 </section>
 
 <footer>
@@ -80,8 +94,7 @@
 </footer>
 
 </div>
-<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
-<script type="module" src="research.js?v=20261008-cleaned"></script>
-<script type="module" src="forecast-review.js?v=20261008-cleaned"></script>
+<script type="module" src="research.js?v=20261009-research"></script>
+<script type="module" src="forecast-review.js?v=20261009-review"></script>
 </body>
 </html>
