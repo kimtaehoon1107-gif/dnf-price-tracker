@@ -17,7 +17,7 @@ import './test-feedback.ts';
 import './test-api.ts';
 import './test-data-status.ts';
 import './test-price-distribution.ts';
-import './test-comparison.ts';
+import './test-sidebar.ts';
 import './test-research.ts';
 import './test-forecast-recording.ts';
 import './test-weekday-trend.ts';

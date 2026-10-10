@@ -646,7 +646,7 @@ writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
   },
 }));
 
-for (const f of ['index.html', 'ranking.html', 'analysis.html', 'guide.html', 'feedback.html', 'feedback.js', 'feedback.css', 'chat.js', 'chat.css', 'summary-data.js', 'favicon.svg', 'og-image.png', 'pretendard-400-600.css', 'app.js', 'price-distribution.js', 'price-distribution.css', 'comparison.js', 'comparison-model.js', 'comparison.css', 'metrics.js', 'ranking.js', 'style.css', 'research.html', 'research.js', 'research-ui.js', 'research.css', 'package.js', 'package.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
+for (const f of ['index.html', 'ranking.html', 'analysis.html', 'guide.html', 'feedback.html', 'feedback.js', 'feedback.css', 'chat.js', 'chat.css', 'summary-data.js', 'favicon.svg', 'og-image.png', 'pretendard-400-600.css', 'app.js', 'price-distribution.js', 'price-distribution.css', 'sidebar.js', 'sidebar.css', 'sidebar-model.js', 'update-calendar.json', 'metrics.js', 'ranking.js', 'style.css', 'research.html', 'research.js', 'research-ui.js', 'research.css', 'package.js', 'package.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
 writeFileSync(`${OUT}/.nojekyll`, '');
 for (const f of ['seasonal.html','seasonal.js','seasonal.css','forecast-review.js','forecast-review-model.js','forecast-review.css','forecast-review.json']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
 
