@@ -17,20 +17,25 @@ assert(copied.has(IMAGE), `web/build.ts의 복사 목록에 ${IMAGE}가 있어�
 const meta = (html: string, attr: 'property' | 'name', key: string) =>
   html.match(new RegExp(`<meta\\s+${attr}="${key}"\\s+content="([^"]*)"`))?.[1];
 
+const imageUrls = new Set<string>();
 for (const page of pages) {
   const html = readFileSync(`web/${page}`, 'utf8');
-  const og = (key: string) => meta(html, 'property', `og:${key}`);
+  const og =(key: string) => meta(html, 'property', `og:${key}`);
   assert(og('title') && og('description'), `${page}: og:title·og:description이 있어야 함`);
   assert.equal(og('type'), 'website', `${page}: og:type`);
   assert.equal(og('site_name'), '던파 경매장 시세 추적기', `${page}: og:site_name`);
   assert.equal(og('locale'), 'ko_KR', `${page}: og:locale`);
   assert.equal(og('url'), page === 'index.html' ? BASE : `${BASE}${page}`, `${page}: og:url은 이 페이지의 배포 주소여야 함`);
-  assert.equal(og('image'), `${BASE}${IMAGE}`, `${page}: og:image는 절대 주소여야 함(상대 주소는 공유 서비스가 읽지 못함)`);
+  // 이미지를 바꿀 때는 ?v= 값도 함께 올린다: 카카오톡·디스코드 등은 주소별로 미리보기를 캐시해서, 주소가 같으면 예전 이미지가 계속 나온다.
+  const image = og('image') ?? '';
+  assert(image.startsWith(`${BASE}${IMAGE}?v=`) && /^[\w-]+$/.test(image.slice(`${BASE}${IMAGE}?v=`.length)), `${page}: og:image는 ${BASE}${IMAGE}?v=<버전> 형태의 절대 주소여야 함(상대 주소는 공유 서비스가 읽지 못함): ${image}`);
+  imageUrls.add(image);
   assert.equal(og('image:width'), '1200', `${page}: og:image:width`);
   assert.equal(og('image:height'), '630', `${page}: og:image:height`);
   assert((og('image:alt') ?? '').length > 5, `${page}: og:image:alt`);
   assert.equal(meta(html, 'name', 'twitter:card'), 'summary_large_image', `${page}: twitter:card`);
 }
+assert.equal(imageUrls.size, 1, `페이지마다 og:image의 ?v= 값이 달라서는 안 됨(같은 이미지를 가리켜야 함): ${[...imageUrls].join(', ')}`);
 
 // 이미지 파일: 실제로 있고, PNG이며, 선언한 크기(1200×630)와 같고, 서비스별 용량 제한(수 MB)보다 훨씬 작다.
 assert(existsSync(`web/${IMAGE}`), `web/${IMAGE}가 있어야 함`);
