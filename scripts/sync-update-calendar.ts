@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
-import { updateRows, updateHeadings } from '../src/update-calendar.ts';
+import { updateRows, updateHeadings, periodRows, uniquePeriods } from '../src/update-calendar.ts';
 const path = 'web/update-calendar.json';
-let previous = { checkedAt: null as string | null, entries: [] as any[] };
+let previous = { checkedAt: null as string | null, entries: [] as any[], periods: [] as any[], periodCheckedAt: {} as Record<string, string> };
 try { previous = JSON.parse(readFileSync(path, 'utf8')); } catch {}
 async function get(url: string) {
   const r = await fetch(url, { signal: AbortSignal.timeout(15000), headers: { 'user-agent': 'dnf-price-tracker official update calendar' } });
@@ -21,7 +21,17 @@ try {
     }
     entries.set(row.id, { ...row, headings });
   }
-  writeFileSync(path, JSON.stringify({ checkedAt: new Date().toISOString(), entries: [...entries.values()].sort((a,b) => b.date.localeCompare(a.date)) }, null, 2) + '\n');
+  const periods = new Map((previous.periods ?? []).map(p => [p.id, p]));
+  const periodCheckedAt = previous.periodCheckedAt ?? {};
+  for (const source of ['event', 'seriashop'] as const) {
+    try {
+      const found = periodRows(await get(`https://df.nexon.com/community/news/${source}/list`), source);
+      if (!found.length) throw Error('기간 목록 파싱 실패');
+      for (const period of found) periods.set(period.id, period);
+      periodCheckedAt[source] = new Date().toISOString();
+    } catch (e) { console.warn(`${source} 기간 갱신 실패: 이전 자료 유지`, String(e)); }
+  }
+  writeFileSync(path, JSON.stringify({ periods: uniquePeriods([...periods.values()]), periodCheckedAt, checkedAt: new Date().toISOString(), entries: [...entries.values()].sort((a,b) => b.date.localeCompare(a.date)) }, null, 2) + '\n');
   console.log(`공식 업데이트 캘린더 ${entries.size}건`);
 } catch (e) {
   if (!previous.entries.length) throw e;

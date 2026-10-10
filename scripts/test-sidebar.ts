@@ -11,3 +11,21 @@ assert.equal(updateRows(html('대규모 업데이트','2026.10.07'))[0].date,'20
 assert.equal(updateRows(html('1/1(금) 업데이트','2026.12.31'))[0].date,'2027-01-01');
 assert.deepEqual(updateHeadings('<h1>메뉴</h1><div class="bd_viewcont"><h1>밸런스</h1><h2>아이템</h2><article class="bdview_btnarea"><h1>보안</h1>'),['밸런스','아이템']);
 console.log('sidebar 순위·캘린더 검사 통과');
+
+const { periodRows, uniquePeriods } = await import('../src/update-calendar.ts');
+const { periodsOnDate } = await import('../web/sidebar-model.js');
+const eventHtml = `<li class="title" onclick="window.location.href='/pg/example';"><b>여름 이벤트</b><span>2026.08.01 ~ 2026.08.20</span></li>`;
+const period=periodRows(eventHtml,'event')[0];
+assert.equal(period.url,'https://df.nexon.com/pg/example');
+assert.equal(periodsOnDate([period],'2026-08-01')[0].phase,'시작');
+assert.equal(periodsOnDate([period],'2026-08-20')[0].phase,'종료');
+assert.equal(periodsOnDate([period],'2026-08-10')[0].phase,'기간 중');
+assert.equal(periodsOnDate([period],'2026-08-21').length,0);
+assert.equal(periodRows(eventHtml.replace("/pg/example","javascript:evil"),'event').length,0);
+const open=periodRows(eventHtml.replace('2026.08.20',''),'event')[0];
+assert.equal(open.endDate,null);
+assert.equal(periodsOnDate([open],'2026-09-01')[0].phase,'기간 중');
+const shop=periodRows('<ul data-id="123"><li><b>여름 패키지</b></li><li>2026.08.01 ~ 2026.08.20</li></ul>','seriashop')[0];
+assert.equal(shop.category,'패키지');
+assert.equal(uniquePeriods([{...shop,source:'event'},shop]).length,1);
+assert.equal(uniquePeriods([shop,{...shop,source:'event'}])[0].source,'seriashop');
