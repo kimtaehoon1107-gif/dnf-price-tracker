@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import { rankedItems, calendarCells } from '../web/sidebar-model.js';
+import { updateRows, updateHeadings } from '../src/update-calendar.ts';
+const row = (id, price, basis='trade', qty=100) => ({item_id:id, vwap24:price, vwap_prev:100, price_basis:basis, api_qty24:qty});
+assert.deepEqual(rankedItems([row('a',120),row('b',90),row('card',900,'ask0'),row('thin',500,'trade',99),row('flat',100),row('bad',Infinity)],'up').map(x=>x.item_id),['a']);
+assert.deepEqual(rankedItems([row('a',95),row('b',70),row('c',130)],'down').map(x=>x.item_id),['b','a']);
+assert.equal(calendarCells(2028,1).filter(Boolean).length,29);
+const html=(title,date)=>`<ul><li class="category">일반</li><li class="title" data-no="123">${title}<div class="iconset"></div></li><li class="date">${date}</li></ul>`;
+assert.equal(updateRows(html('10/8(목) 업데이트','2026.10.07'))[0].date,'2026-10-08');
+assert.equal(updateRows(html('대규모 업데이트','2026.10.07'))[0].date,'2026-10-07');
+assert.equal(updateRows(html('1/1(금) 업데이트','2026.12.31'))[0].date,'2027-01-01');
+assert.deepEqual(updateHeadings('<h1>메뉴</h1><div class="bd_viewcont"><h1>밸런스</h1><h2>아이템</h2><article class="bdview_btnarea"><h1>보안</h1>'),['밸런스','아이템']);
+console.log('sidebar 순위·캘린더 검사 통과');

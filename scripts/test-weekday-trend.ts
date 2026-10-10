@@ -3,7 +3,6 @@ import { weekdayTrend } from '../src/weekday-trend.ts';
 import * as metrics from '../web/metrics.js';
 import * as packageUI from '../web/package.js';
 import * as priceDistribution from '../web/price-distribution.js';
-import * as comparison from '../web/comparison.js';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
@@ -45,7 +44,7 @@ export function renderFixture(data, category, role, basis) {
  return summaryCards()+weekdayTrendHTML();
 }`, { context });
 await module.link((name) => {
-  const exports = name.includes('forecast-review.js') ? { itemForecastPanel: () => '', mountForecastReview: () => {} } : name.includes('summary-data.js') ? { loadSummary: () => new Promise(() => {}) } : name.includes('package.js') ? packageUI : name.includes('price-distribution.js') ? priceDistribution : name.includes('comparison.js') ? comparison : metrics;
+  const exports = name.includes('forecast-review.js') ? { itemForecastPanel: () => '', mountForecastReview: () => {} } : name.includes('summary-data.js') ? { loadSummary: () => new Promise(() => {}) } : name.includes('package.js') ? packageUI : name.includes('price-distribution.js') ? priceDistribution : metrics;
   return new vm.SyntheticModule(Object.keys(exports), function () {
     for (const [key, value] of Object.entries(exports)) this.setExport(key, value);
   }, { context });

@@ -9,6 +9,8 @@ on:
     branches: [main]
     paths:
       - 'web/**'
+      - 'src/update-calendar.ts'
+      - 'scripts/sync-update-calendar.ts'
       - 'scripts/build-inline-forecast.py'
       - 'scripts/forecast-study-requirements.txt'
       - 'src/seasonal-*.ts'
@@ -106,6 +108,9 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: node --no-warnings scripts/record-forecasts.ts
+
+      - name: 공식 업데이트 캘린더 갱신
+        run: node scripts/sync-update-calendar.ts
 
       - name: 사이트 빌드
         env:

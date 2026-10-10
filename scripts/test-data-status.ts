@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs';
 import * as metrics from '../web/metrics.js';
 import * as packageUI from '../web/package.js';
 import * as priceDistribution from '../web/price-distribution.js';
-import * as comparison from '../web/comparison.js';
 
 const elements = new Map<string, { textContent: string; stale: boolean; classList: { toggle: Function } }>();
 for (const id of ['data-asof', 'data-freshness']) {
@@ -21,7 +20,7 @@ const view = { innerHTML: '' };
 const module = new vm.SourceTextModule(readFileSync('web/app.js', 'utf8') +
   '\nexport {renderDataStatus, renderDetail}; export function fixture(data, mode = "zero") { DATA = data; cardMode = mode; }', { context });
 await module.link((name) => {
-  const exports = name.includes('forecast-review.js') ? { itemForecastPanel: () => '', mountForecastReview: () => {} } : name.includes('summary-data.js') ? { loadSummary: () => new Promise(() => {}) } : name.includes('package.js') ? packageUI : name.includes('price-distribution.js') ? priceDistribution : name.includes('comparison.js') ? comparison : metrics;
+  const exports = name.includes('forecast-review.js') ? { itemForecastPanel: () => '', mountForecastReview: () => {} } : name.includes('summary-data.js') ? { loadSummary: () => new Promise(() => {}) } : name.includes('package.js') ? packageUI : name.includes('price-distribution.js') ? priceDistribution : metrics;
   return new vm.SyntheticModule(Object.keys(exports), function () {
     for (const [key, value] of Object.entries(exports)) this.setExport(key, value);
   }, { context });

@@ -29,8 +29,6 @@
 <link rel="modulepreload" href="summary-data.js?v=20261010-ux-polish">
 <link rel="modulepreload" href="metrics.js?v=20260928-distribution">
 <link rel="modulepreload" href="price-distribution.js?v=20261010-ux-polish">
-<link rel="modulepreload" href="comparison.js?v=20261010-ux-polish">
-<link rel="modulepreload" href="comparison-model.js?v=20261010-ux-polish">
 <link rel="modulepreload" href="package.js?v=20261002-comparison">
 <!-- 글꼴 스타일시트는 첫 화면을 막지 않게 받는다(다 받으면 media를 all로 바꿔 적용). 외부 서버가 느려도 첫 화면이 기다리지 않는다. -->
 <link rel="stylesheet" href="pretendard-400-600.css?v=20261010-fonts" media="print" onload="this.media='all'">
@@ -40,8 +38,7 @@
 <link rel="stylesheet" href="research.css?v=20261010-ux-polish">
 <link rel="stylesheet" href="package.css?v=20261002-comparison">
 <link rel="stylesheet" href="price-distribution.css?v=20261010-ux-polish">
-<link rel="stylesheet" href="comparison.css?v=20261010-ux-polish">
-<link rel="stylesheet" href="chat.css?v=20261010-ux-polish">
+<link rel="stylesheet" href="chat.css?v=20261010-sidebar">
 
 <meta name="theme-color" content="#ffffff">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -56,6 +53,7 @@
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="던파 경매장 시세 추적기 — 아이템별 가격 흐름, 관측 거래량, 매물 현황">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="sidebar.css?v=20261010-sidebar">
 </head>
 <body class="market-home">
 <header class="top">
@@ -63,7 +61,6 @@
     <a class="brand" href="index.html">던파 경매장</a>
     <nav>
       <a href="index.html" class="on">시세</a>
-      <a href="#compare">비교</a>
       <a href="ranking.html">TOP100</a>
       <a href="analysis.html">분석</a>
       <a href="research.html">실험</a>
@@ -74,7 +71,6 @@
       <summary>메뉴</summary>
       <nav aria-label="모바일 주 메뉴">
         <a href="index.html" class="on">시세</a>
-        <a href="#compare">비교</a>
         <a href="ranking.html">TOP100</a>
         <a href="analysis.html">분석</a>
         <a href="research.html">실험</a>
@@ -107,7 +103,7 @@
 
 </div>
 <script type="module" src="app.js?v=20261010-early-series"></script>
-<script type="module" src="chat.js?v=20261010-ux-polish"></script>
+<script type="module" src="chat.js?v=20261010-sidebar"></script>
 
 </body>
 </html>

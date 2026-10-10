@@ -441,6 +441,7 @@ import { loadSummary } from "./summary-data.js?v=20261010-ux-polish";
   }
   mobileLayout.addEventListener("change", updateLaunch);
   function opened(value, focus = true) {
+    if (value) window.dispatchEvent(new Event("market-chat-opened"));
     if (value && !busy) load(true);
     panel.classList.toggle("cd-closed", !value);
     panel.inert = !value;
@@ -672,6 +673,8 @@ import { loadSummary } from "./summary-data.js?v=20261010-ux-polish";
   });
   render();
   opened(false, false);
+  const { mountSidebar } = await import("./sidebar.js?v=20261010-sidebar");
+  mountSidebar(summary, rail, () => opened(false, false));
   setTimeout(tick, 30000);
 })().catch(() => {
   const retry = document.createElement("button");

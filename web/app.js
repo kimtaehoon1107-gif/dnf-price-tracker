@@ -3,7 +3,6 @@ import { loadSummary } from "./summary-data.js?v=20261010-ux-polish";
 
 import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260928-distribution';
 import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261010-ux-polish';
-import { renderComparison, disposeComparison } from './comparison.js?v=20261010-ux-polish';
 import { packagePanelHTML } from './package.js?v=20261002-comparison';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
@@ -431,23 +430,12 @@ function render() {
   askGapObserver?.disconnect();
   askGapObserver = null;
   disposePriceDistribution();
-  disposeComparison();
   legendaryForecastCleanup?.();
   legendaryForecastCleanup = null;
   const id = location.hash.slice(1);
-  document.querySelectorAll('.top nav a').forEach(link => {
-    if (['index.html', '#compare'].includes(link.getAttribute('href'))) {
-      link.classList.toggle('on', link.getAttribute('href') === (id === 'compare' || id.startsWith('compare?') ? '#compare' : 'index.html'));
-    }
-  });
   const it = DATA.items.find((x) => x.item_id === id);
   document.title = it ? `${it.item_name} 시세 · 던파 경매장` : id === "legendary-card" ? "레전더리 카드 재료 시세 · 던파 경매장" : "던파 경매장 시세 추적기";
   scrollTo(0, 0);
-  if (id === 'compare' || id.startsWith('compare?')) {
-    detailItemId = null;
-    renderComparison(document.getElementById('view'), DATA, new URLSearchParams(id.split('?')[1]).get('item'));
-    return;
-  }
   if (it || id === 'legendary-card') {
     if (detailItemId !== id) cardMode = 'zero';
     detailItemId = id;
@@ -953,7 +941,6 @@ async function renderDetail(it) {
     <div class="panel">
       <div class="panel-head price-chart-head">
         <h3>${isZeroCard ? `${cardTier} 가격 흐름` : '가격 흐름 · 거래 수량'}</h3>
-        <a class="compare-link" href="#compare?item=${encodeURIComponent(it.item_id)}">다른 아이템과 비교 →</a>
       </div>
       <p class="desc" id="fc-desc">불러오는 중…</p>
       <div class="chart${isZeroCard ? '' : ' tall'}" id="c1"></div>

@@ -24,7 +24,7 @@ await module.link(name => {
   : name.includes('forecast-review') ? {itemForecastPanel:()=>'',mountForecastReview:()=>{}}
   : name.includes('package.js') ? packageUI
   : name.includes('price-distribution') ? {renderPriceDistribution:()=>{distributionRendered=true},disposePriceDistribution:()=>{}}
-  : name.includes('comparison.js') ? {renderComparison:()=>{},disposeComparison:()=>{}} : metrics;
+  : metrics;
  return new vm.SyntheticModule(Object.keys(exports),function(){for(const [key,value] of Object.entries(exports))this.setExport(key,value)},{context});
 });
 await module.evaluate(); module.namespace.fixture();
