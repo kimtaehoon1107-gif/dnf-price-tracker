@@ -673,7 +673,7 @@ import { loadSummary } from "./summary-data.js?v=20261010-ux-polish";
   });
   render();
   opened(false, false);
-  const { mountSidebar } = await import("./sidebar.js?v=20261010-sidebar");
+  const { mountSidebar } = await import("./sidebar.js?v=20261011-periods");
   mountSidebar(summary, rail, () => opened(false, false));
   setTimeout(tick, 30000);
 })().catch(() => {

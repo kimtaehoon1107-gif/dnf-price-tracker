@@ -7,3 +7,9 @@ export function rankedItems(items, direction) {
 export function calendarCells(year, month) {
   return [...Array(new Date(Date.UTC(year,month,1)).getUTCDay()).fill(null), ...Array.from({ length: new Date(Date.UTC(year,month+1,0)).getUTCDate() }, (_, i) => i+1)];
 }
+
+export function periodsOnDate(periods, date) {
+  return periods.filter(p => p.startDate <= date && (!p.endDate || date <= p.endDate))
+    .map(p => ({ ...p, phase: p.startDate === date && p.endDate === date ? '시작·종료' : p.startDate === date ? '시작' : p.endDate === date ? '종료' : '기간 중' }))
+    .sort((a,b) => Number(a.phase === '기간 중') - Number(b.phase === '기간 중') || a.title.localeCompare(b.title));
+}

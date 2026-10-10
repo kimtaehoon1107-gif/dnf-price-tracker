@@ -1,5 +1,137 @@
 {
-  "checkedAt": "2026-10-10T14:04:50.635Z",
+  "periods": [
+    {
+      "id": "event:2928637",
+      "source": "event",
+      "title": "오필리아의 백일장을 도와줘!",
+      "category": "이벤트",
+      "startDate": "2026-10-08",
+      "endDate": "2026-10-22",
+      "url": "https://df.nexon.com/community/news/event/2928637"
+    },
+    {
+      "id": "event:2928609",
+      "source": "event",
+      "title": "마일리지샵 2026 시즌9",
+      "category": "이벤트",
+      "startDate": "2026-10-08",
+      "endDate": "2026-11-12",
+      "url": "https://df.nexon.com/community/news/event/2928609"
+    },
+    {
+      "id": "event:/pg/magicalboymaker",
+      "source": "event",
+      "title": "마법소년 메이커!",
+      "category": "이벤트",
+      "startDate": "2026-10-01",
+      "endDate": "2026-11-12",
+      "url": "https://df.nexon.com/pg/magicalboymaker"
+    },
+    {
+      "id": "event:/pg/hotdebutmagicpriest",
+      "source": "event",
+      "title": "HOT DEBUT! 마법소년단",
+      "category": "이벤트",
+      "startDate": "2026-10-01",
+      "endDate": "2026-10-29",
+      "url": "https://df.nexon.com/pg/hotdebutmagicpriest"
+    },
+    {
+      "id": "event:/pg/diarycheck",
+      "source": "event",
+      "title": "마법소년의 다이어리 출석 체크",
+      "category": "이벤트",
+      "startDate": "2026-10-01",
+      "endDate": "2026-11-12",
+      "url": "https://df.nexon.com/pg/diarycheck"
+    },
+    {
+      "id": "event:/pr/magicalboyarcade",
+      "source": "event",
+      "title": "마법소년의 오락실",
+      "category": "이벤트",
+      "startDate": "2026-10-01",
+      "endDate": "2026-11-05",
+      "url": "https://df.nexon.com/pr/magicalboyarcade"
+    },
+    {
+      "id": "event:/pg/highautumnskypcb",
+      "source": "event",
+      "title": "높고 맑은 가을 하늘 PC방",
+      "category": "이벤트",
+      "startDate": "2026-09-17",
+      "endDate": "2026-10-15",
+      "url": "https://df.nexon.com/pg/highautumnskypcb"
+    },
+    {
+      "id": "event:/pg/monstercolosseum2026",
+      "source": "event",
+      "title": "몬스터 콜로세움",
+      "category": "이벤트",
+      "startDate": "2026-09-10",
+      "endDate": "2026-11-05",
+      "url": "https://df.nexon.com/pg/monstercolosseum2026"
+    },
+    {
+      "id": "event:/pg/boostupencore",
+      "source": "event",
+      "title": "천해천 부스트 업 앵콜",
+      "category": "이벤트",
+      "startDate": "2026-08-27",
+      "endDate": "2026-11-05",
+      "url": "https://df.nexon.com/pg/boostupencore"
+    },
+    {
+      "id": "seriashop:656",
+      "source": "seriashop",
+      "title": "숲속의 유랑악단 패키지",
+      "category": "패키지",
+      "startDate": "2026-08-27",
+      "endDate": "2026-11-05",
+      "url": "https://df.nexon.com/community/news/seriashop/656"
+    },
+    {
+      "id": "event:/pg/desertcombo",
+      "source": "event",
+      "title": "2026 아라드 패스 사막의 수호자 아바타 콤보 상자",
+      "category": "이벤트",
+      "startDate": "2026-08-27",
+      "endDate": "2026-10-22",
+      "url": "https://df.nexon.com/pg/desertcombo"
+    },
+    {
+      "id": "event:/pg/westernsheriffcombo",
+      "source": "event",
+      "title": "2026 서부의 보안관 아바타 콤보 상자",
+      "category": "이벤트",
+      "startDate": "2026-08-20",
+      "endDate": "2026-11-12",
+      "url": "https://df.nexon.com/pg/westernsheriffcombo"
+    },
+    {
+      "id": "event:/pg/aradpass26_s4",
+      "source": "event",
+      "title": "아라드 패스 2026 시즌4",
+      "category": "이벤트",
+      "startDate": "2026-08-13",
+      "endDate": "2026-10-22",
+      "url": "https://df.nexon.com/pg/aradpass26_s4"
+    },
+    {
+      "id": "event:/pg/seriapkg_new",
+      "source": "event",
+      "title": "세리아의 성장/정착지원 패키지",
+      "category": "패키지",
+      "startDate": "2026-04-23",
+      "endDate": null,
+      "url": "https://df.nexon.com/pg/seriapkg_new"
+    }
+  ],
+  "periodCheckedAt": {
+    "event": "2026-10-10T16:02:56.446Z",
+    "seriashop": "2026-10-10T16:02:56.483Z"
+  },
+  "checkedAt": "2026-10-10T16:02:56.483Z",
   "entries": [
     {
       "id": "2928642",
