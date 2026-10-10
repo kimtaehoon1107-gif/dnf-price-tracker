@@ -9,7 +9,8 @@ const build = readFileSync('web/build.ts', 'utf8');
 const pages = [...new Set([...build.matchAll(/'([\w-]+\.html)'/g)].map((m) => m[1]))];
 assert(pages.length >= 7, `빌드가 복사하는 페이지를 찾지 못함: ${pages.join(', ')}`);
 
-const FONT_LINK = /<link rel="stylesheet" href="(https:\/\/(?:cdn\.jsdelivr\.net\/gh\/orioncactus\/pretendard|fonts\.googleapis\.com\/css2)[^"]*)"([^>]*)>/g;
+// Pretendard는 우리 서버에 둔 굵기 2종 스타일시트(web/pretendard-400-600.css), IBM Plex Mono는 Google Fonts.
+const FONT_LINK = /<link rel="stylesheet" href="((?:https:\/\/fonts\.googleapis\.com\/css2|pretendard-400-600\.css)[^"]*)"([^>]*)>/g;
 let lazyPages = 0;
 for (const page of pages) {
   const html = readFileSync(`web/${page}`, 'utf8');
@@ -17,6 +18,7 @@ for (const page of pages) {
   // <noscript> 안의 대체 링크는 스크립트가 꺼졌을 때만 쓰이므로 검사에서 뺀다
   const live = html.replace(/<noscript>[\s\S]*?<\/noscript>/g, '');
   const links = [...live.matchAll(FONT_LINK)];
+  if (!hasCsp && links.length) assert.equal(links.length, 2, `${page}: 글꼴 링크(Pretendard · IBM Plex Mono)가 둘 다 있어야 함`);
   let lazy = 0;
   for (const [, href, rest] of links) {
     const isLazy = /media="print"/.test(rest);
