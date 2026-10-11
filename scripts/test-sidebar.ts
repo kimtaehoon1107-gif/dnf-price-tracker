@@ -9,7 +9,7 @@ const html=(title,date)=>`<ul><li class="category">일반</li><li class="title" 
 assert.equal(updateRows(html('10/8(목) 업데이트','2026.10.07'))[0].date,'2026-10-08');
 assert.equal(updateRows(html('대규모 업데이트','2026.10.07'))[0].date,'2026-10-07');
 assert.equal(updateRows(html('1/1(금) 업데이트','2026.12.31'))[0].date,'2027-01-01');
-assert.deepEqual(updateHeadings('<h1>메뉴</h1><div class="bd_viewcont"><h1>밸런스</h1><h2>아이템</h2><article class="bdview_btnarea"><h1>보안</h1>'),['밸런스','아이템']);
+assert.deepEqual(updateHeadings('<h1>메뉴</h1><div class="bd_viewcont"><h1>밸런스</h1><h2>아이템</h2><article class="bdview_btnarea"><h1>보안</h1>'),['밸런스']);
 console.log('sidebar 순위·캘린더 검사 통과');
 
 const { periodRows, uniquePeriods } = await import('../src/update-calendar.ts');
@@ -29,3 +29,6 @@ const shop=periodRows('<ul data-id="123"><li><b>여름 패키지</b></li><li>202
 assert.equal(shop.category,'패키지');
 assert.equal(uniquePeriods([{...shop,source:'event'},shop]).length,1);
 assert.equal(uniquePeriods([shop,{...shop,source:'event'}])[0].source,'seriashop');
+
+assert.deepEqual(updateHeadings('<div class="bd_viewcont"><h1>캐릭터 밸런스 패치</h1><h2>소드마스터</h2><h1>개선 및 변경 사항</h1><h1>버그 수정</h1><h1>기타</h1>'), ['캐릭터 밸런스 패치','개선 및 변경 사항','버그 수정']);
+assert.deepEqual(updateHeadings('<div class="bd_viewcont"><h2>하위 항목만 있음</h2>'), []);
