@@ -116,15 +116,6 @@
       "startDate": "2026-08-13",
       "endDate": "2026-10-22",
       "url": "https://df.nexon.com/pg/aradpass26_s4"
-    },
-    {
-      "id": "event:/pg/seriapkg_new",
-      "source": "event",
-      "title": "세리아의 성장/정착지원 패키지",
-      "category": "패키지",
-      "startDate": "2026-04-23",
-      "endDate": null,
-      "url": "https://df.nexon.com/pg/seriapkg_new"
     }
   ],
   "periodCheckedAt": {

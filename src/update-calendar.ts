@@ -39,5 +39,6 @@ export function uniquePeriods(rows: any[]) {
   // 같은 패키지가 이벤트와 상점 양쪽에 나올 때 상점 판매기간을 우선한다.
   const result = new Map();
   for (const row of [...rows].sort((a,b) => Number(a.source === 'seriashop') - Number(b.source === 'seriashop'))) result.set(row.title.replace(/\s+/g,''), row);
-  return [...result.values()];
+  // 상시 성장·정착 지원 패키지는 시세 캘린더에서 제외한다.
+  return [...result.values()].filter(row => row.title.replace(/\s+/g, '') !== '세리아의성장/정착지원패키지');
 }
