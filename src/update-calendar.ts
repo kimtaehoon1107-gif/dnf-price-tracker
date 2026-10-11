@@ -15,7 +15,7 @@ export function updateRows(html: string) {
 }
 export function updateHeadings(html: string) {
   const body = html.split('<div class="bd_viewcont">')[1]?.split('<article class="bdview_btnarea')[0] ?? '';
-  return [...new Set([...body.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/g), ...body.matchAll(/<h2\b[^>]*>([\s\S]*?)<\/h2>/g)].map(m => text(m[1])).filter(Boolean))].slice(0, 8);
+  return [...new Set([...body.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/g)].map(m => text(m[1])).filter(Boolean))].slice(0, 3);
 }
 
 export function periodRows(html: string, source: 'event' | 'seriashop') {
