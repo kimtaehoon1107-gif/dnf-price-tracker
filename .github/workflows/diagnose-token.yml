@@ -1,0 +1,19 @@
+name: Token forecast diagnosis
+on:
+  push:
+    branches: [codex/diagnose-token-forecast]
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: scripts/forecast-study-requirements.txt
+      - run: python -m pip install -r scripts/forecast-study-requirements.txt
+      - run: python scripts/diagnose-token-forecast.py
