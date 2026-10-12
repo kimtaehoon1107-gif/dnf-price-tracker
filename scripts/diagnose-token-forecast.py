@@ -15,7 +15,7 @@ def traced(*args,**kwargs):
  r=original(*args,**kwargs);raw.append(r[2]);return r
 opt.fmin_l_bfgs_b=traced
 fits={}
-cases=[('default',{},{}),('epsilon_1e-6',{}, {'epsilon':1e-6}),('epsilon_1e-7',{}, {'epsilon':1e-7}),('complex_score',{}, {'optim_score':'approx','optim_complex_step':True}),('powell',{}, {'method':'powell'}),('warm_lbfgs',{},{}),('concentrated',{'concentrate_scale':True},{}),('no_weekday',{}, {})]
+cases=[('exact_200',{}, {'maxiter':200}),('repeat_200',{}, {'maxiter':200}),('default',{},{}),('epsilon_1e-6',{}, {'epsilon':1e-6}),('epsilon_1e-7',{}, {'epsilon':1e-7}),('complex_score',{}, {'optim_score':'approx','optim_complex_step':True}),('powell',{}, {'method':'powell'}),('warm_lbfgs',{},{}),('concentrated',{'concentrate_scale':True},{}),('no_weekday',{}, {})]
 print('ENV',scipy.__version__,np.__version__, 'weekday_diff_rank',np.linalg.matrix_rank(np.diff(ex(dates),axis=0)),flush=True)
 for name,model_kwargs,solver in cases:
  raw.clear()
