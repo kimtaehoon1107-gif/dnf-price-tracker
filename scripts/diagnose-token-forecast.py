@@ -12,10 +12,11 @@ def ex(ds):return np.array([[float(d.weekday()==j) for j in range(6)] for d in d
 original=opt.fmin_l_bfgs_b
 raw=[]
 def traced(*args,**kwargs):
+ if name=='line_search_100': kwargs['maxls']=100
  r=original(*args,**kwargs);raw.append(r[2]);return r
 opt.fmin_l_bfgs_b=traced
 fits={}
-cases=[('exact_200',{}, {'maxiter':200}),('repeat_200',{}, {'maxiter':200}),('default',{},{}),('epsilon_1e-6',{}, {'epsilon':1e-6}),('epsilon_1e-7',{}, {'epsilon':1e-7}),('complex_score',{}, {'optim_score':'approx','optim_complex_step':True}),('powell',{}, {'method':'powell'}),('warm_lbfgs',{},{}),('concentrated',{'concentrate_scale':True},{}),('no_weekday',{}, {})]
+cases=[('exact_200',{}, {'maxiter':200}),('line_search_100',{}, {'maxiter':200})]
 print('ENV',scipy.__version__,np.__version__, 'weekday_diff_rank',np.linalg.matrix_rank(np.diff(ex(dates),axis=0)),flush=True)
 for name,model_kwargs,solver in cases:
  raw.clear()
