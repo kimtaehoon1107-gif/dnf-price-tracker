@@ -31,17 +31,55 @@ def forecast(series, fit_model=ARIMA):
     future = [(today + timedelta(days=i)).isoformat() for i in range(8)]
     def weekdays(ds):
         return np.array([[float(date.fromisoformat(d).weekday() == j) for j in range(6)] for d in ds])
-    try:
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
-            fitted = fit_model(y / y[-1], order=(1, 1, 0), trend='n', exog=weekdays(dates)).fit(method_kwargs={'maxiter': 200})
-            predicted = np.asarray(fitted.forecast(8, exog=weekdays(future))) * y[-1]
-        if not fitted.mle_retvals['converged'] or not np.all(np.isfinite(predicted)) or np.any(predicted <= 0):
-            raise ValueError('invalid fit')
-    except (ValueError, RuntimeError, np.linalg.LinAlgError):
-        return dict(base, status='unavailable', reason='요일 추가 ARIMA 계산이 안정적으로 수렴하지 않아 예측을 표시하지 않습니다.')
-    return dict(base, status='ready', anchor={'d': dates[-1], 'value': float(y[-1])},
+    attempts = []
+    def attempt(name, options):
+        detail = {'solver': name}
+        caught = []
+        try:
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter('always')
+                fitted = fit_model(y / y[-1], order=(1, 1, 0), trend='n', exog=weekdays(dates)).fit(method_kwargs={'maxiter': 200, **options})
+                predicted = np.asarray(fitted.forecast(8, exog=weekdays(future))) * y[-1]
+            ret = fitted.mle_retvals
+            detail.update(converged=bool(ret.get('converged', False)),
+                          warnflag=int(ret.get('warnflag', -1)), iterations=int(ret.get('iterations', -1)),
+                          functionCalls=int(ret.get('fcalls', -1)))
+            if not detail['converged']:
+                detail['failure'] = 'nonconvergence'
+            elif predicted.shape != (8,) or not np.all(np.isfinite(predicted)):
+                detail['failure'] = 'invalid_prediction'
+            elif np.any(predicted <= 0):
+                detail['failure'] = 'nonpositive_prediction'
+            else:
+                return predicted
+        except (ValueError, RuntimeError, np.linalg.LinAlgError) as error:
+            detail.update(failure='numerical_exception', errorType=type(error).__name__, message=str(error))
+        finally:
+            detail['warnings'] = list(dict.fromkeys(str(w.message) for w in caught))
+            attempts.append(detail)
+        return None
+
+    predicted = attempt('lbfgs', {})
+    selected = 'lbfgs'
+    if predicted is None:
+        # Same model/data; independent numerical methods must agree before recovery.
+        first = attempt('lbfgs-complex-step', {'optim_score': 'approx', 'optim_complex_step': True})
+        second = attempt('powell', {'method': 'powell'})
+        if first is not None and second is not None:
+            gap = float(np.max(np.abs(first - second) / np.maximum(np.abs(first), np.abs(second))))
+            base['retryMaxRelativeDifference'] = gap
+            # Numerical agreement guard, not a forecast accuracy claim.
+            if gap <= 0.01:
+                predicted, selected = first, 'lbfgs-complex-step'
+    base.update(fitPolicy='retry-agreement-v1', fitDiagnostics=attempts)
+    if predicted is None:
+        reason = '예측 계산이 안정적으로 완료되지 않아 표시하지 않습니다.'
+        if 'retryMaxRelativeDifference' in base:
+            reason = '재시도한 계산 방법 간 예측값 차이가 커서 표시하지 않습니다.'
+        return dict(base, status='unavailable', reason=reason)
+    return dict(base, status='ready', solver=selected, anchor={'d': dates[-1], 'value': float(y[-1])},
                 points=[{'d': d, 'value': float(p)} for d, p in zip(future, predicted)])
+
 
 
 def main(directory):
@@ -50,7 +88,7 @@ def main(directory):
         series = json.loads(path.read_text(encoding='utf-8'))
         series['inlineForecast'] = forecast(series)
         path.write_text(json.dumps(series, ensure_ascii=False, separators=(',', ':'), allow_nan=False), encoding='utf-8')
-        print(item, series['inlineForecast']['status'])
+        print(item, json.dumps(series['inlineForecast'], ensure_ascii=False, allow_nan=False))
 
 
 if __name__ == '__main__':
