@@ -2,18 +2,31 @@ import json,warnings
 from datetime import date,timedelta
 from pathlib import Path
 import numpy as np
+import scipy, scipy.optimize as opt
 from statsmodels.tsa.arima.model import ARIMA
 s=json.loads(Path('docs/evidence/token-forecast-20261012/input.json').read_text())
-y=np.array([r['vwap'] for r in s['daily']]); dates=[date.fromisoformat(r['d']) for r in s['daily']]
+days=sorted(s['daily'],key=lambda r:r['d'])
+y=np.array([r['vwap'] for r in days]); dates=[date.fromisoformat(r['d']) for r in days]
 future=[date.fromisoformat(s['forecastDay'])+timedelta(days=i) for i in range(8)]
 def ex(ds):return np.array([[float(d.weekday()==j) for j in range(6)] for d in ds])
-for iterations in [200,1000]:
+original=opt.fmin_l_bfgs_b
+raw=[]
+def traced(*args,**kwargs):
+ r=original(*args,**kwargs);raw.append(r[2]);return r
+opt.fmin_l_bfgs_b=traced
+fits={}
+cases=[('default',{},{}),('epsilon_1e-6',{}, {'epsilon':1e-6}),('epsilon_1e-7',{}, {'epsilon':1e-7}),('complex_score',{}, {'optim_score':'approx','optim_complex_step':True}),('powell',{}, {'method':'powell'}),('warm_lbfgs',{},{}),('concentrated',{'concentrate_scale':True},{}),('no_weekday',{}, {})]
+print('ENV',scipy.__version__,np.__version__, 'weekday_diff_rank',np.linalg.matrix_rank(np.diff(ex(dates),axis=0)),flush=True)
+for name,model_kwargs,solver in cases:
+ raw.clear()
  with warnings.catch_warnings(record=True) as caught:
   warnings.simplefilter('always')
   try:
-   fit=ARIMA(y/y[-1],order=(1,1,0),trend='n',exog=ex(dates)).fit(method_kwargs={'maxiter':iterations})
-   pred=np.asarray(fit.forecast(8,exog=ex(future)))*y[-1]
-   result={'maxiter':iterations,'optimizer':fit.mle_retvals,'params':fit.params,'finite':bool(np.all(np.isfinite(pred))),'positive':bool(np.all(pred>0)),'forecast':dict(zip(map(str,future),pred.tolist()))}
-  except Exception as e:result={'maxiter':iterations,'exception':repr(e)}
-  result['warnings']=[str(w.message) for w in caught]
- print('DIAGNOSTIC '+json.dumps(result,default=lambda x:x.tolist() if hasattr(x,'tolist') else str(x)),flush=True)
+   model=ARIMA(y/y[-1],order=(1,1,0),trend='n',exog=None if name=='no_weekday' else ex(dates),**model_kwargs)
+   start={'start_params':fits['powell'].params} if name=='warm_lbfgs' and 'powell' in fits else {}
+   fit=model.fit(**start,method_kwargs={'maxiter':1000,**solver});fits[name]=fit
+   pred=np.asarray(fit.forecast(8,exog=None if name=='no_weekday' else ex(future)))*y[-1]
+   result={'case':name,'llf':fit.llf,'optimizer':fit.mle_retvals,'raw':list(raw),'params':dict(zip(fit.param_names,fit.params.tolist())),'forecast':pred.tolist()}
+  except Exception as e:result={'case':name,'exception':repr(e)}
+  result['warnings']=[str(w.message) for w in caught if 'deprecated' not in str(w.message)]
+ print('DETAIL '+json.dumps(result,default=lambda x:x.tolist() if hasattr(x,'tolist') else str(x)),flush=True)
