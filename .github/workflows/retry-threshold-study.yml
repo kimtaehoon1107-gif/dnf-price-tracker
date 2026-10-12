@@ -1,0 +1,27 @@
+name: Retry threshold study
+on:
+  push:
+    branches: [codex/validate-retry-threshold]
+permissions:
+  contents: read
+jobs:
+  study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: scripts/forecast-study-requirements.txt
+      - run: python -m pip install -r scripts/forecast-study-requirements.txt
+      - run: python scripts/validate-retry-threshold.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: retry-threshold-results
+          path: docs/evidence/retry-threshold-20261012/*results.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: retry-threshold-summary
+          path: docs/evidence/retry-threshold-20261012/summary.json
