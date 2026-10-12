@@ -1,0 +1,100 @@
+{
+  "REAL_RESULT": {
+    "model": "weekday-arima110-median10x-v2",
+    "preprocessing": "daily-median-10x-v1",
+    "issuedAt": "2026-10-12T07:07:10.276Z",
+    "trainFrom": "2026-09-21",
+    "trainThrough": "2026-10-11",
+    "points": [
+      {
+        "d": "2026-10-12",
+        "value": 285836.5139793661
+      },
+      {
+        "d": "2026-10-13",
+        "value": 286524.03033068083
+      },
+      {
+        "d": "2026-10-14",
+        "value": 283395.6142575285
+      },
+      {
+        "d": "2026-10-15",
+        "value": 277125.97852219176
+      },
+      {
+        "d": "2026-10-16",
+        "value": 279988.3091254616
+      },
+      {
+        "d": "2026-10-17",
+        "value": 273188.8602133112
+      },
+      {
+        "d": "2026-10-18",
+        "value": 277511.9735287619
+      },
+      {
+        "d": "2026-10-19",
+        "value": 277971.23780507006
+      }
+    ],
+    "retryMaxRelativeDifference": 0.0015248860608545061,
+    "fitPolicy": "retry-agreement-v1",
+    "fitDiagnostics": [
+      {
+        "solver": "lbfgs",
+        "converged": false,
+        "warnflag": 2,
+        "iterations": 20,
+        "functionCalls": 873,
+        "failure": "nonconvergence",
+        "warnings": [
+          "Setting the shape on a NumPy array has been deprecated in NumPy 2.5.\nAs an alternative, you can create a new view using np.reshape (with copy=False if needed).",
+          "Maximum Likelihood optimization failed to converge. Check mle_retvals"
+        ]
+      },
+      {
+        "solver": "lbfgs-complex-step",
+        "converged": true,
+        "warnflag": 0,
+        "iterations": 21,
+        "functionCalls": 121,
+        "warnings": [
+          "Setting the shape on a NumPy array has been deprecated in NumPy 2.5.\nAs an alternative, you can create a new view using np.reshape (with copy=False if needed)."
+        ]
+      },
+      {
+        "solver": "powell",
+        "converged": true,
+        "warnflag": 0,
+        "iterations": 5,
+        "functionCalls": 497,
+        "warnings": [
+          "Setting the shape on a NumPy array has been deprecated in NumPy 2.5.\nAs an alternative, you can create a new view using np.reshape (with copy=False if needed)."
+        ]
+      }
+    ],
+    "status": "ready",
+    "solver": "lbfgs-complex-step",
+    "anchor": {
+      "d": "2026-10-11",
+      "value": 286979.39264586277
+    }
+  },
+  "run": "https://github.com/kimtaehoon1107-gif/dnf-price-tracker/actions/runs/38226582756",
+  "RAW_TERMINATION": [
+    {
+      "task": "ABNORMAL: ",
+      "warnflag": 2,
+      "nit": 20,
+      "funcalls": 873
+    },
+    {
+      "task": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+      "warnflag": 0,
+      "nit": 21,
+      "funcalls": 121
+    }
+  ]
+}
