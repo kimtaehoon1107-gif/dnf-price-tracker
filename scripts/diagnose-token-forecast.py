@@ -11,9 +11,24 @@ future=[date.fromisoformat(s['forecastDay'])+timedelta(days=i) for i in range(8)
 def ex(ds):return np.array([[float(d.weekday()==j) for j in range(6)] for d in ds])
 original=opt.fmin_l_bfgs_b
 raw=[]
-def traced(*args,**kwargs):
- if name=='line_search_100': kwargs['maxls']=100
- r=original(*args,**kwargs);raw.append(r[2]);return r
+def traced(func, x0, *args, **kwargs):
+ calls=[];accepted=[]
+ def objective(x,*a):
+  value=func(x,*a)
+  calls.append({'x':np.asarray(x).tolist(),'f':float(value)})
+  return value
+ previous_callback=kwargs.get('callback')
+ def callback(x):
+  accepted.append({'callCount':len(calls),'x':np.asarray(x).tolist()})
+  if previous_callback is not None:return previous_callback(x)
+ kwargs['callback']=callback
+ if name=='line_search_100':kwargs['maxls']=100
+ r=original(objective,x0,*args,**kwargs);raw.append(r[2])
+ stride=len(x0)+1
+ start=accepted[-1]['callCount'] if accepted else 0
+ trace={'case':name,'approx_grad':kwargs.get('approx_grad'),'epsilon':kwargs.get('epsilon'),'dimension':len(x0),'lastAccepted':accepted[-3:], 'trialsAfterLastAccepted':[dict(calls[i],call=i+1) for i in range(start,len(calls),stride)],'previousBasePoints':[dict(calls[i],call=i+1) for i in range(max(0,start-3*stride),start,stride)],'termination':r[2]}
+ print('TRACE '+json.dumps(trace,default=lambda x:x.tolist() if hasattr(x,'tolist') else str(x)),flush=True)
+ return r
 opt.fmin_l_bfgs_b=traced
 fits={}
 cases=[('exact_200',{}, {'maxiter':200}),('line_search_100',{}, {'maxiter':200})]
