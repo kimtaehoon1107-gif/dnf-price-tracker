@@ -21,6 +21,7 @@ import { weekdayTrend, WEEKDAY_MIN_WEEKS } from '../src/weekday-trend.ts';
 import { summarizeWeekdays } from './metrics.js';
 import { exportSeasonal } from '../src/seasonal-export.ts';
 import { splitSeries, askGapPath } from '../src/series-split.ts';
+import { gameDayTurnover } from '../src/build-game-day-turnover.ts';
 
 const pool = await buildPool();
 const client = await pool.connect();
@@ -504,6 +505,7 @@ const marketRankingRows = (await query<{
   WHERE captured_at = (SELECT MAX(captured_at) FROM market_rankings)
   ORDER BY rank`)).rows;
 const marketRanking = {
+  gameDayTurnover: await gameDayTurnover(client, quality.through),
   capturedAt: marketRankingRows[0]?.captured_at ?? null,
   items: marketRankingRows.map((row) => ({
     ...row,

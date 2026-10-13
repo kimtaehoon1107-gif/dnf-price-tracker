@@ -1,0 +1,36 @@
+name: Game-day turnover checks
+on:
+  pull_request:
+    paths:
+      - 'src/build-game-day-turnover.ts'
+      - 'scripts/test-game-day-turnover*.ts'
+      - 'web/ranking.js'
+      - '.github/workflows/game-day-turnover-test.yml'
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: archive_verify
+          POSTGRES_PASSWORD: temporary-test-only
+          POSTGRES_DB: archive_verify
+        ports: ['55432:5432']
+        options: >-
+          --health-cmd "pg_isready -U archive_verify -d archive_verify"
+          --health-interval 5s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --omit=dev
+      - run: npm test
+      - run: node scripts/test-game-day-turnover-db.ts
+        env:
+          DISPLAY_TEST_URL: postgresql://archive_verify:temporary-test-only@127.0.0.1:55432/archive_verify
