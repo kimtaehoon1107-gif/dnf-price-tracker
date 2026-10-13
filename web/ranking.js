@@ -19,6 +19,67 @@ const factorText = (value) => value >= 10 ? `×${Math.round(value)}` : `×${valu
 // 이 배수를 넘으면 24시간의 5%(72분)도 관측하지 못한 것이라 따로 강조한다.
 const WIDE_FACTOR = 20;
 
+function mountTurnover(history) {
+  const host = document.getElementById('game-day-turnover');
+  if (!host || !history?.days?.length) return;
+  const days = history.days;
+  let selected = days.length - 1;
+  host.innerHTML = `<h3>상시 수집 ${fmt(history.trackedItems)}종 · 6시~6시 거래대금</h3>
+    <p class="desc">${esc(days[0].day)}~${esc(days.at(-1).day)} · 최근 완료 ${days.length}일 · 한국 시간 오전 6시~다음 날 오전 6시</p>
+    <p class="desc">TOP100 전체 합계가 아닌 상시 수집 일반 품목의 관측 합계입니다. 아래 순위표는 집계 시각 직전 24시간 기준입니다.</p>
+    <svg class="turnover-chart" role="img" aria-label="6시부터 다음 날 6시까지 관측 거래대금, 억 골드"></svg>
+    <div class="turnover-selection"><label for="turnover-date">기준일</label><select id="turnover-date">${days.map((d,i)=>`<option value="${i}">${esc(d.day)} 06:00 → 다음 날 06:00</option>`).join('')}</select></div>
+    <div class="turnover-detail" aria-live="polite"></div>
+    <p class="desc turnover-limit">API가 반환한 체결만 합산하며 환산 추정이나 이상치 제거는 하지 않습니다. 관측이 없는 시간은 무거래·점검·수집 공백을 구분할 수 없습니다.</p>`;
+  const svg = host.querySelector('svg'), picker = host.querySelector('select');
+  const ns = 'http://www.w3.org/2000/svg';
+  function add(tag, attrs, text) {
+    const el = document.createElementNS(ns, tag);
+    for (const [key,value] of Object.entries(attrs)) el.setAttribute(key, value);
+    if (text !== undefined) el.textContent = text;
+    svg.append(el); return el;
+  }
+  function detail() {
+    picker.value = selected;
+    const d = days[selected];
+    host.querySelector('.turnover-detail').textContent = `${d.day} · ${d.amount === null ? '관측 기록 없음' : `${won(d.amount)} 골드 · 체결 ${fmt(d.trades)}건`} · 관측 품목 ${d.observedItems}/${history.trackedItems}종 · 체결 기록 ${d.observedHours}/24시간`;
+    svg.querySelectorAll('[data-turnover-day]').forEach(el => el.classList.toggle('selected', Number(el.dataset.turnoverDay) === selected));
+  }
+  function draw() {
+    const width = svg.clientWidth, height = 290, left = 64, right = width - 12, top = 35, bottom = 238;
+    if (width < 150) return;
+    svg.replaceChildren(); svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    const values = days.filter(d => d.amount !== null).map(d => d.amount / 1e8);
+    const max = Math.max(1, ...values), step = (right-left)/days.length, ceiling = max * 1.12;
+    const y = v => bottom - v/ceiling*(bottom-top), x = i => left + (i+.5)*step;
+    add('title', {}, `상시 수집 ${history.trackedItems}종의 완료 게임일 관측 거래대금`);
+    add('text',{x:left,y:18},'거래대금 (억 골드)');
+    for (let i=0;i<=4;i++) {
+      const value=ceiling*i/4, yy=y(value);
+      add('line',{x1:left,x2:right,y1:yy,y2:yy,class:'turnover-grid'});
+      add('text',{x:left-8,y:yy+4,'text-anchor':'end'},Math.round(value).toLocaleString('ko-KR'));
+    }
+    days.forEach((d,i) => {
+      if (d.amount !== null) add('rect',{x:x(i)-step*.34,y:y(d.amount/1e8),width:step*.68,height:bottom-y(d.amount/1e8),rx:2,class:'turnover-bar','data-turnover-day':i});
+      else add('text',{x:x(i),y:bottom-6,'text-anchor':'middle'},'—');
+    });
+    const indices = width < 480 ? [0,10,20,days.length-1] : [0,5,10,15,20,25,days.length-1];
+    for (const i of [...new Set(indices)].filter(i=>i<days.length)) add('text',{x:x(i),y:bottom+22,'text-anchor':i===0?'start':i===days.length-1?'end':'middle'},days[i].day.slice(5).replace('-','/'));
+    add('text',{x:right,y:height-3,'text-anchor':'end'},'기준일 · 당일 06시 시작');
+    const hit = add('rect',{x:left,y:top,width:right-left,height:bottom-top,fill:'transparent'});
+    function choose(event) {
+      const bounds=svg.getBoundingClientRect();
+      selected=Math.max(0,Math.min(days.length-1,Math.floor(((event.clientX-bounds.left)*width/bounds.width-left)/step)));
+      detail();
+    }
+    hit.addEventListener('pointermove', event => { if(event.pointerType==='mouse') choose(event); });
+    hit.addEventListener('click',choose);
+    detail();
+  }
+  picker.addEventListener('change',()=>{selected=Number(picker.value);detail();});
+  new ResizeObserver(draw).observe(svg); draw();
+}
+
 async function boot() {
   const response = await fetch('data/summary.json');
   if (!response.ok) throw new Error(`요약 데이터 HTTP ${response.status}`);
@@ -51,6 +112,8 @@ async function boot() {
       <div class="card"><div class="k">24h 완전조회</div><div class="v">${counts.api_complete ?? 0}<small>종</small></div><div class="sub">최근 100건이 하루를 모두 포함</div></div>
       <div class="card"><div class="k">24h 환산</div><div class="v">${counts.estimated ?? 0}<small>종</small></div><div class="sub">100건 체결 속도로 추정${maxFactor ? ` · 최대 ${factorText(maxFactor)}` : ''}</div></div>
     </div>
+
+    <section class="panel game-day-turnover" id="game-day-turnover" aria-label="6시 기준 일간 거래대금" ${ranking?.gameDayTurnover?.days?.length ? '' : 'hidden'}></section>
 
     ${rows.length ? `<div class="list ranking-list">
       <div class="ranking-lh">
@@ -85,6 +148,7 @@ async function boot() {
       ${minFactor && maxFactor ? `환산 배수는 종목마다 달라 현재 <b>${factorText(minFactor)}</b>에서 <b>${factorText(maxFactor)}</b>까지이며,
       배수가 클수록 관측 구간이 짧아 오차가 큽니다. ×${WIDE_FACTOR}을 넘는 종목은 배지를 진하게 표시했습니다.` : ''}
     </div>`;
+  mountTurnover(ranking?.gameDayTurnover);
 }
 
 boot().catch((error) => {

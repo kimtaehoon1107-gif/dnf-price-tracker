@@ -30,6 +30,18 @@
   --sans: "Pretendard", -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
 }
 
+.game-day-turnover { margin: 20px 0; }
+.game-day-turnover[hidden] { display: none; }
+.turnover-chart { display: block; width: 100%; height: 290px; margin: 16px 0; }
+.turnover-chart text { fill: var(--ink-3); font: 12px var(--sans); }
+.turnover-grid { stroke: var(--line-2); stroke-width: 1; }
+.turnover-bar { fill: var(--blue); opacity: .7; }
+.turnover-bar.selected { opacity: 1; }
+.turnover-selection { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.turnover-selection select { max-width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; }
+.turnover-detail { margin-top: 12px; font-variant-numeric: tabular-nums; }
+.game-day-turnover .turnover-limit { margin-top: 12px; }
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg:      #17171C;

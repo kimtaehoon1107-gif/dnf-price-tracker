@@ -1,4 +1,5 @@
 import './test-forecast.ts';
+import './test-game-day-turnover.ts';
 import './test-seasonal-profile.ts';
 import './test-activity-profile.ts';
 import './test-activity-study.ts';
