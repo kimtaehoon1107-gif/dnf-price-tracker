@@ -21,7 +21,9 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        run: node scripts/read-top100-r2.ts
+        run: |
+          node scripts/read-top100-r2.ts
+          node scripts/read-six-to-six.ts
       - uses: actions/upload-artifact@v4
         with:
           name: top100-r2-inspection
