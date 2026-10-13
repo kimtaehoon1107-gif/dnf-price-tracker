@@ -1,0 +1,29 @@
+name: Read TOP100 R2 history
+on:
+  push:
+    branches: [codex/read-top100-r2]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --omit=dev
+      - name: Read ranking shards
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: node scripts/read-top100-r2.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: top100-r2-inspection
+          path: data/top100-r2-inspection/
+          retention-days: 7
