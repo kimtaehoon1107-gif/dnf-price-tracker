@@ -27,11 +27,10 @@ function mountTurnover(history) {
   host.innerHTML = `<h3>상시 수집 ${fmt(history.trackedItems)}종 · 6시~6시 거래대금</h3>
     <p class="desc">${esc(days[0].day)}~${esc(days.at(-1).day)} · 최근 완료 ${days.length}일 · 한국 시간 오전 6시~다음 날 오전 6시</p>
     <p class="desc">TOP100 전체 합계가 아닌 상시 수집 일반 품목의 관측 합계입니다. 아래 순위표는 집계 시각 직전 24시간 기준입니다.</p>
-    <svg class="turnover-chart" role="img" aria-label="6시부터 다음 날 6시까지 관측 거래대금, 억 골드"></svg>
-    <div class="turnover-selection"><label for="turnover-date">기준일</label><select id="turnover-date">${days.map((d,i)=>`<option value="${i}">${esc(d.day)} 06:00 → 다음 날 06:00</option>`).join('')}</select></div>
+    <svg class="turnover-chart" role="img" tabindex="0" aria-label="6시부터 다음 날 6시까지 관측 거래대금, 억 골드. 좌우 방향키로 날짜 선택"></svg>
     <div class="turnover-detail" aria-live="polite"></div>
     <p class="desc turnover-limit">API가 반환한 체결만 합산하며 환산 추정이나 이상치 제거는 하지 않습니다. 관측이 없는 시간은 무거래·점검·수집 공백을 구분할 수 없습니다.</p>`;
-  const svg = host.querySelector('svg'), picker = host.querySelector('select');
+  const svg = host.querySelector('svg');
   const ns = 'http://www.w3.org/2000/svg';
   function add(tag, attrs, text) {
     const el = document.createElementNS(ns, tag);
@@ -40,7 +39,6 @@ function mountTurnover(history) {
     svg.append(el); return el;
   }
   function detail() {
-    picker.value = selected;
     const d = days[selected];
     host.querySelector('.turnover-detail').textContent = `${d.day} · ${d.amount === null ? '관측 기록 없음' : `${won(d.amount)} 골드 · 체결 ${fmt(d.trades)}건`} · 관측 품목 ${d.observedItems}/${history.trackedItems}종 · 체결 기록 ${d.observedHours}/24시간`;
     svg.querySelectorAll('[data-turnover-day]').forEach(el => el.classList.toggle('selected', Number(el.dataset.turnoverDay) === selected));
@@ -76,7 +74,12 @@ function mountTurnover(history) {
     hit.addEventListener('click',choose);
     detail();
   }
-  picker.addEventListener('change',()=>{selected=Number(picker.value);detail();});
+  svg.addEventListener('keydown',event=>{
+    if (!['ArrowLeft','ArrowRight'].includes(event.key)) return;
+    event.preventDefault();
+    selected=Math.max(0,Math.min(days.length-1,selected+(event.key==='ArrowRight'?1:-1)));
+    detail();
+  });
   new ResizeObserver(draw).observe(svg); draw();
 }
 

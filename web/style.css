@@ -37,8 +37,6 @@
 .turnover-grid { stroke: var(--line-2); stroke-width: 1; }
 .turnover-bar { fill: var(--blue); opacity: .7; }
 .turnover-bar.selected { opacity: 1; }
-.turnover-selection { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
-.turnover-selection select { max-width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; }
 .turnover-detail { margin-top: 12px; font-variant-numeric: tabular-nums; }
 .game-day-turnover .turnover-limit { margin-top: 12px; }
 
