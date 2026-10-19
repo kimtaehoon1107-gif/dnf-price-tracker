@@ -7,6 +7,11 @@ on:
       - 'src/build-replica.ts'
       - 'src/build-unified.ts'
       - 'src/build-price-distribution.ts'
+      - 'src/build-display-prices.ts'
+      - 'src/package-study-input.ts'
+      - 'scripts/package-study.ts'
+      - 'scripts/test-package-study-input.ts'
+      - 'scripts/test-display-prices-db.ts'
       - 'scripts/test-price-distribution-db.ts'
       - 'src/build-db.ts'
       - 'web/build.ts'
@@ -84,6 +89,10 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --omit=dev
+      - name: 화면 정제와 원본 연구 입력 분리 검사
+        run: node --no-warnings scripts/test-display-prices-db.ts
+        env:
+          DISPLAY_TEST_URL: postgresql://archive_verify:temporary-verification-only@127.0.0.1:55432/archive_verify
       - name: R2 실자료의 전환 전후 전체 사이트 대조 (Supabase 접근 없음)
         run: node --no-warnings scripts/test-archive-site.ts
         env:
