@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import pg from 'pg';
 import { buildDisplayPrices } from '../src/build-display-prices.ts';
+import { loadPackageStudyInput } from '../src/package-study-input.ts';
 const url = new URL(process.env.DISPLAY_TEST_URL!);
 assert.equal(url.hostname, '127.0.0.1');
 assert.equal(url.port, '55432');
@@ -44,5 +45,12 @@ try {
   assert.equal((await client.query("SELECT count(*)::int n FROM display.candles_1h WHERE hour='2026-10-06T05:00Z'")).rows[0].n,0);
   const dist=(await client.query("SELECT * FROM display.price_distributions WHERE item_id='soul' AND kind='day' ORDER BY bucket")).rows;
   assert.equal(dist.length,2);assert.equal(Number(dist[0].median),1000);
+  const members = [{ id: 'soul', name: 'soul', group: 'treatment' as const, expiresAt: null }];
+  const raw = await loadPackageStudyInput(client, members, '2026-10-08T00:00:00Z');
+  const originalDay = raw.series.soul.find(r => r.d === '2026-10-06')!;
+  assert.equal(originalDay.n, 25, '연구는 극단값을 포함한 원본 25건을 유지');
+  assert(Math.abs(originalDay.vwap - (30100 + 99 + 10001 + 5000000 * 44) / 68) < 1e-8,
+    '연구 일봉은 정제 전 원본의 수량 가중평균');
+  assert(raw.series.soul.some(r => r.d === '2026-09-01'), '원본만 남은 과거 시간봉도 연구에서 보존');
   console.log('PASS: 10x boundaries, KST day isolation, original preservation, pending-ID boundary, incomplete-day exclusion, VWAP/distribution consistency');
 } finally { await client.query('ROLLBACK'); await client.end(); }

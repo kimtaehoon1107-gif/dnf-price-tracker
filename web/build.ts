@@ -6,7 +6,7 @@
 //
 //   node --env-file=.env --no-warnings web/build.ts
 
-import { mkdirSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
+import { mkdirSync, writeFileSync, copyFileSync, rmSync, readFileSync } from 'node:fs';
 import { buildPool, setBuildClock } from '../src/build-db.ts';
 import { HistoryCache } from '../src/history-cache.ts';
 import { r2Store } from '../src/archive.ts';
@@ -22,6 +22,7 @@ import { summarizeWeekdays } from './metrics.js';
 import { exportSeasonal } from '../src/seasonal-export.ts';
 import { splitSeries, askGapPath } from '../src/series-split.ts';
 import { gameDayTurnover } from '../src/build-game-day-turnover.ts';
+import { loadPackageStudyInput } from '../src/package-study-input.ts';
 
 const pool = await buildPool();
 const client = await pool.connect();
@@ -49,6 +50,9 @@ const displayCleaning = (await query('SELECT * FROM display.cleaning_days ORDER 
 const OUT = 'dist';
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(`${OUT}/data/series`, { recursive: true });
+const packageStudyInput = await loadPackageStudyInput(client,
+  JSON.parse(readFileSync('config/package-study-members.json', 'utf8')), quality.checkedAt);
+writeFileSync(`${OUT}/data/package-study-source.json`, JSON.stringify(packageStudyInput));
 
 // ── 아이템 요약 ────────────────────────────────────────────────
 const items = (await query<{

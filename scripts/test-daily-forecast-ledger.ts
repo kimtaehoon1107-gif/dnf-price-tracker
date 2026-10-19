@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import {VERSION,MODELS,makeInput,validateIssue,settle,evaluate,checkSnapshot,shift} from '../src/daily-forecast-ledger.ts';
 import {journal} from './record-daily-vwap.ts';
+import { FORECAST_PREPROCESSING, checkForecastPreprocessing } from '../src/daily-forecast-input.ts';
+
+checkForecastPreprocessing({ ...FORECAST_PREPROCESSING, excludedTrades: 100 });
+for (const cleaning of [undefined, {}, { ...FORECAST_PREPROCESSING, version: 'different' },
+  { ...FORECAST_PREPROCESSING, timezone: 'UTC' }]) assert.throws(() => checkForecastPreprocessing(cleaning));
 
 const origin='2026-10-06',now='2026-10-06T06:00:00Z';
 const daily=Array.from({length:30},(_,i)=>({d:shift(origin,i-30),vwap:100+i,n:10}));

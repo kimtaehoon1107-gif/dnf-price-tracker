@@ -25,6 +25,7 @@ on:
       - 'sql/research.sql'
       - 'data/research-baskets.json'
       - 'src/package-study.ts'
+      - 'src/package-study-input.ts'
       - 'scripts/package-study.ts'
       - 'config/package-study-members.json'
       - 'src/card-weekday.ts'

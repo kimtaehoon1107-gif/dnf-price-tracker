@@ -4,6 +4,7 @@ on:
     paths:
       - '.github/workflows/daily-vwap-forecast.yml'
       - 'src/daily-forecast-ledger.ts'
+      - 'src/daily-forecast-input.ts'
       - 'scripts/*forecast*'
       - 'scripts/*arima*'
       - 'scripts/*daily-vwap*'
