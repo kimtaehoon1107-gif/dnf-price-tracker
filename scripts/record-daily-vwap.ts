@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { S3Client,GetObjectCommand,PutObjectCommand,ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { VERSION,day,shift,checkSnapshot,makeInput,validateIssue,settle,evaluate,type Series } from '../src/daily-forecast-ledger.ts';
+import { FORECAST_PREPROCESSING, checkForecastPreprocessing } from '../src/daily-forecast-input.ts';
 
 const PREFIX=`research-v1/daily-vwap/${VERSION}/`;
 const BASE='https://kimtaehoon1107-gif.github.io/dnf-price-tracker/data/';
@@ -38,6 +39,7 @@ async function main() {
   await mkdir(WORK,{recursive:true});
   const now=new Date().toISOString(),origin=day(now);
   const summary=await getPublic('summary.json');checkSnapshot(summary,now);
+  checkForecastPreprocessing(summary.cleaning);
   const client=new S3Client({region:'auto',endpoint:`https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
     credentials:{accessKeyId:process.env.R2_ACCESS_KEY_ID!,secretAccessKey:process.env.R2_SECRET_ACCESS_KEY!},
     requestChecksumCalculation:'WHEN_REQUIRED',responseChecksumValidation:'WHEN_REQUIRED'});
@@ -48,6 +50,8 @@ async function main() {
   const modelHash=hash(contents.map(s=>s.replaceAll('\r\n','\n')).join('\n'));
   await store.putOnce('protocol.json',{version:VERSION,modelHash,files,createdAt:now,rule:'02시 이후 당일 첫 정상 공개 빌드; 목표일 종료 24시간 후 실측 고정; h=1/3/7; n>=5'});
   assert.equal((await store.get('protocol.json')).modelHash,modelHash,'모델 코드 변경: 새 실험 VERSION 필요');
+  await store.putOnce('input-protocol.json',{version:VERSION,preprocessing:FORECAST_PREPROCESSING,createdAt:now});
+  checkForecastPreprocessing((await store.get('input-protocol.json')).preprocessing);
   const issues=await Promise.all((await store.list('issues/')).map(k=>store.get(k)));
   const actuals=await Promise.all((await store.list('actuals/')).map(k=>store.get(k)));
   const hour=new Date(Date.parse(now)+9*3600000).getUTCHours();
@@ -72,14 +76,14 @@ async function main() {
     execFileSync(process.env.PYTHON??'python',['scripts/predict-daily-vwap.py',`${WORK}/input.json`,`${WORK}/predictions.json`],{stdio:'inherit',timeout:300000});
     const prediction=JSON.parse(await readFile(`${WORK}/predictions.json`,'utf8'));
     const issuedAt=new Date().toISOString();
-    const issue={version:VERSION,origin,issuedAt,dataAsOf:summary.priceAsOf,builtAt:summary.builtAt,modelHash,inputSha256:hash(JSON.stringify(input)),input,excluded:input.excluded,items:prediction.items};
+    const issue={version:VERSION,origin,issuedAt,dataAsOf:summary.priceAsOf,builtAt:summary.builtAt,preprocessing:FORECAST_PREPROCESSING,modelHash,inputSha256:hash(JSON.stringify(input)),input,excluded:input.excluded,items:prediction.items};
     validateIssue(issue,issuedAt);
     issued=Number(await store.putOnce(`issues/${origin}.json`,issue));
     issues.push(await store.get(`issues/${origin}.json`));
   }
   for(const target of targets) {
     const ids=[...new Set<string>(issues.flatMap(i=>i.items.filter((it:any)=>it.predictions.some((p:any)=>p.d===target)).map((it:any)=>it.id)))];
-    const actual={...settle(target,series,ids,new Date().toISOString()),dataAsOf:summary.priceAsOf,builtAt:summary.builtAt};
+    const actual={...settle(target,series,ids,new Date().toISOString()),dataAsOf:summary.priceAsOf,builtAt:summary.builtAt,preprocessing:FORECAST_PREPROCESSING};
     await store.putOnce(`actuals/${target}.json`,actual);
     actuals.push(await store.get(`actuals/${target}.json`));
   }

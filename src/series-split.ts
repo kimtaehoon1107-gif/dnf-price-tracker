@@ -1,6 +1,6 @@
 // 아이템 시계열(data/series/<id>.json)을 상세 화면이 처음에 필요한 핵심 파일과, 패널이 보일 때 받는 호가 차이 파일로 나눈다.
 // 압축 기준 한 아이템이 149KB였는데 askGap이 115KB, 화면이 읽지 않는 distribution.hourly가 24KB였다.
-// 핵심 파일에는 build-inline-forecast.py·package-study.ts·record-daily-vwap.ts가 읽는 필드가 모두 남는다.
+// 핵심 파일에는 build-inline-forecast.py·record-daily-vwap.ts가 읽는 필드가 모두 남는다.
 
 export interface AskGapRow { t: string; min_ask: number | null; vwap: number | null; gap: number }
 

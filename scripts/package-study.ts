@@ -1,22 +1,21 @@
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { study, type Input, type Member } from '../src/package-study.ts';
+import { study, type Member } from '../src/package-study.ts';
+import { checkPackageStudyInput, type PackageStudyInput } from '../src/package-study-input.ts';
 
 const source = process.argv[2] ?? 'dist/data', out = process.argv[3] ?? 'dist';
 const read = (file: string) => JSON.parse(readFileSync(file, 'utf8'));
 const members: Member[] = read('config/package-study-members.json');
 const summary = read(`${source}/summary.json`);
-const input: Input = { asOf: summary.priceAsOf, members, series: {} };
+const input: PackageStudyInput = read(`${source}/package-study-source.json`);
+checkPackageStudyInput(input, members, summary.priceAsOf);
 for (const m of members) {
   const item = summary.items.find((i: any) => i.item_id === m.id);
   assert(item && item.item_name === m.name && item.price_basis === 'trade', `종목 불일치: ${m.name}`);
-  const series = read(`${source}/series/${m.id}.json`);
-  assert.equal(series.priceBasis, 'trade');
-  input.series[m.id] = series.daily.map(({ d, vwap, n }: any) => ({ d, vwap, n }));
 }
 const hash = (s: string) => createHash('sha256').update(s).digest('hex');
-const report = { ...study(input), provenance: { builtAt: summary.builtAt, inputSha256: hash(JSON.stringify(input)),
+const report = { ...study(input), provenance: { builtAt: summary.builtAt, priceBasis: input.priceBasis, inputSha256: hash(JSON.stringify(input)),
   membersSha256: hash(readFileSync('config/package-study-members.json', 'utf8')),
   historySourcesSha256: hash(readFileSync('config/history-sources.json', 'utf8')),
   note: 'R2+A/B/C 통합 사이트의 관측 체결 일봉. 첫 체결일은 수집 시작일이 아니며, 무거래·수집 실패는 일봉만으로 구분 불가.' },

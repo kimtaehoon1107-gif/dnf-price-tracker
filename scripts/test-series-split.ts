@@ -25,7 +25,7 @@ assert.deepEqual(askGapFile, { askGap: series().askGap }, '호가 차이 행은 
 assert.equal(core.askGapCount, 2, '별도 파일이 있다는 표시와 행 수');
 assert.deepEqual(core.distribution, { asOf: '2026-10-09T03:00:00Z', minTrades: 5, daily: series().distribution.daily }, '일별 분위수·asOf·minTrades는 남고 hourly만 빠진다');
 
-// 나머지 필드는 값도 순서도 그대로여야 한다(파이썬 예측·패키지 연구·일봉 기록 스크립트가 읽는다).
+// 나머지 필드는 값도 순서도 그대로여야 한다(파이썬 예측·일봉 기록 스크립트가 읽는다).
 const original = series();
 assert.deepEqual(Object.keys(core), [...Object.keys(original).filter((k) => k !== 'askGap'), 'askGapCount']);
 for (const key of ['completeBefore', 'forecastDay', 'priceBasis', 'daily', 'hourly', 'cleaning', 'stock', 'depth', 'events', 'max'] as const) {
