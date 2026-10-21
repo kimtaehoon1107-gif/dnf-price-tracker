@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { S3Client,GetObjectCommand,PutObjectCommand,ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { VERSION,day,shift,checkSnapshot,makeInput,validateIssue,settle,evaluate,type Series } from '../src/daily-forecast-ledger.ts';
-import { FORECAST_PREPROCESSING, checkForecastPreprocessing } from '../src/daily-forecast-input.ts';
+import { FORECAST_PREPROCESSING, checkForecastPreprocessing, dailyWorkComplete } from '../src/daily-forecast-input.ts';
 
 const PREFIX=`research-v1/daily-vwap/${VERSION}/`;
 const BASE='https://kimtaehoon1107-gif.github.io/dnf-price-tracker/data/';
@@ -97,6 +97,8 @@ async function main() {
   const report=lines.join('\n')+'\n';
   await writeFile(`${WORK}/report.md`,report);
   if(process.env.GITHUB_STEP_SUMMARY)await appendFile(process.env.GITHUB_STEP_SUMMARY,report);
+  if(process.env.GITHUB_OUTPUT)await appendFile(process.env.GITHUB_OUTPUT,
+    `daily_complete=${dailyWorkComplete(origin,hour,issues,targets,actuals)}\n`);
   console.log(`개별 예측: ${origin} 신규 ${issued} · 실측 ${targets.length} · 평가 ${evaluation.rows.length}`);
   client.destroy();
 }
