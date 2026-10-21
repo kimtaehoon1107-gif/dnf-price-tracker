@@ -8,3 +8,7 @@ export function checkForecastPreprocessing(cleaning: any) {
   assert.deepEqual({ version: cleaning.version, timezone: cleaning.timezone }, FORECAST_PREPROCESSING,
     '예측 입력 정제 규칙 변경: 새 실험 VERSION 필요');
 }
+
+export function dailyWorkComplete(origin: string, hour: number, issues: { origin: string }[], targets: string[], actuals: { target: string }[]) {
+  return hour >= 2 && issues.some(i => i.origin === origin) && targets.every(d => actuals.some(a => a.target === d));
+}

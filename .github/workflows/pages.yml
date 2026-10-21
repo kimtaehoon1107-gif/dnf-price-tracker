@@ -47,6 +47,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/pages.yml'
+      - '.github/workflows/site-code-checks.yml'
 
 concurrency:
   group: pages-${{ github.ref }}
@@ -81,8 +82,19 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --omit=dev
+      # 새 커밋은 정기 실행에서도 검사를 우회하지 못한다. 캐시 누락 시 다시 검사한다.
+      - name: 코드 검사 완료 확인
+        id: code_checked
+        uses: actions/cache/restore@v4
+        continue-on-error: true
+        with:
+          path: ${{ runner.temp }}/site-code-checked
+          key: site-code-checked-v1-${{ github.sha }}
+          lookup-only: true
       - run: npm test
+        if: steps.code_checked.outputs.cache-hit != 'true'
       - name: 정제 가격 SQL 검증
+        if: steps.code_checked.outputs.cache-hit != 'true'
         env:
           DISPLAY_TEST_URL: postgresql://archive_verify:temporary-build-only@127.0.0.1:55432/archive_verify
         run: |
@@ -139,13 +151,25 @@ jobs:
           python-version: '3.14'
           cache: pip
           cache-dependency-path: scripts/forecast-study-requirements.txt
-      - name: 실험 예측 계산과 검사
+      - name: 실험 예측 계산
         env:
           OPENBLAS_NUM_THREADS: '1'
         run: |
           python -m pip install -r scripts/forecast-study-requirements.txt
-          python scripts/test-inline-forecast.py
           python scripts/build-inline-forecast.py dist
+      - name: 실험 예측 코드 검사
+        if: steps.code_checked.outputs.cache-hit != 'true'
+        run: python scripts/test-inline-forecast.py
+      - name: 코드 검사 완료 표시
+        if: steps.code_checked.outputs.cache-hit != 'true'
+        run: echo checked > "$RUNNER_TEMP/site-code-checked"
+      - name: 코드 검사 완료 캐시 저장
+        if: steps.code_checked.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: ${{ runner.temp }}/site-code-checked
+          key: site-code-checked-v1-${{ github.sha }}
 
       - name: 패키지 삭제 전 연구 점검
         run: node --no-warnings scripts/package-study.ts

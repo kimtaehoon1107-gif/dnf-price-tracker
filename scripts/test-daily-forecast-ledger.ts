@@ -1,13 +1,18 @@
 import assert from 'node:assert/strict';
 import {VERSION,MODELS,makeInput,validateIssue,settle,evaluate,checkSnapshot,shift} from '../src/daily-forecast-ledger.ts';
 import {journal} from './record-daily-vwap.ts';
-import { FORECAST_PREPROCESSING, checkForecastPreprocessing } from '../src/daily-forecast-input.ts';
+import { FORECAST_PREPROCESSING, checkForecastPreprocessing, dailyWorkComplete } from '../src/daily-forecast-input.ts';
 
 checkForecastPreprocessing({ ...FORECAST_PREPROCESSING, excludedTrades: 100 });
 for (const cleaning of [undefined, {}, { ...FORECAST_PREPROCESSING, version: 'different' },
   { ...FORECAST_PREPROCESSING, timezone: 'UTC' }]) assert.throws(() => checkForecastPreprocessing(cleaning));
 
 const origin='2026-10-06',now='2026-10-06T06:00:00Z';
+assert(!dailyWorkComplete(origin, 1, [{ origin }], [], []), '02시 전에는 하루 완료로 고정하지 않음');
+assert(!dailyWorkComplete(origin, 2, [], [], []), '예측 발행 실패는 다음 실행에서 재시도');
+assert(!dailyWorkComplete(origin, 2, [{ origin }], ['2026-10-04'], []), '실측 확정 실패는 재시도');
+assert(dailyWorkComplete(origin, 2, [{ origin }], ['2026-10-04'], [{ target: '2026-10-04' }]), '발행·도래 실측이 끝난 날만 완료');
+assert(!dailyWorkComplete(shift(origin, 1), 2, [{ origin }], [], []), '다음 KST 날짜는 다시 발행');
 const daily=Array.from({length:30},(_,i)=>({d:shift(origin,i-30),vwap:100+i,n:10}));
 const input=makeInput([{id:'a',name:'a',daily:[...daily,{d:origin,vwap:999999,n:100}]}],origin);
 assert.equal(input.latest[0].train.length,30);
