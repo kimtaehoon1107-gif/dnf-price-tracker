@@ -5,6 +5,7 @@
 // 어느 카드가 최저가인지는 수시로 바뀌므로 전체를 훑어서 바닥을 찾는다.
 //
 //   node --env-file=.env --no-warnings scripts/legendary-floor.ts
+// 사이트 배포의 --allow-api-failure는 API 실패 기록을 보존한 뒤 나머지 빌드만 계속한다.
 //
 // 리포에 고정한 레전더리 카드 목록을 전부 스캔한다. 전체 카탈로그는 27MB라
 // Actions 러너에 싣지 않고, 필요한 itemId와 이름만 별도 파일로 관리한다.
@@ -119,6 +120,10 @@ async function main() {
       // 일부 카드의 가격을 모르면 전체 최저가·P10으로 발표하지 않는다. 같은 시간 재시도 가능.
       if (failures && found.length) {
         console.warn('일부 카드 조회 실패로 이번 지수 발행을 보류합니다. 카드별 결과는 보존하고 다른 사이트 데이터는 갱신합니다.');
+        return;
+      }
+      if (failures && process.argv.includes('--allow-api-failure')) {
+        console.warn('::warning::카드 API 조회 실패로 이번 지수는 미관측입니다. 실패 기록을 보존하고 다른 사이트 데이터의 배포를 계속합니다.');
         return;
       }
       throw new Error(failures === cards.length

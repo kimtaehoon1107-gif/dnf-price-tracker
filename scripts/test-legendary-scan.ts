@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 const source = stripTypeScriptTypes(readFileSync('scripts/legendary-floor.ts', 'utf8'));
 async function scan(latest: string | null, now: string, options: {
   force?: boolean; locked?: boolean; fail?: boolean; cards?: number;
-  outcomes?: string[]; failCheckpoint?: number; failFloor?: boolean;
+  outcomes?: string[]; failCheckpoint?: number; failFloor?: boolean; allowApiFailure?: boolean;
 } = {}) {
   let calls = 0, inserts = 0, unlocked = false, released = false, ended = false;
   let checkpoints = 0, pendingInserts = 0;
@@ -16,7 +16,7 @@ async function scan(latest: string | null, now: string, options: {
   const clock = Date.parse(now);
   const context = vm.createContext({ Error,
     console: { log: (...args: unknown[]) => logs.push(args.join(' ')), warn: (...args: unknown[]) => logs.push(args.join(' ')) },
-    process: { argv: ['node', 'legendary-floor.ts', ...(options.force ? ['--force'] : [])] },
+    process: { argv: ['node', 'legendary-floor.ts', ...(options.force ? ['--force'] : []), ...(options.allowApiFailure ? ['--allow-api-failure'] : [])] },
     Date: class extends Date {
       constructor(value?: string | number) { super(value ?? clock); }
       static now() { return clock; }
@@ -107,6 +107,18 @@ assert.equal(failed.inserts, 0, '실패한 시간에 이전 가격이나 0원을
 assert.equal(failed.run.status, 'failed');
 assert.equal(failed.run.observations[0].errorCode, 'http_503');
 assert(!JSON.stringify(failed.run).includes('민감한'), '오류 원문은 저장하지 않음');
+const deferred = await scan(null, '2026-09-18T11:05:00+09:00', { fail: true, allowApiFailure: true });
+assert.equal(deferred.error, undefined, '배포는 카드 API 장애만 허용');
+assert.equal(deferred.run.status, 'failed', '배포를 계속해도 스캔은 실패로 보존');
+assert.equal(deferred.inserts, 0, '대체 가격을 새 관측으로 기록하지 않음');
+assert(deferred.logs.some(line => line.includes('::warning::') && line.includes('미관측')));
+const deferredPartial = await scan(null, '2026-09-18T11:05:00+09:00', { cards: 2, outcomes: ['empty','failed'], allowApiFailure: true });
+assert.equal(deferredPartial.error, undefined);
+assert.equal(deferredPartial.run.status, 'partial');
+assert((await scan(null, '2026-09-18T11:05:00+09:00', { allowApiFailure: true, failCheckpoint: 1 })).error,
+  'DB 오류는 배포 허용 옵션으로 숨기지 않음');
+assert((await scan(null, '2026-09-18T11:05:00+09:00', { allowApiFailure: true, outcomes: ['empty'] })).error,
+  '정상 응답의 전체 무매물은 API 장애로 간주하지 않음');
 const partial = await scan(null, '2026-09-18T11:05:00+09:00', { cards: 3, outcomes: ['observed','empty','failed'] });
 assert.equal(partial.run.status, 'partial');
 assert.equal(partial.run.succeeded, 2);

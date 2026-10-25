@@ -16,6 +16,8 @@ import './test-legendary-scan.ts';
 import './test-card-weekday.ts';
 import './test-feedback.ts';
 import './test-api.ts';
+import './test-public-fetch.ts';
+import './test-event-sync.ts';
 import './test-data-status.ts';
 import './test-price-distribution.ts';
 import './test-sidebar.ts';
@@ -26,6 +28,7 @@ import './test-package.ts';
 import './test-package-study.ts';
 import './test-package-study-input.ts';
 import './test-daily-forecast-ledger.ts';
+import './test-daily-snapshot-wait.ts';
 import './test-package-expiry-export.ts';
 import './test-archive.ts';
 

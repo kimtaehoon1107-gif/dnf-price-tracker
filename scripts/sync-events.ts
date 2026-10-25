@@ -3,6 +3,7 @@
 
 import { query, pool } from '../src/db.ts';
 import { trackedItems } from '../src/live-projects.ts';
+import { fetchPublic } from '../src/public-fetch.ts';
 
 const BASE = 'https://df.nexon.com';
 const dryRun = process.argv.includes('--dry-run');
@@ -31,9 +32,8 @@ const day = (value: string) => value.replaceAll('.', '-');
 const kst = (date: string, time = '00:00:00') => `${date}T${time}+09:00`;
 
 async function html(url: string) {
-  const response = await fetch(url, {
+  const response = await fetchPublic(url, 15_000, {
     headers: { 'user-agent': 'dnf-price-tracker/0.1 (weekly official notice sync)' },
-    signal: AbortSignal.timeout(15_000),
   });
   if (!response.ok) throw new Error(`${response.status} ${url}`);
   return response.text();
@@ -198,11 +198,14 @@ async function save(candidate: Candidate) {
 }
 
 try {
-  const candidates = [...await updateCandidates(), ...await shopCandidates()];
+  const sources = await Promise.allSettled([updateCandidates(), shopCandidates()]);
+  const candidates = sources.flatMap(result => result.status === 'fulfilled' ? result.value : []);
   const unique = [...new Map(candidates.map((candidate) => [candidate.sourceUrl, candidate])).values()];
   const counts = { inserted: 0, updated: 0 };
   for (const candidate of unique) counts[await save(candidate)]++;
   console.log(`${dryRun ? '검토' : '동기화'} 완료 · 후보 ${unique.length}건 · 추가 ${counts.inserted} · 갱신 ${counts.updated}`);
+  const failed = sources.flatMap((result, i) => result.status === 'rejected' ? [i === 0 ? '업데이트' : '세리아 상점'] : []);
+  if (failed.length) throw new Error(`공식 공지 목록 조회 실패: ${failed.join(', ')}. 정상 목록의 결과는 반영했습니다.`);
 } finally {
   await pool.end();
 }
