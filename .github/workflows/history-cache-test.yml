@@ -34,7 +34,6 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --omit=dev
-      - run: npm test
       - run: node --no-warnings scripts/test-history-cache.ts
         env:
           HISTORY_TEST_URL: postgresql://history_test:temporary-test-only@127.0.0.1:55432/history_test

@@ -5,7 +5,8 @@ import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { S3Client,GetObjectCommand,PutObjectCommand,ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { VERSION,day,shift,checkSnapshot,makeInput,validateIssue,settle,evaluate,type Series } from '../src/daily-forecast-ledger.ts';
-import { FORECAST_PREPROCESSING, checkForecastPreprocessing, dailyWorkComplete } from '../src/daily-forecast-input.ts';
+import { FORECAST_PREPROCESSING, checkForecastPreprocessing, dailyWorkComplete, dailySnapshotPending } from '../src/daily-forecast-input.ts';
+import { fetchPublic } from '../src/public-fetch.ts';
 
 const PREFIX=`research-v1/daily-vwap/${VERSION}/`;
 const BASE='https://kimtaehoon1107-gif.github.io/dnf-price-tracker/data/';
@@ -31,15 +32,21 @@ export function journal(client:{send:(command:any)=>Promise<any>},Bucket:string)
   };
 }
 async function getPublic(path:string,optional=false) {
-  const r=await fetch(BASE+path,{signal:AbortSignal.timeout(30000),cache:'no-store'});
+  const r=await fetchPublic(BASE+path,30000,{cache:'no-store'});
   if(optional && r.status===404)return null;
   assert(r.ok,`공개 자료 HTTP ${r.status}`);return r.json();
 }
 async function main() {
   await mkdir(WORK,{recursive:true});
   const now=new Date().toISOString(),origin=day(now);
-  const summary=await getPublic('summary.json');checkSnapshot(summary,now);
+  const summary=await getPublic('summary.json');
   checkForecastPreprocessing(summary.cleaning);
+  if(dailySnapshotPending(summary,now)) {
+    console.log('자정 직후 당일 완료 시간봉 대기: 다음 배포에서 재확인합니다.');
+    if(process.env.GITHUB_OUTPUT)await appendFile(process.env.GITHUB_OUTPUT,'snapshot_pending=true\n');
+    return;
+  }
+  checkSnapshot(summary,now);
   const client=new S3Client({region:'auto',endpoint:`https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
     credentials:{accessKeyId:process.env.R2_ACCESS_KEY_ID!,secretAccessKey:process.env.R2_SECRET_ACCESS_KEY!},
     requestChecksumCalculation:'WHEN_REQUIRED',responseChecksumValidation:'WHEN_REQUIRED'});

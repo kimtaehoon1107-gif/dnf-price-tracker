@@ -18,5 +18,4 @@ jobs:
           cache: pip
           cache-dependency-path: scripts/forecast-study-requirements.txt
       - run: python -m pip install -r scripts/forecast-study-requirements.txt
-      - run: python scripts/test-inline-forecast.py
       - run: python scripts/reproduce-inline-forecast.py

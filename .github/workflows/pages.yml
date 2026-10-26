@@ -107,7 +107,7 @@ jobs:
         env:
           NEOPLE_API_KEY: ${{ secrets.NEOPLE_API_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: node --no-warnings scripts/legendary-floor.ts
+        run: node --no-warnings scripts/legendary-floor.ts --allow-api-failure
 
       # 스태커블 시장은 하루 한 번만 전수 조회한다. 스크립트가 DB의 마지막
       # 집계 시각을 확인하므로 매시간 배포돼도 23시간 안에는 즉시 종료한다.

@@ -453,6 +453,12 @@ function render() {
   }
 }
 
+function legendaryObservation(latest, asOf = DATA.priceAsOf) {
+  const age = Date.parse(asOf) - Date.parse(latest.captured_at);
+  if (!Number.isFinite(age)) return '관측 시각 확인 불가';
+  return `마지막 관측 ${priceTime(latest.captured_at)} KST${age > 2 * 3600000 ? ' · 관측 지연' : ''}`;
+}
+
 // 요약 카드는 목록과 인벤토리 두 뷰가 공유한다.
 // 서로 다른 가격 기준과 표본 상태를 첫 화면에서 구분해 보여준다.
 function summaryCards() {
@@ -469,7 +475,7 @@ function summaryCards() {
     ${lg ? `<a class="card hl" href="#legendary-card">
       <div class="k">레전더리 0업 카드</div>
       <div class="v">${fmt(lg.cheapest10?.length === 10 ? lg.cheapest10.reduce((sum, row) => sum + row.unitPrice, 0) / 10 : null)}</div>
-      <div class="sub">최저가 매물 10건 평균 · 그래프 보기 →<br>최저 ${fmt(lg.min_unit_price)} · 매물 ${lg.with_listings}/${lg.scanned}종</div>
+      <div class="sub">최저가 매물 10건 평균 · 그래프 보기 →<br>최저 ${fmt(lg.min_unit_price)} · 매물 ${lg.with_listings}/${lg.scanned}종<br>${legendaryObservation(lg)}</div>
     </a>` : ''}
     ${weekdayReady() ? `<button type="button" class="card weekday-summary" data-weekday-open>
       <span class="k">요일별 가격 트렌드</span>
@@ -601,6 +607,7 @@ function renderList() {
         <div class="nm"><div class="legendary-icon" aria-hidden="true">0업</div><div class="t">
           <b>레전더리 카드 재료 시세<span class="tag">0업</span></b>
           <span>최저가 매물 10건 평균 · 매물 확인 ${lg.with_listings}/${lg.scanned}종</span>
+          <br><span>${legendaryObservation(lg)}</span>
         </div></div>
         <div class="px"><b>${fmt(lg.cheapest10?.length === 10 ? lg.cheapest10.reduce((sum, row) => sum + row.unitPrice, 0) / 10 : null)}</b><small class="flat">10개 평균 · 골드</small></div>
         <div class="chg flat">-</div><div class="dim c5">—</div>
@@ -801,7 +808,6 @@ async function renderLegendary() {
     return;
   }
   const weekday = data.weekday;
-  const stale = Date.parse(data.asOf) - Date.parse(latest.captured_at) > 2 * 3600000;
   view.innerHTML = `
     <a class="back" href="#">← 전체 목록</a>
     <div class="dh"><div class="legendary-icon" aria-hidden="true">0업</div><div>
@@ -809,7 +815,7 @@ async function renderLegendary() {
       <div class="meta">강화·합성 재료의 저가 매물 기준 · ${latest.scanned}종 대상</div>
     </div></div>
     <div class="bigpx">${fmt(latest.mean10)}<small> 골드</small></div>
-    <div class="bigchg flat">최저가 매물 10건 평균 · 마지막 관측 ${priceTime(latest.captured_at)} KST${stale ? ' · 관측 지연' : ''}</div>
+    <div class="bigchg flat">최저가 매물 10건 평균 · ${legendaryObservation(latest, data.asOf)}</div>
     <div class="panel"><div class="kv">
       <div><div class="k">전체 최저 판매가</div><div class="v">${fmt(latest.min_unit_price)}<small> 골드</small></div></div>
       <div><div class="k">확인된 매물</div><div class="v">${fmt(latest.total_listings)}<small> 건</small></div></div>

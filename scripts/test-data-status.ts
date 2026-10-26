@@ -18,7 +18,7 @@ const context = vm.createContext({
 });
 const view = { innerHTML: '' };
 const module = new vm.SourceTextModule(readFileSync('web/app.js', 'utf8') +
-  '\nexport {renderDataStatus, renderDetail}; export function fixture(data, mode = "zero") { DATA = data; cardMode = mode; }', { context });
+  '\nexport {renderDataStatus, renderDetail, legendaryObservation}; export function fixture(data, mode = "zero") { DATA = data; cardMode = mode; }', { context });
 await module.link((name) => {
   const exports = name.includes('forecast-review.js') ? { itemForecastPanel: () => '', mountForecastReview: () => {} } : name.includes('summary-data.js') ? { loadSummary: () => new Promise(() => {}) } : name.includes('package.js') ? packageUI : name.includes('price-distribution.js') ? priceDistribution : metrics;
   return new vm.SyntheticModule(Object.keys(exports), function () {
@@ -28,6 +28,9 @@ await module.link((name) => {
 await module.evaluate();
 const now = Date.parse('2026-09-14T06:00:00Z');
 const iso = (minutes: number) => new Date(now - minutes * 60000).toISOString();
+assert.match(module.namespace.legendaryObservation({captured_at:iso(121)},iso(0)), /마지막 관측.*관측 지연/);
+assert.doesNotMatch(module.namespace.legendaryObservation({captured_at:iso(120)},iso(0)), /관측 지연/);
+assert.equal(module.namespace.legendaryObservation({captured_at:null},iso(0)), '관측 시각 확인 불가');
 const notice = elements.get('data-freshness')!;
 
 // 페이지 생성 시각이 새로워도 오래된 수집 기록을 정상으로 표시하지 않는다.

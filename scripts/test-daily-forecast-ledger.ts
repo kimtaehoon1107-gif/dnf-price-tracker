@@ -1,7 +1,19 @@
 import assert from 'node:assert/strict';
 import {VERSION,MODELS,makeInput,validateIssue,settle,evaluate,checkSnapshot,shift} from '../src/daily-forecast-ledger.ts';
 import {journal} from './record-daily-vwap.ts';
-import { FORECAST_PREPROCESSING, checkForecastPreprocessing, dailyWorkComplete } from '../src/daily-forecast-input.ts';
+import { FORECAST_PREPROCESSING, checkForecastPreprocessing, dailyWorkComplete, dailySnapshotPending } from '../src/daily-forecast-input.ts';
+
+const midnight = '2026-10-24T15:16:00Z';
+const pending = {priceAsOf:'2026-10-24T15:07:00Z',quality:{through:'2026-10-24T14:00:00Z',stale:false,mismatches:0}};
+assert(dailySnapshotPending(pending,midnight), 'KST 자정 직후 전날 마지막 완료 시간봉은 대기');
+assert.throws(()=>checkSnapshot(pending,midnight), '기존 모델의 검증 규칙 자체는 변경하지 않음');
+for(const now of ['2026-10-24T17:00:00Z','2026-10-25T15:16:00Z']) assert(!dailySnapshotPending(pending,now));
+for(const quality of [{...pending.quality,stale:true},{...pending.quality,mismatches:1},{...pending.quality,through:'2026-10-23T14:00:00Z'}])
+  assert(!dailySnapshotPending({...pending,quality},midnight), '지연·불일치·과거 집계를 정상 대기로 숨기지 않음');
+assert(!dailySnapshotPending({...pending,priceAsOf:'2026-10-24T15:17:00Z'},midnight), '미래 자료 차단 유지');
+const ready={...pending,quality:{...pending.quality,through:'2026-10-24T15:00:00Z'}};
+assert(!dailySnapshotPending(ready,midnight), '당일 완료 시간봉이 있으면 기존 발행·실측 경로로 진행');
+checkSnapshot(ready,midnight);
 
 checkForecastPreprocessing({ ...FORECAST_PREPROCESSING, excludedTrades: 100 });
 for (const cleaning of [undefined, {}, { ...FORECAST_PREPROCESSING, version: 'different' },

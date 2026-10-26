@@ -5,6 +5,7 @@ on:
       - '.github/workflows/daily-vwap-forecast.yml'
       - 'src/daily-forecast-ledger.ts'
       - 'src/daily-forecast-input.ts'
+      - 'src/public-fetch.ts'
       - 'scripts/*forecast*'
       - 'scripts/*arima*'
       - 'scripts/*daily-vwap*'
@@ -85,7 +86,7 @@ jobs:
         if: steps.record.outputs.daily_complete == 'true'
         run: echo complete > "$RUNNER_TEMP/daily-vwap-complete"
       - uses: actions/upload-artifact@v4
-        if: success() && steps.record.outcome == 'success'
+        if: success() && steps.record.outcome == 'success' && steps.record.outputs.snapshot_pending != 'true'
         with:
           name: daily-vwap-evaluation
           path: archive-work-daily-vwap/
