@@ -18,7 +18,7 @@ const context = vm.createContext({
 });
 const view = { innerHTML: '' };
 const module = new vm.SourceTextModule(readFileSync('web/app.js', 'utf8') +
-  '\nexport {renderDataStatus, renderDetail, legendaryObservation}; export function fixture(data, mode = "zero") { DATA = data; cardMode = mode; }', { context });
+  '\nexport {renderDataStatus, renderDetail, legendaryObservation, eventStudyHTML}; export function fixture(data, mode = "zero") { DATA = data; cardMode = mode; }', { context });
 await module.link((name) => {
   const exports = name.includes('forecast-review.js') ? { itemForecastPanel: () => '', mountForecastReview: () => {} } : name.includes('summary-data.js') ? { loadSummary: () => new Promise(() => {}) } : name.includes('package.js') ? packageUI : name.includes('price-distribution.js') ? priceDistribution : metrics;
   return new vm.SyntheticModule(Object.keys(exports), function () {
@@ -32,6 +32,12 @@ assert.match(module.namespace.legendaryObservation({captured_at:iso(121)},iso(0)
 assert.doesNotMatch(module.namespace.legendaryObservation({captured_at:iso(120)},iso(0)), /관측 지연/);
 assert.equal(module.namespace.legendaryObservation({captured_at:null},iso(0)), '관측 시각 확인 불가');
 const notice = elements.get('data-freshness')!;
+module.namespace.fixture({builtAt:'2026-10-28T03:00:00Z'});
+const broadcastHTML=module.namespace.eventStudyHTML([{id:'broadcast',name:'퍼스트 서버 D-NOTE 라이브',type:'방송',starts:'2026-10-27',starts_at:'2026-10-27T10:00:00Z',source_url:'https://df.nexon.com/community/news/notice/2928724'}],[],'trade');
+assert.match(broadcastHTML,/라이브 방송/);
+assert.match(broadcastHTML,/방송 시작/);
+assert.match(broadcastHTML,/19:00 KST/,'UTC 10시는 KST 19시로 표시');
+assert.doesNotMatch(broadcastHTML,/20:00|<span>적용<\/span>/,'서버 오픈이나 패치 적용 시각과 구분');
 
 // 페이지 생성 시각이 새로워도 오래된 수집 기록을 정상으로 표시하지 않는다.
 module.namespace.fixture({ builtAt: iso(0), priceAsOf: iso(5), collection: { last_success: iso(179) } });

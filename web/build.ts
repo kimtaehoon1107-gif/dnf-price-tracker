@@ -279,7 +279,7 @@ const depth = (await query<{ item_id: string; price: number; qty: number }>(`
 
 const events = (await query<{
   id: string; name: string; type: string;
-  announced: string | null; starts: string | null; ends: string | null;
+  announced: string | null; starts: string | null; ends: string | null; starts_at: string | null;
   related_item_ids: string[] | null; source_url: string | null;
 }>(`
   SELECT id::text, name, type,
@@ -289,11 +289,12 @@ const events = (await query<{
            to_char(starts_at AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') END AS starts,
          CASE WHEN ends_at IS NULL THEN NULL ELSE
            to_char(ends_at AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') END AS ends,
+         to_char(starts_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') AS starts_at,
          related_item_ids, source_url
   FROM events
   WHERE type = ANY($1)
   ORDER BY COALESCE(announced_at, starts_at, ends_at) DESC, id DESC`,
-[['퍼스트서버', '대규모', '주요', '패키지']])).rows;
+[['퍼스트서버', '대규모', '주요', '패키지', '방송']])).rows;
 
 const byItem = <T extends { item_id: string }>(rows: T[]) => {
   const m = new Map<string, Omit<T, 'item_id'>[]>();
