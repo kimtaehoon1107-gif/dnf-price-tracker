@@ -125,6 +125,18 @@
   "checkedAt": "2026-10-10T16:02:56.483Z",
   "entries": [
     {
+      "id": "notice:2928724",
+      "category": "방송",
+      "title": "퍼스트 서버 D-NOTE 라이브 · 19:00 KST",
+      "publishedDate": "2026-10-23",
+      "date": "2026-10-27",
+      "dateBasis": "방송 시작 · 공식 공지 시각",
+      "url": "https://df.nexon.com/community/news/notice/2928724",
+      "headings": [
+        "넥슨 라이브 방송 19:00 KST"
+      ]
+    },
+    {
       "id": "2928642",
       "category": "일반",
       "title": "10/8(목) 정기점검 업데이트 안내",

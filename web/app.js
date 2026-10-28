@@ -206,7 +206,7 @@ function weekdaySVG(points, key, title, baselineLabel = '아이템 평균 100', 
 const eventStages = (event) => [
   {
     key: 'starts',
-    label: event.type === '패키지' ? '출시' : event.type === '퍼스트서버' ? '패치' : '적용',
+    label: event.type === '패키지' ? '출시' : event.type === '퍼스트서버' ? '패치' : event.type === '방송' ? '방송 시작' : '적용',
   },
   ...(event.type === '패키지' ? [{ key: 'ends', label: '종료' }] : []),
 ];
@@ -251,6 +251,7 @@ const EVENT_TYPES = {
   대규모: { badge: '대', label: '대규모' },
   주요: { badge: '주', label: '주요' },
   패키지: { badge: '패', label: '패키지 출시' },
+  방송: { badge: '방', label: '라이브 방송' },
 };
 
 const eventTypeLabel = (type) => EVENT_TYPES[type]?.label ?? type;
@@ -274,7 +275,8 @@ function eventStudyHTML(events, days, priceBasis) {
             ? `요일 보정 ${priceBasis === 'askMax' ? '풀업' : '0업'} 최저 판매가 <b class="${cls(result.price)}">${pct(result.price)}</b>`
             : `요일 보정 평균 거래가 <b class="${cls(result.price)}">${pct(result.price)}</b> · 수집된 거래 수량 <b class="${cls(result.qty)}">${pct(result.qty)}</b>`
           : stateText[result.state];
-        return `<div><span>${stage.label}</span><b>${eventDate(event[stage.key])}</b><small>${effect}</small></div>`;
+        const time = event.type === '방송' && event.starts_at ? ` ${new Date(event.starts_at).toLocaleTimeString('ko-KR', {timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hour12:false})} KST` : '';
+        return `<div><span>${stage.label}</span><b>${eventDate(event[stage.key])}${time}</b><small>${effect}</small></div>`;
       }).join('')}</div>
     </div>`;
   }).join('')}</div>`;
