@@ -183,6 +183,8 @@ jobs:
       - id: deploy
         if: github.ref == 'refs/heads/main'
         uses: actions/deploy-pages@v4
+        with:
+          timeout: 1200000
       - uses: actions/upload-artifact@v4
         if: github.ref != 'refs/heads/main'
         with:
