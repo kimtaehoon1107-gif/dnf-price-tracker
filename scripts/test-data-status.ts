@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import * as metrics from '../web/metrics.js';
 import * as packageUI from '../web/package.js';
 import * as priceDistribution from '../web/price-distribution.js';
+import {eventStudyForItem} from '../src/event-study-export.ts';
 
 const elements = new Map<string, { textContent: string; stale: boolean; classList: { toggle: Function } }>();
 for (const id of ['data-asof', 'data-freshness']) {
@@ -38,6 +39,30 @@ assert.match(broadcastHTML,/라이브 방송/);
 assert.match(broadcastHTML,/방송 시작/);
 assert.match(broadcastHTML,/19:00 KST/,'UTC 10시는 KST 19시로 표시');
 assert.doesNotMatch(broadcastHTML,/20:00|<span>적용<\/span>/,'서버 오픈이나 패치 적용 시각과 구분');
+
+const savedStudy=JSON.parse(readFileSync('docs/evidence/d-note-20261103/results.json','utf8'));
+const broadcast={id:'broadcast',name:'퍼스트 서버 D-NOTE 라이브',type:'방송',starts:'2026-10-27',starts_at:'2026-10-27T10:00:00Z',source_url:'https://df.nexon.com/community/news/notice/2928724'};
+const studyHTML=(name:string,basis='trade')=>module.namespace.eventStudyHTML([broadcast],[],basis,
+  eventStudyForItem(savedStudy,savedStudy.items.find((x:any)=>x.name===name)?.id??'card'));
+const tokenHTML=studyHTML('닳아버린 순례의 증표');
+assert.match(tokenHTML,/평소 범위 밖/);assert.match(tokenHTML,/7\.90%/);
+assert.match(tokenHTML,/직전 24시간을 기준으로 바꿔도/);
+assert.match(tokenHTML,/2026-11-03 분석 고정/);
+assert.match(tokenHTML,/신뢰구간이나 유의성 검정이 아니/);
+assert.doesNotMatch(tokenHTML,/요일 보정 평균 거래가/,'시간봉 분석이 일봉 결과와 섞이지 않음');
+assert.match(studyHTML('레전더리 소울 결정'),/판단이 유지되지 않습니다/);
+assert.match(studyHTML('에픽 소울 결정'),/첫 1시간의 변화는 평소 범위 안/);
+assert.match(studyHTML('골드 코인'),/영향이 없다는 뜻은 아닙니다/);
+assert.match(studyHTML('프로스트의 전설'),/시간봉에 공백|최소 20개에 못 미/);
+const cardHTML=studyHTML('unknown','askMax');
+assert.match(cardHTML,/분석 대상 아님/);assert.doesNotMatch(cardHTML,/class="hourly-window /);
+const otherHTML=module.namespace.eventStudyHTML([{...broadcast,source_url:'https://example.com/other'}],[],'trade',eventStudyForItem(savedStudy,savedStudy.items[0].id));
+assert.doesNotMatch(otherHTML,/hourly-study-heading/,'다른 이벤트에 고정 분석을 재사용하지 않음');
+for(const item of savedStudy.items) {
+  const exported=eventStudyForItem(savedStudy,item.id);
+  assert.equal(exported.comparisons[1].actual?.pricePct,item.comparisons[1].actual?.pricePct);
+  assert.equal('references' in exported.comparisons[1],false,'전체 원본 비교일을 매 시계열에 복제하지 않음');
+}
 
 // 페이지 생성 시각이 새로워도 오래된 수집 기록을 정상으로 표시하지 않는다.
 module.namespace.fixture({ builtAt: iso(0), priceAsOf: iso(5), collection: { last_success: iso(179) } });

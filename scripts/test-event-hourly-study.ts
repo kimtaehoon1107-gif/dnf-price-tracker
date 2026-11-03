@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import {study,change,HOUR,quantile,type Candle} from '../src/event-hourly-study.ts';
+const at=Date.parse('2026-10-27T10:00:00Z'),announced=Date.parse('2026-10-23T06:00:00Z');
+const rows:Candle[]=Array.from({length:31*24},(_,i)=>({hour:new Date(at+(-30*24+i)*HOUR).toISOString(),vwap:100,qty:10,n:2}));
+for(const r of rows) if(Date.parse(r.hour)>=at)r.vwap=120;
+const result=study(rows,at,announced,6,6);
+assert(Math.abs(result.actual!.pricePct-20)<1e-9);
+assert.equal(result.median,0);assert.equal(result.status,'평소 범위 밖(탐색)');
+assert(result.references.every(x=>Date.parse(x.at)+6*HOUR<=announced));
+// 19시와 20시를 구분: 20시 가격이 19~20시 창에 섞이면 안 된다.
+const changed=rows.map(x=>Date.parse(x.hour)===at+HOUR?{...x,vwap:9999}:x);
+assert.equal(study(changed,at,announced,6,1).actual!.after.price,120);
+assert.equal(study(rows.filter(x=>Date.parse(x.hour)!==at),at,announced,6,1).actual,null);
+assert.equal(study(rows,at,announced,24,24).actual!.before.hours,24);
+assert.equal(study(rows,at,announced,6,6,'Tuesday').referenceCount,4);
+const weighted=new Map([[at-HOUR,{hour:'',vwap:100,qty:1,n:1}],[at-2*HOUR,{hour:'',vwap:200,qty:9,n:1}],[at,{hour:'',vwap:190,qty:5,n:1}]]);
+assert.equal(change(weighted,at,2,1)!.before.price,190);
+assert.equal(change(weighted,at,2,1)!.qtyPct,0);
+assert.equal(quantile([0,10],.05),.5);
+assert.throws(()=>study([...rows,rows[0]],at,announced,6,6),/중복/);
+console.log('event hourly study: boundaries, missingness, weighting, references OK');

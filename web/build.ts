@@ -23,6 +23,9 @@ import { exportSeasonal } from '../src/seasonal-export.ts';
 import { splitSeries, askGapPath } from '../src/series-split.ts';
 import { gameDayTurnover } from '../src/build-game-day-turnover.ts';
 import { loadPackageStudyInput } from '../src/package-study-input.ts';
+import { eventStudyForItem } from '../src/event-study-export.ts';
+
+const hourlyEventReport = JSON.parse(readFileSync('docs/evidence/d-note-20261103/results.json', 'utf8'));
 
 const pool = await buildPool();
 const client = await pool.connect();
@@ -447,6 +450,7 @@ for (const it of items) {
     askGap: askGapBy.get(it.item_id) ?? [],
     stock: stockBy.get(it.item_id) ?? [],
     depth: depthBy.get(it.item_id) ?? [], events: eventsBy.get(it.item_id) ?? [],
+    hourlyEventStudy: eventStudyForItem(hourlyEventReport, it.item_id),
     max: it.category === '카드' ? {
       priceBasis: 'askMax', daily: cardDailyMaxBy.get(it.item_id) ?? [],
       hourly: cardHourlyMaxBy.get(it.item_id) ?? [],

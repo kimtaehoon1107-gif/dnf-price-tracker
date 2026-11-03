@@ -5,6 +5,7 @@ on:
       - 'src/**'
       - 'scripts/**'
       - 'web/**'
+      - 'docs/evidence/d-note-20261103/results.json'
       - 'sql/**'
       - 'config/**'
       - 'data/**'
