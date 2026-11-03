@@ -53,7 +53,8 @@ on:
 
 concurrency:
   group: pages-${{ github.ref }}
-  cancel-in-progress: true
+  # 정기 호출이 공개 반영 중인 배포를 끊지 않도록, 실행 중인 작업은 끝까지 둔다.
+  cancel-in-progress: false
 
 permissions:
   contents: read
