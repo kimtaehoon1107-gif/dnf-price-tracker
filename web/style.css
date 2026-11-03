@@ -385,6 +385,28 @@ a.ranking-row:hover { background: var(--page); }
 .event-stages span, .event-stages small { display: block; color: var(--ink-3); font-size: 12px; }
 .event-stages > div > b { display: block; font-size: 13px; margin: 2px 0 3px; }
 .event-stages small b { display: inline; font-size: inherit; }
+.event-comparison-note { color: var(--ink-3); font-size: 12px; margin: 8px 0 0; }
+.hourly-study { margin-top: 12px; font-size: 13px; }
+.hourly-study-heading { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; }
+.hourly-study-heading > span { color: var(--ink-3); font-size: 12px; }
+.hourly-study p { line-height: 1.65; margin: 8px 0; }
+.hourly-windows { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.hourly-window { border: 1px solid var(--line); background: var(--page); padding: 12px; border-radius: 9px; }
+.hourly-window.primary { border-color: var(--ink-3); }
+.hourly-window-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.hourly-window strong { display: block; font-size: 24px; margin: 8px 0 4px; }
+.hourly-window > span, .hourly-window small { display: block; font-size: 12px; line-height: 1.6; color: var(--ink-3); }
+.hourly-verdict { display: inline-block; border: 1px solid currentColor; border-radius: 5px; padding: 2px 6px; font-size: 12px; font-weight: 700; }
+.unusual .hourly-verdict { color: #98531b; }
+.ordinary .hourly-verdict { color: var(--blue); }
+.limited .hourly-verdict, .hourly-verdict.limited { color: var(--ink-3); }
+.hourly-reasons { margin-top: 12px; padding: 12px; border-left: 3px solid var(--line); background: var(--page); }
+.hourly-reasons ul { margin: 6px 0 0; padding-left: 18px; line-height: 1.7; }
+.hourly-method { color: var(--ink-3); font-size: 12px; }
+.hourly-sensitivity > summary { display: block; padding: 10px 0; font-size: 12px; color: var(--blue); }
+.hourly-sensitivity p { font-size: 12px; }
+.hourly-report { display: inline-block; margin-top: 6px; color: var(--blue); font-size: 12px; }
+@media (max-width: 600px) { .hourly-windows { grid-template-columns: 1fr; } }
 
 /* ── 분석 페이지 ──────────────────────────────── */
 h2.sec { font-size: 34px; font-weight: 700; letter-spacing: -0.045em; margin: 96px 0 18px; line-height: 1.25; }

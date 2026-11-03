@@ -256,7 +256,40 @@ const EVENT_TYPES = {
 
 const eventTypeLabel = (type) => EVENT_TYPES[type]?.label ?? type;
 
-function eventStudyHTML(events, days, priceBasis) {
+function hourlyEventStudyHTML(study, priceBasis) {
+  const main = study.comparisons.find((x) => x.beforeHours === 6 && x.afterHours === 6);
+  const tone = (c) => !c || c.status === '자료 부족' ? 'limited' : c.status === '평소 범위 밖(탐색)' ? 'unusual' : 'ordinary';
+  const label = (c) => tone(c) === 'limited' ? '자료 부족' : tone(c) === 'unusual' ? '평소 범위 밖' : '평소 범위 안';
+  const reasons = [];
+  if (!main || priceBasis !== 'trade') reasons.push('카드 호가는 이번 체결 가격 분석에 포함하지 않았습니다.');
+  else {
+    if (!main.actual) reasons.push('직전 6시간 또는 직후 6시간의 체결 시간봉에 공백이 있습니다.');
+    if (main.referenceCount < 20) reasons.push(`유효한 과거 비교일이 ${main.referenceCount}개로, 최소 20개에 못 미칩니다.`);
+    if (tone(main) === 'ordinary') reasons.push('평소에도 관측된 변화 범위입니다. 영향이 없다는 뜻은 아닙니다.');
+    const longer = study.sensitivities.find((x) => x.beforeHours === 24);
+    if (tone(main) === 'unusual' && longer?.status === '뚜렷한 이례성 증거 부족') reasons.push('직전 24시간을 기준으로 바꾸면 평소 범위 밖이라는 판단이 유지되지 않습니다.');
+    else if (tone(main) === 'unusual' && longer?.status === '자료 부족') reasons.push(`직전 24시간 기준의 추가 비교도 자료가 부족합니다(참고 ${longer.referenceCount}일).`);
+    else if (tone(main) === 'unusual' && longer?.status === '평소 범위 밖(탐색)') reasons.push('직전 24시간을 기준으로 바꿔도 평소 범위 밖의 변화가 관측됐습니다.');
+    const first = study.comparisons.find((x) => x.afterHours === 1);
+    if (tone(main) === 'unusual' && first?.status === '뚜렷한 이례성 증거 부족') reasons.push('서버 개방 전 첫 1시간의 변화는 평소 범위 안입니다.');
+  }
+  reasons.push('20시 퍼스트 서버 개방이 겹쳐, 이후 변화를 방송만의 영향으로 분리하기 어렵습니다.');
+  const card = (c) => `<div class="hourly-window ${tone(c)}${c.afterHours === 6 ? ' primary' : ''}"><div class="hourly-window-head"><b>직후 ${c.afterHours}시간${c.afterHours === 6 ? ' · 주 비교' : ''}</b><span class="hourly-verdict">${label(c)}</span></div>
+    <strong>${c.actual ? pct(c.actual.pricePct) : '비교 불가'}</strong>
+    <span>평소 범위 ${c.low == null ? '자료 없음' : `${pct(c.low)} ~ ${pct(c.high)}`}</span>
+    <small>과거 비교 ${c.referenceCount}일${c.excessPp == null ? '' : ` · 평소 중앙값 대비 ${c.excessPp > 0 ? '+' : ''}${c.excessPp.toFixed(2)}%p`}</small></div>`;
+  return `<section class="hourly-study" aria-label="D-NOTE 시간봉 탐색 분석">
+    <div class="hourly-study-heading"><b>평소보다 이례적인 변화였나?</b><span>사후 탐색 · ${esc(study.analyzedOn)} 분석 고정</span></div>
+    <p>10/27 19:00 KST 기준 · 직전 6시간 평균 체결가와 비교합니다. <b>주 비교는 직후 6시간</b>입니다.</p>
+    ${priceBasis === 'trade' && main ? `<div class="hourly-windows">${study.comparisons.map(card).join('')}</div>` : '<span class="hourly-verdict limited">분석 대상 아님 · 체결 기준만 분석</span>'}
+    <div class="hourly-reasons"><b>판단할 때 함께 볼 점</b><ul>${reasons.map((r) => `<li>${esc(r)}</li>`).join('')}</ul></div>
+    <p class="hourly-method">원본 체결 시간봉을 사용해 정제 일봉과 수치가 다를 수 있습니다. 평소 범위는 공지 전 같은 19시 기준의 과거 변화 5~95% 구간입니다. 효과의 신뢰구간이나 유의성 검정이 아니며, 여러 품목을 살펴보면 우연한 범위 이탈도 생깁니다. 범위 밖이어도 인과효과를 입증하지 않습니다.</p>
+    <details class="hourly-sensitivity"><summary>비교 기준을 바꾸면? · 민감도 확인</summary>${study.sensitivities.map((c) => `<p><b>${c.beforeHours === 24 ? '직전 24시간 기준' : c.mode === 'Tuesday' ? '화요일만 비교' : '목요일이 걸친 구간 제외'}</b> · ${c.actual ? pct(c.actual.pricePct) : '비교 불가'} · ${label(c)} · 참고 ${c.referenceCount}일${c.mode === 'Tuesday' ? ' (소표본 참고용)' : ''}</p>`).join('') || '<p>호가 품목의 민감도 분석은 수행하지 않았습니다.</p>'}</details>
+    <a class="hourly-report" href="${esc(study.reportUrl)}" target="_blank" rel="noopener">분석 규칙·전체 결과·원본 근거 ↗</a>
+  </section>`;
+}
+
+function eventStudyHTML(events, days, priceBasis, hourlyStudy) {
   if (!events.length) return '<p class="event-empty">연결된 이벤트가 아직 없습니다.</p>';
   const stateText = {
     missing: '날짜 미확인', before: '수집 시작 전', scheduled: '예정', waiting: '전후 3일 대기 중',
@@ -268,6 +301,9 @@ function eventStudyHTML(events, days, priceBasis) {
       : '<span class="event-source">출처 미등록</span>';
     return `<div class="event-row" id="event-${event.id}">
       <div class="event-name"><span class="tag">${esc(eventTypeLabel(event.type))}</span>${event.related_item_ids?.length ? '' : '<span class="tag g">전체</span>'}<b>${esc(event.name)}</b>${href}</div>
+      ${hourlyStudy && event.source_url === hourlyStudy.sourceUrl && Date.parse(event.starts_at) === Date.parse(hourlyStudy.at)
+        ? `<div class="event-stages"><div><span>방송 예정 시작</span><b>${eventDate(event.starts)} 19:00 KST</b></div></div>${hourlyEventStudyHTML(hourlyStudy, priceBasis)}`
+        : `
       <div class="event-stages">${eventStages(event).map((stage) => {
         const result = eventStageStudy({ date: event[stage.key] }, days, priceBasis);
         const effect = result.state === 'ready'
@@ -277,7 +313,7 @@ function eventStudyHTML(events, days, priceBasis) {
           : stateText[result.state];
         const time = event.type === '방송' && event.starts_at ? ` ${new Date(event.starts_at).toLocaleTimeString('ko-KR', {timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hour12:false})} KST` : '';
         return `<div><span>${stage.label}</span><b>${eventDate(event[stage.key])}${time}</b><small>${effect}</small></div>`;
-      }).join('')}</div>
+      }).join('')}</div><p class="event-comparison-note">일봉 전후 3일 참고 비교 · 평소 대비 이례성·통계적 유의성은 평가하지 않았습니다.</p>`}
     </div>`;
   }).join('')}</div>`;
 }
@@ -956,7 +992,7 @@ async function renderDetail(it) {
       <details class="event-study" id="event-details">
         <summary><span>가격 영향 이벤트 · 이벤트 스터디</span><small id="event-count"></small><i aria-hidden="true">⌄</i></summary>
         <div class="event-body">
-          <p class="desc">실제 시장 충격일인 패치·적용·출시일을 기준으로 봅니다. 패키지는 종료일도 별도로 계산합니다. 전후 수치는 요일효과를 보정한 3일 평균 비교이며, 동시 발생이 인과관계를 뜻하지는 않습니다.${isZeroCard ? ` 카드 가격은 ${cardTier} 최저 판매가만 사용합니다.` : ''}</p>
+          <p class="desc">D-NOTE는 방송 예정 시각 기준의 시간봉 탐색 분석을 보여줍니다. 그 밖의 이벤트는 요일 패턴을 보정한 일봉 전후 3일 참고 비교입니다. 관측된 변화만으로 인과관계를 판단할 수 없습니다.${isZeroCard ? ` 카드 가격은 ${cardTier} 최저 판매가만 사용합니다.` : ''}</p>
           <div id="event-list"></div>
         </div>
       </details>
@@ -1104,7 +1140,7 @@ async function renderDetail(it) {
     return firstDay && lastDay && event.starts >= firstDay && event.starts <= lastDay;
   });
   document.getElementById('event-count').textContent = `${events.length}건`;
-  document.getElementById('event-list').innerHTML = eventStudyHTML(events, d, s.priceBasis);
+  document.getElementById('event-list').innerHTML = eventStudyHTML(events, d, s.priceBasis, s.hourlyEventStudy);
 
   if (!isZeroCard) {
   const weekday = weekdayProfile(d, events);

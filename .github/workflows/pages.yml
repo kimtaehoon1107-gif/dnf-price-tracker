@@ -9,6 +9,8 @@ on:
     branches: [main]
     paths:
       - 'web/**'
+      - 'src/event-study-export.ts'
+      - 'docs/evidence/d-note-20261103/results.json'
       - 'src/update-calendar.ts'
       - 'scripts/sync-update-calendar.ts'
       - 'scripts/build-inline-forecast.py'
