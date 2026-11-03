@@ -277,7 +277,8 @@ function hourlyEventStudyHTML(study, priceBasis) {
   const card = (c) => `<div class="hourly-window ${tone(c)}${c.afterHours === 6 ? ' primary' : ''}"><div class="hourly-window-head"><b>직후 ${c.afterHours}시간${c.afterHours === 6 ? ' · 주 비교' : ''}</b><span class="hourly-verdict">${label(c)}</span></div>
     <strong>${c.actual ? pct(c.actual.pricePct) : '비교 불가'}</strong>
     <span>평소 범위 ${c.low == null ? '자료 없음' : `${pct(c.low)} ~ ${pct(c.high)}`}</span>
-    <small>과거 비교 ${c.referenceCount}일${c.excessPp == null ? '' : ` · 평소 중앙값 대비 ${c.excessPp > 0 ? '+' : ''}${c.excessPp.toFixed(2)}%p`}</small></div>`;
+    <small>과거 비교 ${c.referenceCount}일${c.excessPp == null ? '' : ` · 평소 중앙값 대비 ${c.excessPp > 0 ? '+' : ''}${c.excessPp.toFixed(2)}%p`}</small>
+    ${!c.actual ? '<small>전후 체결 시간봉에 공백 · 판단 보류</small>' : c.referenceCount < 20 ? '<small>최소 20일 필요 · 이례성 판단 보류</small>' : ''}</div>`;
   return `<section class="hourly-study" aria-label="D-NOTE 시간봉 탐색 분석">
     <div class="hourly-study-heading"><b>평소보다 이례적인 변화였나?</b><span>사후 탐색 · ${esc(study.analyzedOn)} 분석 고정</span></div>
     <p>10/27 19:00 KST 기준 · 직전 6시간 평균 체결가와 비교합니다. <b>주 비교는 직후 6시간</b>입니다.</p>
