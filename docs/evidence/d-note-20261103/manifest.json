@@ -1,0 +1,72 @@
+{
+  "format": 1,
+  "analysisRevision": "b6ffba8ffd8bbba64dee47a77f6b714526e46756",
+  "note": "정확한 코드 커밋은 results.json의 analysisRevision 필드. manifest 자신은 해시 대상에서 제외.",
+  "files": [
+    {
+      "path": "docs/evidence/d-note-20261103/input.json.gz",
+      "bytes": 218668,
+      "sha256": "4005460d4a36be88d67c30da1cab88c926480a42ea281833cc9a2938c5713781"
+    },
+    {
+      "path": "docs/evidence/d-note-20261103/summary.json",
+      "bytes": 229018,
+      "sha256": "db068f5ef989ccf949aacecb18fb3645502e670815ac9f0334e5be2bb4e69ad9"
+    },
+    {
+      "path": "docs/evidence/d-note-20261103/results.json",
+      "bytes": 1229024,
+      "sha256": "76b6ecb5dba1760930525bd34b3ab39a279c18ababf4de151cc52f259eabedf0"
+    },
+    {
+      "path": "docs/evidence/d-note-20261103/price-path.png",
+      "bytes": 189108,
+      "sha256": "3874a4d11a490a136e58eeb4c6bfba8b04aed3c85b677625a14177aa04f9a264"
+    },
+    {
+      "path": "docs/evidence/d-note-20261103/price-path.svg",
+      "bytes": 112842,
+      "sha256": "682e3f84243d5a5d935a0d4cf5d011fa70fe5dcba1831e0ddb5d0dc85772ff0f"
+    },
+    {
+      "path": "docs/d-note-event-analysis-plan-2026-11-03.md",
+      "bytes": 3025,
+      "sha256": "8a5f9355a0864a7eeed17ef409924a06a5a44ea81ed896e60fe66db949f08f32"
+    },
+    {
+      "path": "docs/d-note-event-analysis-results-2026-11-03.md",
+      "bytes": 11615,
+      "sha256": "c110ff359ab5dd50861ffd20934fb4e68f44d41af15ecfae978b9a7400d30e7a"
+    },
+    {
+      "path": "src/event-hourly-study.ts",
+      "bytes": 2712,
+      "sha256": "9b11372ca6c93c5416a93d78bf3a7622249b64500d6a3ceb6a6e728582e01f1c"
+    },
+    {
+      "path": "scripts/download-d-note-study.ts",
+      "bytes": 2837,
+      "sha256": "4b10ec1859676fd0e032aba65b60530140ef5845c678a0e2d3e2c040c627f066"
+    },
+    {
+      "path": "scripts/d-note-event-study.ts",
+      "bytes": 9169,
+      "sha256": "40cb82dce4da12ec6bed834bb41b6143e7122f2852559f4588a38cbe44bd5247"
+    },
+    {
+      "path": "scripts/plot-d-note-study.py",
+      "bytes": 1544,
+      "sha256": "c104852baf278ece6b5181998e2495a124397cc3cf0e6c0ea52c9d018ebe2625"
+    },
+    {
+      "path": "scripts/test-event-hourly-study.ts",
+      "bytes": 1560,
+      "sha256": "cf1f4621dbde409e2c3eda523ed722161792a986d5d912d99ca0c162d06d8c41"
+    },
+    {
+      "path": "config/history-sources.json",
+      "bytes": 25978,
+      "sha256": "bc1fcc8b2969259bc9c3e1d4d99421f2fa7983745dee948977ca38b044d97b93"
+    }
+  ]
+}
