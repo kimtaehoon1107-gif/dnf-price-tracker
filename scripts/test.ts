@@ -18,6 +18,7 @@ import './test-feedback.ts';
 import './test-api.ts';
 import './test-public-fetch.ts';
 import './test-event-sync.ts';
+import './test-event-hourly-study.ts';
 import './test-data-status.ts';
 import './test-price-distribution.ts';
 import './test-sidebar.ts';
