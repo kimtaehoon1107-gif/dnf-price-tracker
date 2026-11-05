@@ -231,8 +231,8 @@ ALTER TABLE listing_snapshots ADD COLUMN IF NOT EXISTS upgrade_max INTEGER;
 ALTER TABLE listing_snapshots DROP CONSTRAINT IF EXISTS listing_snapshots_item_id_captured_at_key;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_snapshots_item_time_upgrade
   ON listing_snapshots (item_id, captured_at, COALESCE(upgrade, -1));
-CREATE INDEX IF NOT EXISTS idx_snapshots_item_upgrade_time
-  ON listing_snapshots (item_id, upgrade, captured_at DESC);
+-- item_id/시각 조회는 위 고유 인덱스를 사용한다. 검증 기록: docs/snapshot-index-cleanup-2026-11-06.md
+-- 기존 DB의 보조 인덱스 제거는 sql/remove-snapshot-aux-index.sql을 별도 실행한다.
 
 -- 시계열의 구멍을 찾는 유일한 수단
 CREATE TABLE IF NOT EXISTS collection_runs (

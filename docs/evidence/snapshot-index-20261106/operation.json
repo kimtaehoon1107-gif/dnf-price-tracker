@@ -1,0 +1,293 @@
+{
+  "at": "2026-11-05T15:31:03.710Z",
+  "sources": [
+    {
+      "source": "hist_b",
+      "status": "complete",
+      "beforeIndexes": [
+        {
+          "name": "idx_snapshots_item_time_upgrade",
+          "indisunique": true,
+          "indisvalid": true,
+          "indisready": true,
+          "definition": "CREATE UNIQUE INDEX idx_snapshots_item_time_upgrade ON public.listing_snapshots USING btree (item_id, captured_at, COALESCE(upgrade, '-1'::integer))",
+          "bytes": "22405120"
+        },
+        {
+          "name": "idx_snapshots_item_upgrade_time",
+          "indisunique": false,
+          "indisvalid": true,
+          "indisready": true,
+          "definition": "CREATE INDEX idx_snapshots_item_upgrade_time ON public.listing_snapshots USING btree (item_id, upgrade, captured_at DESC)",
+          "bytes": "21823488"
+        },
+        {
+          "name": "listing_snapshots_pkey",
+          "indisunique": true,
+          "indisvalid": true,
+          "indisready": true,
+          "definition": "CREATE UNIQUE INDEX listing_snapshots_pkey ON public.listing_snapshots USING btree (id)",
+          "bytes": "3637248"
+        }
+      ],
+      "bounds": {
+        "max_id": "349931",
+        "cutoff": "2026-10-29T15:31:07.931Z",
+        "as_of": "2026-11-05T15:31:07.931Z",
+        "db_bytes": "338717843",
+        "table_bytes": "66936832"
+      },
+      "protectedBefore": {
+        "rows": 58284,
+        "hash": "de24025899376e79d2a2c6ce0fff166fd5ef403e5bee4a205b072cc0b97173cf"
+      },
+      "before": [
+        {
+          "name": "src/research-data.ts",
+          "hash": "aea39f14c0b7f7c80e298452c16338fa586591aa7b857c4a7655acd3bd1fd305",
+          "times": [
+            150.279,
+            150.246,
+            149.601,
+            152.496,
+            150.127
+          ],
+          "medianMs": 150.246
+        },
+        {
+          "name": "src/research-export.ts",
+          "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "times": [
+            0.068,
+            0.078,
+            0.067,
+            0.064,
+            0.065
+          ],
+          "medianMs": 0.067
+        },
+        {
+          "name": "src/seasonal-export.ts",
+          "hash": "aefa03e6f6accd40cb14a81cfb8dd5b8e1ea528816c82e9fa909305e24b8b110",
+          "times": [
+            351.979,
+            350.872,
+            347.925,
+            350.37,
+            347.9
+          ],
+          "medianMs": 350.37
+        }
+      ],
+      "after": [
+        {
+          "name": "src/research-data.ts",
+          "hash": "aea39f14c0b7f7c80e298452c16338fa586591aa7b857c4a7655acd3bd1fd305",
+          "times": [
+            149.407,
+            149.995,
+            150.806,
+            149.578,
+            148.852
+          ],
+          "medianMs": 149.578
+        },
+        {
+          "name": "src/research-export.ts",
+          "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "times": [
+            0.065,
+            0.064,
+            0.066,
+            0.067,
+            0.09
+          ],
+          "medianMs": 0.066
+        },
+        {
+          "name": "src/seasonal-export.ts",
+          "hash": "aefa03e6f6accd40cb14a81cfb8dd5b8e1ea528816c82e9fa909305e24b8b110",
+          "times": [
+            337.874,
+            340.389,
+            341.085,
+            340.301,
+            335.986
+          ],
+          "medianMs": 340.301
+        }
+      ],
+      "afterIndexes": [
+        {
+          "name": "idx_snapshots_item_time_upgrade",
+          "indisunique": true,
+          "indisvalid": true,
+          "indisready": true,
+          "definition": "CREATE UNIQUE INDEX idx_snapshots_item_time_upgrade ON public.listing_snapshots USING btree (item_id, captured_at, COALESCE(upgrade, '-1'::integer))",
+          "bytes": "22405120"
+        },
+        {
+          "name": "listing_snapshots_pkey",
+          "indisunique": true,
+          "indisvalid": true,
+          "indisready": true,
+          "definition": "CREATE UNIQUE INDEX listing_snapshots_pkey ON public.listing_snapshots USING btree (id)",
+          "bytes": "3637248"
+        }
+      ],
+      "protectedAfter": {
+        "rows": 58284,
+        "hash": "de24025899376e79d2a2c6ce0fff166fd5ef403e5bee4a205b072cc0b97173cf"
+      },
+      "afterSize": {
+        "db_bytes": "316869779",
+        "table_bytes": "45088768"
+      },
+      "removedIndexBytes": "21823488"
+    },
+    {
+      "source": "hist_c",
+      "status": "complete",
+      "beforeIndexes": [
+        {
+          "name": "idx_snapshots_item_time_upgrade",
+          "indisunique": true,
+          "indisvalid": true,
+          "indisready": true,
+          "definition": "CREATE UNIQUE INDEX idx_snapshots_item_time_upgrade ON public.listing_snapshots USING btree (item_id, captured_at, COALESCE(upgrade, '-1'::integer))",
+          "bytes": "11231232"
+        },
+        {
+          "name": "idx_snapshots_item_upgrade_time",
+          "indisunique": false,
+          "indisvalid": true,
+          "indisready": true,
+          "definition": "CREATE INDEX idx_snapshots_item_upgrade_time ON public.listing_snapshots USING btree (item_id, upgrade, captured_at DESC)",
+          "bytes": "12115968"
+        },
+        {
+          "name": "listing_snapshots_pkey",
+          "indisunique": true,
+          "indisvalid": true,
+          "indisready": true,
+          "definition": "CREATE UNIQUE INDEX listing_snapshots_pkey ON public.listing_snapshots USING btree (id)",
+          "bytes": "1966080"
+        }
+      ],
+      "bounds": {
+        "max_id": "190378",
+        "cutoff": "2026-10-29T15:31:17.477Z",
+        "as_of": "2026-11-05T15:31:17.477Z",
+        "db_bytes": "352349331",
+        "table_bytes": "35405824"
+      },
+      "protectedBefore": {
+        "rows": 32857,
+        "hash": "36f16212cfccab0df3a637f1e282e17f831c99e0c1c175e3523edfc54a57de75"
+      },
+      "before": [
+        {
+          "name": "src/research-data.ts",
+          "hash": "f0c0f45d68c0d8c5bf555a320156904aec4407b1cf4c31887580fb17f15f7d7b",
+          "times": [
+            27.066,
+            26.801,
+            26.848,
+            26.948,
+            27.051
+          ],
+          "medianMs": 26.948
+        },
+        {
+          "name": "src/research-export.ts",
+          "hash": "ac4edddc41ae246813ec987db3cd4d0b7d69afe50bf8d13a78605835537716b6",
+          "times": [
+            3.848,
+            3.814,
+            3.807,
+            3.868,
+            3.814
+          ],
+          "medianMs": 3.814
+        },
+        {
+          "name": "src/seasonal-export.ts",
+          "hash": "2f812f03961e7b1c30e0c6cc87e8d9061056f5cb6c100d5dafee83c8b4c9ad40",
+          "times": [
+            381.029,
+            380.139,
+            380.053,
+            381.402,
+            381.484
+          ],
+          "medianMs": 381.029
+        }
+      ],
+      "after": [
+        {
+          "name": "src/research-data.ts",
+          "hash": "f0c0f45d68c0d8c5bf555a320156904aec4407b1cf4c31887580fb17f15f7d7b",
+          "times": [
+            26.676,
+            26.641,
+            26.582,
+            27.09,
+            27.192
+          ],
+          "medianMs": 26.676
+        },
+        {
+          "name": "src/research-export.ts",
+          "hash": "ac4edddc41ae246813ec987db3cd4d0b7d69afe50bf8d13a78605835537716b6",
+          "times": [
+            3.856,
+            3.859,
+            3.749,
+            3.941,
+            3.864
+          ],
+          "medianMs": 3.859
+        },
+        {
+          "name": "src/seasonal-export.ts",
+          "hash": "2f812f03961e7b1c30e0c6cc87e8d9061056f5cb6c100d5dafee83c8b4c9ad40",
+          "times": [
+            381.887,
+            382.653,
+            382.656,
+            379.819,
+            381.755
+          ],
+          "medianMs": 381.887
+        }
+      ],
+      "afterIndexes": [
+        {
+          "name": "idx_snapshots_item_time_upgrade",
+          "indisunique": true,
+          "indisvalid": true,
+          "indisready": true,
+          "definition": "CREATE UNIQUE INDEX idx_snapshots_item_time_upgrade ON public.listing_snapshots USING btree (item_id, captured_at, COALESCE(upgrade, '-1'::integer))",
+          "bytes": "11231232"
+        },
+        {
+          "name": "listing_snapshots_pkey",
+          "indisunique": true,
+          "indisvalid": true,
+          "indisready": true,
+          "definition": "CREATE UNIQUE INDEX listing_snapshots_pkey ON public.listing_snapshots USING btree (id)",
+          "bytes": "1966080"
+        }
+      ],
+      "protectedAfter": {
+        "rows": 32857,
+        "hash": "36f16212cfccab0df3a637f1e282e17f831c99e0c1c175e3523edfc54a57de75"
+      },
+      "afterSize": {
+        "db_bytes": "340208787",
+        "table_bytes": "23265280"
+      },
+      "removedIndexBytes": "12115968"
+    }
+  ]
+}
