@@ -1,0 +1,82 @@
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {liveProjects,liveClient} from '../../src/live-projects.ts';
+const dir='data/snapshot-index-audit-20261106';
+const audit=JSON.parse(readFileSync(`${dir}/benchmark.json`));
+assert.deepEqual(audit.sources.map(s=>s.source),['hist_b','hist_c']);
+for(const s of audit.sources) {
+  assert.equal(s.plans.length,3);
+  for(let i=0;i<4;i++) {
+    assert.equal(s.plans[0].results[i].hash,s.plans[1].results[i].hash);
+    assert.equal(s.plans[0].results[i].hash,s.plans[2].results[i].hash);
+    const baseline=Math.max(s.plans[0].results[i].medianMs,s.plans[2].results[i].medianMs);
+    assert(s.plans[1].results[i].medianMs<=baseline*1.25||s.plans[1].results[i].medianMs<=baseline+20);
+  }
+}
+const queries=['src/research-data.ts','src/research-export.ts','src/seasonal-export.ts'].map(file=>({name:file,
+  sql:[...readFileSync(file,'utf8').matchAll(/`([^`]*listing_snapshots[^`]*)`/gs)][0][1].replace("${legacy ? 'AND s.min_unit_price>0' : ''}",'')}));
+const hash=rows=>createHash('sha256').update(JSON.stringify(rows)).digest('hex');
+const indexSql=`SELECT i.relname name,x.indisunique,x.indisvalid,x.indisready,pg_get_indexdef(i.oid) definition,
+  pg_relation_size(i.oid)::text bytes FROM pg_index x JOIN pg_class i ON i.oid=x.indexrelid
+  WHERE x.indrelid='public.listing_snapshots'::regclass ORDER BY i.relname`;
+const protectSql=`SELECT count(*)::int AS rows,encode(sha256(convert_to(string_agg(to_jsonb(s)::text,'' ORDER BY id),'UTF8')),'hex') AS hash
+  FROM public.listing_snapshots s WHERE id<=$1::bigint AND captured_at>=$2::timestamptz`;
+const report={at:new Date().toISOString(),sources:[]};
+const save=()=>writeFileSync(`${dir}/operation.json`,JSON.stringify(report,null,2)+'\n');
+for(const source of liveProjects()) {
+  const c=liveClient(source.connectionString);
+  const r={source:source.name,status:'preparing'}; report.sources.push(r); save();
+  let dropped=false;
+  try {
+    await c.connect();
+    await c.query("SET statement_timeout='25s'; SET lock_timeout='3s'");
+    r.beforeIndexes=(await c.query(indexSql)).rows;
+    const candidate=r.beforeIndexes.find(i=>i.name==='idx_snapshots_item_upgrade_time');
+    assert(candidate&&!candidate.indisunique&&candidate.indisvalid&&candidate.indisready);
+    assert.match(candidate.definition,/\(item_id, upgrade, captured_at DESC\)$/);
+    const bounds=(await c.query(`SELECT max(id)::text max_id,now()-interval '7 days' cutoff,now() as_of,
+      pg_database_size(current_database())::text db_bytes,pg_total_relation_size('public.listing_snapshots')::text table_bytes FROM public.listing_snapshots`)).rows[0];
+    r.bounds=bounds;
+    const params=[bounds.max_id,bounds.cutoff];
+    r.protectedBefore=(await c.query(protectSql,params)).rows[0];
+    const run=async()=>{
+      const output=[];
+      for(const q of queries) {
+        const before=new Date(new Date(bounds.as_of).getTime()+86400000).toISOString().slice(0,10);
+        const args=q.name.includes('research-export')?['e974d2eac46f0c8b23b83d4da389fa57',before]:q.name.includes('research-data')?[before]:[bounds.as_of];
+        // 동시 수집으로 추가된 행은 제외하고 전후 동일 입력을 비교한다.
+        const sql=q.sql.replace(/FROM listing_snapshots(\s+s\b)?/g,(_,alias)=>'FROM (SELECT * FROM public.listing_snapshots WHERE id<='+bounds.max_id+')'+(alias??' listing_snapshots'));
+        const times=[];
+        const resultHash=hash((await c.query(sql,args)).rows);
+        for(let n=0;n<5;n++) times.push((await c.query('EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) '+sql,args)).rows[0]['QUERY PLAN'][0]['Execution Time']);
+        output.push({name:q.name,hash:resultHash,times,medianMs:[...times].sort((a,b)=>a-b)[2]});
+      }
+      return output;
+    };
+    r.before=await run();r.status='validated-before';save();
+    await c.query(readFileSync('sql/remove-snapshot-aux-index.sql','utf8'));
+    dropped=true;r.status='dropped';save();
+    r.after=await run();
+    r.afterIndexes=(await c.query(indexSql)).rows;
+    r.protectedAfter=(await c.query(protectSql,params)).rows[0];
+    assert.deepEqual(r.protectedBefore,r.protectedAfter);
+    assert.deepEqual(r.afterIndexes.map(({bytes,...i})=>i),r.beforeIndexes.filter(i=>i.name!==candidate.name).map(({bytes,...i})=>i));
+    for(let i=0;i<r.before.length;i++) {
+      assert.equal(r.before[i].hash,r.after[i].hash);
+      assert(r.after[i].medianMs<=r.before[i].medianMs*1.25||r.after[i].medianMs<=r.before[i].medianMs+20,'운영 조회 성능 회귀');
+    }
+    r.afterSize=(await c.query(`SELECT pg_database_size(current_database())::text db_bytes,pg_total_relation_size('public.listing_snapshots')::text table_bytes`)).rows[0];
+    r.removedIndexBytes=candidate.bytes;r.status='complete';save();
+    console.log(JSON.stringify(r));
+  } catch(e) {
+    r.status='failed';r.error={code:e.code,name:e.name,message:e.message,position:e.position};save();
+    // 실패 또는 동시 DROP 중단으로 invalid 인덱스가 남은 경우도 복구한다.
+    if(dropped) {
+      await c.query("SET statement_timeout='25s'; SET lock_timeout='3s'");
+      await c.query('CREATE INDEX CONCURRENTLY idx_snapshots_item_upgrade_time ON public.listing_snapshots(item_id,upgrade,captured_at DESC)');
+      r.status='restored-after-failed-verification';save();
+    }
+    throw new Error(JSON.stringify(r.error));
+  } finally {await c.end();}
+}
