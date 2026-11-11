@@ -29,6 +29,8 @@
 .pd-help p { line-height: 1.7; max-width: 680px; }
 .pd-events { display: flex; flex-wrap: wrap; gap: 6px; }
 .pd-events button { font-size: 12px; padding: 4px 8px; }
+.price-distribution .pd-event-rail .event-pin { position: absolute; transform: translateX(-50%); width: 44px; height: 40px; min-height: 40px; padding: 0; color: var(--blue); background: var(--blue-bg); }
+.pd-event-rail .event-pin::before { left: calc(50% - 4px); }
 @media(max-width:600px) {
   .price-distribution button { min-height: 44px; }
   .pd-readout { align-items: flex-start; }
@@ -38,6 +40,7 @@
   .price-distribution { display: flex; flex-direction: column; }
   .pd-plot { order: 1; }
   .pd-thursdays { order: 2; }
+  .pd-event-rail { order: 3; }
   .pd-events { order: 3; }
   .pd-status { order: 4; }
   .pd-readout { order: 5; margin-top: 12px; }

@@ -2,7 +2,7 @@ import { loadSummary } from "./summary-data.js?v=20261010-ux-polish";
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
 import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260928-distribution';
-import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261010-ux-polish';
+import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261111-event-dates';
 import { packagePanelHTML } from './package.js?v=20261002-comparison';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
@@ -989,7 +989,6 @@ async function renderDetail(it) {
       </div>
       <p class="desc" id="fc-desc">불러오는 중…</p>
       <div class="chart${isZeroCard ? '' : ' tall'}" id="c1"></div>
-      <div class="event-rail" id="event-rail" aria-label="가격 영향 이벤트 태그" hidden></div>
       <details class="event-study" id="event-details">
         <summary><span>가격 영향 이벤트 · 이벤트 스터디</span><small id="event-count"></small><i aria-hidden="true">⌄</i></summary>
         <div class="event-body">
@@ -1188,7 +1187,8 @@ async function renderDetail(it) {
   }
   renderPriceDistribution(document.getElementById('c1'), isZeroCard
     ? { basis: 'ask', asOf: DATA.priceAsOf ?? DATA.builtAt, daily: d }
-    : s.inlineForecast ? { ...s.distribution, metric: 'vwap', daily: d.map(row => ({ ...row, ...(s.distribution?.daily.find(p => p.d === row.d) ?? {}), vwap: row.vwap })), forecast: s.inlineForecast } : s.distribution, events, calcNote);
+    : s.inlineForecast ? { ...s.distribution, metric: 'vwap', daily: d.map(row => ({ ...row, ...(s.distribution?.daily.find(p => p.d === row.d) ?? {}), vwap: row.vwap })), forecast: s.inlineForecast } : s.distribution,
+    events.map(event => ({ ...event, badge: EVENT_TYPES[event.type].badge })), calcNote);
   const chartsAvailable = await chartReady;
   if (location.hash.slice(1) !== it.item_id || cardMode !== (showingMax ? 'max' : 'zero')) return;
   const chartError = '<p role="status" class="desc">차트를 불러오지 못했습니다. 가격·매물 정보는 계속 확인할 수 있습니다. 잠시 후 다시 접속해 주세요.</p>';
