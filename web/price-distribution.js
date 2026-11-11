@@ -107,7 +107,8 @@ export function renderPriceDistribution(root, data, events = [], calcNote = null
     <div class="pd-readout"><div><span class="pd-selected"></span><div class="pd-price"></div><div class="pd-range"></div></div><div class="pd-qty"></div></div>
     ${ask ? '' : `<div class="pd-legend"><span><i class="pd-line-key"></i>${mean ? '일평균 거래가' : '수량 가중 중앙값'}</span><span><i class="pd-band-key"></i>주요 거래 가격대</span><span>○ 거래 5건 미만</span>${forecast ? '<span style="color:#8b5cf6">┄┄ 실험 예측</span>' : ''}</div>`}
     <p class="hint pd-forecast-note" ${data.forecast ? '' : 'hidden'}></p>
-    <div class="pd-plot"></div><div class="pd-thursdays" aria-label="목요일 · 실제 패치 여부와 별개"></div><div class="pd-events"></div>
+    <div class="pd-plot"></div><div class="pd-thursdays" aria-label="목요일 · 실제 패치 여부와 별개"></div>
+    <div class="event-rail pd-event-rail" role="group" aria-label="날짜별 이벤트" hidden></div><div class="pd-events"></div>
     <div class="pd-status"></div><div class="pd-announcement" aria-live="polite"></div>
     ${calcNote ? '<details class="pd-help calc-note"><summary></summary><p></p></details>' : ''}
     <details class="pd-help" ${ask ? 'hidden' : ''}><summary>주요 거래 가격대란?</summary><p>관측한 거래를 개당 가격순으로 놓고, 누적 수량이 25%와 75%에 도달하는 가격을 표시합니다. 가운데 50%에 해당하는 가격 구간이며 동일 가격에 거래가 몰리면 포함 수량은 더 많을 수 있습니다. 미래 가격의 예측 범위가 아닙니다. 거래 5건 미만은 표시 기준상 점만 남기며, 5건 이상이라고 통계적 신뢰성을 보장하지 않습니다.</p></details>
@@ -212,10 +213,42 @@ export function renderPriceDistribution(root, data, events = [], calcNote = null
     const missing=rows.filter(r=>r.state==='missing').length, unavailable=rows.filter(r=>r.state==='unavailable').length;
     $('.pd-status').textContent=[missing?`관측 없음 ${missing}일`:'',unavailable?`분포 자료 없음 ${unavailable}일`:''].filter(Boolean).join(' · ');
     const eventBox=$('.pd-events');eventBox.replaceChildren();
-    for(const event of events.filter(e=>e.starts>=rows[0].d&&e.starts<=rows.at(-1).d)){
-      const button=document.createElement('button');button.type='button';button.textContent=`${md(event.starts)} · ${event.name}`;
-      button.onclick=()=>{const detail=document.getElementById('event-details');if(detail)detail.open=true;};eventBox.append(button);
-    }
+    const rail = $('.pd-event-rail');
+    rail.replaceChildren();
+    const lanes = [];
+    const openEvent = row => {
+      info(row, true);
+      const detail = document.getElementById('event-details');
+      if (detail) detail.open = true;
+    };
+    rows.forEach((row, index) => {
+      if (row.state === 'forecast') return;
+      const dayEvents = events.filter(event => event.starts === row.d);
+      if (!dayEvents.length) return;
+      const left = Math.min(x(index), width - 22);
+      const available = lanes.findIndex(right => left - right >= 44);
+      const lane = available < 0 ? lanes.length : available;
+      lanes[lane] = left;
+      const pin = document.createElement('button');
+      pin.type = 'button';
+      pin.className = 'event-pin';
+      pin.textContent = dayEvents.length === 1 ? dayEvents[0].badge ?? '일정' : `${dayEvents.length}건`;
+      pin.style.left = `${left}px`;
+      pin.style.top = `${lane * 44}px`;
+      pin.title = `${row.d} · ${dayEvents.map(event => event.name).join(' · ')}`;
+      pin.setAttribute('aria-label', pin.title);
+      pin.onclick = () => openEvent(row);
+      rail.append(pin);
+      for (const event of dayEvents) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = `${md(event.starts)} · ${event.name}`;
+        button.onclick = () => openEvent(row);
+        eventBox.append(button);
+      }
+    });
+    rail.hidden = !lanes.length;
+    rail.style.height = `${lanes.length * 44}px`;
   }
   root.querySelectorAll('[data-period]').forEach(b=>b.onclick=()=>{state.period=b.dataset.period==='all'?'all':Number(b.dataset.period);state.selected=null;draw();});
   const observer=new ResizeObserver(draw);observer.observe($('.pd-plot'));cleanup=()=>observer.disconnect();draw();
