@@ -29,48 +29,62 @@ async function read(Key) {
   const response = await client.send(new GetObjectCommand({ Bucket, Key }));
   return Buffer.from(await response.Body.transformToByteArray());
 }
-const objects = await list(prefix);
-const currentKeys = new Map(objects.map(object => [object.Key, object]));
-const manifests = objects.filter(object => manifestPattern.test(object.Key));
-const roots = objects.filter(object => /^research-v1\/build-replica\/[a-z]{20}\/latest\.json$/.test(object.Key));
-assert(roots.length >= 2, 'expected B/C replica roots');
-const pointers = await Promise.all(roots.map(async ({Key}) => [Key, await read(Key)]));
-const active = new Set(pointers.map(([, bytes]) => prefix + JSON.parse(bytes).manifest));
-for (const key of active) assert(key.startsWith(replica + 'manifests/') && currentKeys.has(key));
-const referenced = new Set();
-const latestRefs = new Set();
-let archiveManifests = 0;
-let replicaManifests = 0;
-for (let offset = 0; offset < manifests.length; offset += 12) {
-  await Promise.all(manifests.slice(offset, offset + 12).map(async ({Key}) => {
+const parsed = new Map();
+async function scanManifests(objects) {
+  const pending = objects.filter(({Key}) => Key.startsWith(replica + 'manifests/') && !parsed.has(Key));
+  console.log('Replica manifests to read: ' + pending.length);
+  for (let offset = 0; offset < pending.length; offset += 32) {
+    await Promise.all(pending.slice(offset, offset + 32).map(async ({Key}) => {
+    assert(manifestPattern.test(Key), 'unexpected replica manifest key');
     const body = await read(Key);
     assert.equal(createHash('sha256').update(body).digest('hex'), Key.match(manifestPattern)[1]);
     const manifest = JSON.parse(body);
-    const folder = Key.slice(0, Key.lastIndexOf('manifests/'));
-    const isReplica = folder === replica;
-    const shards = isReplica ? manifest.chunks : manifest.shards;
-    assert(manifest.format === 1 && Array.isArray(shards));
-    if (isReplica) replicaManifests++; else archiveManifests++;
-    for (const shard of shards) {
-      for (const entry of [shard, shard.sourceObject].filter(Boolean)) {
-        assert(/^[a-f0-9]{64}$/.test(entry.hash));
-        const key = folder + 'objects/' + entry.hash + '.jsonl.gz';
-        if (isReplica) referenced.add(key);
-        if (active.has(Key)) latestRefs.add(key);
-      }
-    }
-  }));
+    assert(manifest.format === 1 && Array.isArray(manifest.chunks));
+    parsed.set(Key, manifest.chunks.map(chunk => {
+      assert(/^[a-f0-9]{64}$/.test(chunk.hash));
+      return chunk.hash;
+    }));
+    }));
+  }
 }
-assert(replicaManifests >= active.size && archiveManifests > 0);
-const after = await list(prefix);
-assert.deepEqual(after.filter(object => manifestPattern.test(object.Key)).map(object => object.Key),
-  manifests.map(object => object.Key), 'manifest list changed during audit');
-for (const [key, bytes] of pointers) assert((await read(key)).equals(bytes), 'latest pointer changed during audit');
+let inventory = await list(prefix);
+let objects, active;
+for (let attempt = 0; attempt < 4; attempt++) {
+  await scanManifests(inventory);
+  const roots = inventory.filter(({Key}) => /^research-v1\/build-replica\/[a-z]{20}\/latest\.json$/.test(Key));
+  assert(roots.length >= 2, 'expected B/C replica roots');
+  const pointers = await Promise.all(roots.map(async ({Key}) => [Key, await read(Key)]));
+  const after = await list(prefix);
+  const refs = new Set(pointers.map(([, bytes]) => prefix + JSON.parse(bytes).manifest));
+  const pointersStable = (await Promise.all(pointers.map(async ([key, bytes]) => (await read(key)).equals(bytes)))).every(Boolean);
+  const listed = new Set(after.filter(({Key}) => Key.startsWith(replica + 'manifests/')).map(({Key}) => Key));
+  if (pointersStable && [...refs].every(key => listed.has(key)) && [...listed].every(key => parsed.has(key))) {
+    objects = after;
+    active = refs;
+    break;
+  }
+  inventory = after;
+}
+assert(objects && active, 'manifest references did not settle');
+const currentKeys = new Set(objects.map(object => object.Key));
+const replicaManifests = objects.filter(({Key}) => Key.startsWith(replica + 'manifests/'));
+// Research archives resolve shard and sourceObject hashes in their own objects/ prefix.
+const archiveManifests = objects.filter(({Key}) => manifestPattern.test(Key) && !Key.startsWith(replica));
+const chunkKey = hash => replica + 'objects/' + hash + '.jsonl.gz';
+const referenced = new Set();
+const latestRefs = new Set();
+for (const {Key} of replicaManifests) {
+  for (const hash of parsed.get(Key)) {
+    const key = chunkKey(hash);
+    referenced.add(key);
+    if (active.has(Key)) latestRefs.add(key);
+  }
+}
 const chunks = objects.filter(object => /^research-v1\/build-replica\/objects\/[a-f0-9]{64}\.jsonl\.gz$/.test(object.Key));
 const unreferenced = chunks.filter(object => !referenced.has(object.Key));
 const sum = entries => ({ count: entries.length, bytes: entries.reduce((n, object) => n + object.Size, 0) });
 console.log('R2_AUDIT ' + JSON.stringify({
-  started: new Date(started), finished: new Date(), archiveManifests, replicaManifests,
+  started: new Date(started), finished: new Date(), archiveManifests: archiveManifests.length, replicaManifests: replicaManifests.length,
   activeReplicaManifests: active.size,
   replicaChunks: sum(chunks), latestReferenced: sum(chunks.filter(object => latestRefs.has(object.Key))),
   historicalOnly: sum(chunks.filter(object => referenced.has(object.Key) && !latestRefs.has(object.Key))),
