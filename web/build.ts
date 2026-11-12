@@ -474,6 +474,23 @@ const pkg = vw.find((r) => r.item_name === '숲속의 유랑악단 패키지');
 const parts = vw.filter((r) => r.item_name !== '숲속의 유랑악단 패키지');
 const partsComplete = PARTS.every((name) => parts.some((part) => part.item_name === name));
 
+const bunny = JSON.parse(readFileSync('config/bunny-package.json', 'utf8')) as {
+  items: { id: string; name: string }[];
+};
+const bunnyPrices = (await query<{ item_id: string; vwap: number; n: number }>(`
+  SELECT item_id, (SUM(unit_price::numeric*count)/SUM(count))::float8 vwap, COUNT(*)::int n
+  FROM display.trades
+  WHERE sold_date > now() - interval '24 hours' AND sold_date <= now()
+    AND item_id = ANY($1)
+  GROUP BY item_id`, [bunny.items.map(item => item.id)])).rows;
+const bunnyMargin = {
+  items: bunny.items.map(item => {
+    const price = bunnyPrices.find(row => row.item_id === item.id);
+    return { ...item, vwap: price?.vwap ?? null, n: price?.n ?? 0 };
+  }),
+  fee: 0.03,
+};
+
 // 패키지 출시·종료일과, 우리가 실제로 관측을 시작한 날.
 // 출시일이 관측 시작보다 앞서면 t=0이 없어 출시 충격은 분석할 수 없다.
 const packageEvent = (await query<{
@@ -494,7 +511,7 @@ const legendaryRows = (await history('legendaryRows', 'captured_at', ['captured_
       min_unit_price, min_item_name, p10, median, scanned, with_listings, total_listings,
       to_jsonb(legendary_card_floor)->'cheapest10' AS cheapest10
     FROM legendary_card_floor WHERE upgrade = 0 ORDER BY captured_at, id`)).rows;
-const research = await researchExport(client, quality.checkedAt, quality.through, historyCache, true);
+const research = { ...await researchExport(client, quality.checkedAt, quality.through, historyCache, true), bunnyMargin };
 writeFileSync(`${OUT}/data/research.json`, JSON.stringify(research));
 const legendary = legendaryRows.slice(-1);
 writeFileSync(`${OUT}/data/legendary.json`, JSON.stringify(legendarySeries(legendaryRows, quality.checkedAt)));
@@ -650,6 +667,7 @@ writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
   meta, health, quality, collection, weekday, weekdaySample, randomWalk, items: withMeta, legendary, marketRanking,
   cardWeekday: cardWeekdaySummary,
   weekdayTrends,
+  bunnyMargin,
   margin: {
     pkg: pkg?.vwap ?? null, pkgN: pkg?.n ?? 0, parts, partsComplete,
     partsSum: parts.reduce((s, r) => s + r.vwap, 0), fee: 0.03,

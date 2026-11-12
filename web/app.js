@@ -3,7 +3,7 @@ import { loadSummary } from "./summary-data.js?v=20261010-ux-polish";
 
 import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260928-distribution';
 import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261111-event-dates';
-import { packagePanelHTML } from './package.js?v=20261002-comparison';
+import { packagePanelHTML, bunnyPackagePanelHTML } from './package.js?v=20261112-bunny';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
   ? '-' : Number(n).toLocaleString('ko-KR', { maximumFractionDigits: d });
@@ -628,6 +628,7 @@ function renderList() {
     ${categoryTabs(cats)}
     ${tab === '카드' ? cardJobTabs() : ''}
     ${tab === '유랑악단 패키지' ? packagePanelHTML(DATA) : ''}
+    ${tab === '바니바니 패키지' ? bunnyPackagePanelHTML(DATA.bunnyMargin) : ''}
     ${weekdayTrendHTML()}
     ${tab === '실반 하모니 박스' ? `<p class="desc">실반 멜로디 카드와 선택한 개봉 보상 4종의 시세입니다. 실반 하모니 박스는 NPC 개봉 메뉴로, 별도 거래 가격이 없습니다. <a href="https://df.nexon.com/pg/forestbandpkg" target="_blank" rel="noopener">공식 안내 ↗</a></p>` : ''}
 
