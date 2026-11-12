@@ -1,4 +1,5 @@
 import { esc, fmt, timeText, plot, renderForecast, palette, legendKey } from './research-ui.js?v=20261007-review';
+import { bunnyPackagePanelHTML } from './package.js?v=20261112-bunny';
 
 let data, dataPromise, disposers = [];
 const view = document.getElementById('view');
@@ -77,13 +78,15 @@ function groups() {
 
 function packageStudy() {
   const p = data.package;
-  if (!p.event) { view.innerHTML = '<div class="panel">연결된 패키지 이벤트가 없습니다.</div>'; return; }
+  const bunny = bunnyPackagePanelHTML(data.bunnyMargin);
+  if (!p.event) { view.innerHTML = bunny || '<div class="panel">연결된 패키지 이벤트가 없습니다.</div>'; return; }
   const labels = { price: '패키지 체결 VWAP', parts: '구성품 5종 합계', margin: '수수료 반영 해체 마진', qty: 'API 관측 체결 수량', stock: '관측 매물 잔량', benchmark: p.benchmark };
   const colors = palette();
   // 판매 종료는 대상이 삭제돼 사후 비교가 불가능하고, 출시는 관측 시작 전이다. 계산 가능한 단계만 고르게 한다.
   const usable = p.stages.map((s, i) => ({ s, i })).filter(({ s }) => !s.unavailableReason && s.label !== '판매 종료' && s.metrics?.price?.ready);
   const why = (s) => s.label === '판매 종료' ? '대상이 삭제돼 사후 가격이 정의되지 않습니다' : s.date < p.firstObserved ? `관측 시작(${p.firstObserved}) 전이라 이전 가격을 복원할 수 없습니다` : '전후 7일 관측이 아직 채워지지 않았습니다';
   view.innerHTML = `<h2 class="sr-only">패키지 이벤트</h2>
+  ${bunny}
   <section class="panel"><h3>${esc(p.event.name)} · 이벤트 관측</h3>
     <p class="desc">출시 ${esc(p.event.starts)} · 판매 종료 ${esc(p.event.ends)} · 완료 일봉 첫 관측 ${esc(p.firstObserved ?? '없음')}</p>
     <p>출시 전 자료가 없어 출시 충격을 계산할 수 없습니다. 패키지와 구성 상자는 11월 5일 06시에 삭제되므로 삭제 후 가격 상승도 분석할 수 없습니다.</p>
