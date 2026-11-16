@@ -2,6 +2,7 @@ import type { PoolClient } from 'pg';
 import { HistoryCache } from './history-cache.ts';
 import { loadResearch, PACKAGE_ID, PART_IDS } from './research-data.ts';
 import { RESEARCH_VERSION, eventWindow, scoreIssues, type Issue } from './research.ts';
+import { FORESTBAND_SCHEDULE } from './forestband-schedule.ts';
 
 export async function researchExport(client: PoolClient, asOf: string, through: string, cache = new HistoryCache(client), cleaned = false) {
   const data = await loadResearch(client, asOf, through, RESEARCH_VERSION, cache, cleaned);
@@ -22,10 +23,11 @@ export async function researchExport(client: PoolClient, asOf: string, through: 
   }));
   const items = (await client.query<{ item_id: string; item_name: string }>(
     'SELECT item_id,item_name FROM items WHERE item_id=ANY($1)', [[PACKAGE_ID, ...PART_IDS]])).rows;
-  const event = (await client.query<{ name: string; starts: string; ends: string; source_url: string }>(`
+  const storedEvent = (await client.query<{ name: string; starts: string; ends: string; source_url: string }>(`
     SELECT name,to_char(starts_at AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') starts,
       to_char(ends_at AT TIME ZONE 'Asia/Seoul','YYYY-MM-DD') ends, source_url
     FROM events WHERE type='패키지' AND $1=ANY(related_item_ids) ORDER BY starts_at DESC LIMIT 1`, [PACKAGE_ID])).rows[0] ?? null;
+  const event = storedEvent && { ...storedEvent, ends: FORESTBAND_SCHEDULE.endDay };
   const stock = (await cache.query({ label: 'research-stock', day: 'd', order: ['d'] })<{ d: string; value: number | null; hours: number }>(`
     WITH h AS (
       SELECT DISTINCT ON (date_trunc('hour',captured_at)) captured_at,total_qty
@@ -38,8 +40,8 @@ export async function researchExport(client: PoolClient, asOf: string, through: 
   const tradeMap = new Map(data.trade.map((p) => [`${p.item_id}/${p.d}`, p]));
   const dates = [...new Set(data.trade.filter((p) => [PACKAGE_ID, ...PART_IDS].includes(p.item_id)).map((p) => p.d))].sort();
   const benchmark = data.series.find((s) => s.id === 'soul')!;
-  // 공식 공지: 패키지와 구성 상자는 11-05 06:00 KST 일괄 삭제.
-  const expiryDay = '2026-11-05';
+  // 삭제 당일에는 삭제 전후가 같은 일봉에 섞이므로 전날까지만 표시한다.
+  const expiryDay = FORESTBAND_SCHEDULE.endDay;
   const daily = dates.filter((d) => d < expiryDay).map((d) => {
     const pkg = tradeMap.get(`${PACKAGE_ID}/${d}`);
     const parts = PART_IDS.map((id) => tradeMap.get(`${id}/${d}`));
@@ -52,7 +54,7 @@ export async function researchExport(client: PoolClient, asOf: string, through: 
   const components = PART_IDS.map((id) => ({ id, name: items.find((i) => i.item_id === id)?.item_name ?? id,
     daily: data.trade.filter((p) => p.item_id === id && p.d < expiryDay).map((p) => ({ d: p.d, value: p.value, qty: p.qty })) }));
   const stages = event ? [['출시', event.starts], ['판매 종료', event.ends]].filter(([, d]) => d).map(([label, d]) => ({ label, date: d,
-    unavailableReason: label === '판매 종료' ? '패키지와 구성 상자가 11월 5일 06시에 삭제되어 사후 가격·해체 마진을 비교할 수 없습니다.' : null,
+    unavailableReason: label === '판매 종료' ? '12월 31일 06시 삭제 예정으로, 종료 후 가격·해체 마진의 전후 비교는 제공하지 않습니다.' : null,
     metrics: Object.fromEntries(['price', 'parts', 'margin', 'qty', 'stock', 'benchmark'].map((key) => [key,
       eventWindow(daily.map((p) => ({ d: p.d, value: p[key as keyof Omit<typeof p, 'd'>] })), d, data.before)])),
     components: components.map((c) => ({ id: c.id, name: c.name, ...eventWindow(c.daily, d, data.before) })),
@@ -61,6 +63,6 @@ export async function researchExport(client: PoolClient, asOf: string, through: 
     cleaning: cleaned ? 'daily-median-10x-v1' : null,
     methodNote: '9월 20일 카드의 시간별 마지막 무매물 상태를 반영하도록 집계를 수정했습니다. 수정 전 예측·평가 기록은 별도로 보존하며, 아래 성적은 수정 후 새 발행분입니다.',
     issuedAt: latest?.issued_at ?? null, origin: latest?.origin ?? null, dataAsOf: latest?.data_as_of ?? null,
-    series, package: { id: PACKAGE_ID, event, daily, components, stages, fee: 0.03,
+    series, package: { id: PACKAGE_ID, event, schedule: FORESTBAND_SCHEDULE, daily, components, stages, fee: 0.03,
       benchmark: '소울 결정 고정 구성 지수', firstObserved: daily[0]?.d ?? null } };
 }

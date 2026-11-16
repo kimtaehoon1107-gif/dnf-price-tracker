@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { study, type Member } from '../src/package-study.ts';
 import { checkPackageStudyInput, type PackageStudyInput } from '../src/package-study-input.ts';
+import { FORESTBAND_SCHEDULE } from '../src/forestband-schedule.ts';
 
 const source = process.argv[2] ?? 'dist/data', out = process.argv[3] ?? 'dist';
 const read = (file: string) => JSON.parse(readFileSync(file, 'utf8'));
@@ -15,36 +16,38 @@ for (const m of members) {
   assert(item && item.item_name === m.name && item.price_basis === 'trade', `종목 불일치: ${m.name}`);
 }
 const hash = (s: string) => createHash('sha256').update(s).digest('hex');
-const report = { ...study(input), provenance: { builtAt: summary.builtAt, priceBasis: input.priceBasis, inputSha256: hash(JSON.stringify(input)),
+const report = { ...study(input), schedule: FORESTBAND_SCHEDULE, provenance: { builtAt: summary.builtAt, priceBasis: input.priceBasis, inputSha256: hash(JSON.stringify(input)),
   membersSha256: hash(readFileSync('config/package-study-members.json', 'utf8')),
   historySourcesSha256: hash(readFileSync('config/history-sources.json', 'utf8')),
   note: 'R2+A/B/C 통합 사이트의 관측 체결 일봉. 첫 체결일은 수집 시작일이 아니며, 무거래·수집 실패는 일봉만으로 구분 불가.' },
   tradeThresholdSensitivity: [3, 10].map(n => { const r = study(input, n); return { minimumTrades: n, groupCoverage: r.groupCoverage, results: r.results }; }) };
-const label = { pending: '기간 종료 대기', insufficient: '유효일 부족 · 계산 보류', ready: '계산 완료 · 인과 확인 아님', not_applicable: '대상 삭제 · 사후 분석 불가' };
+const label = { pending: '기간 종료 대기', insufficient: '유효일 부족 · 계산 보류', ready: '계산 완료 · 인과 확인 아님', not_applicable: '당초 계획에서 계산하지 않음' };
 const fmt = (v: number | null) => v === null ? '—' : v.toFixed(3);
 const lines = [
-  '# 유랑악단 판매 종료 연구 · 자료 점검', '',
+  '# 유랑악단 판매 연장과 기존 연구 기록', '',
   `규칙: ${report.version} · 자료 기준: ${report.asOf} · 완료일: ${report.through}`, '',
-  '사건: 2026-11-05 06:00 KST 판매 종료 및 아이템 삭제. 패키지·구성 상자 6종과 플로럴 스태그 플래티넘 크리쳐 알 선택 상자가 삭제됩니다.', '',
-  '공식 공지: https://df.nexon.com/community/news/seriashop/656', '',
-  '삭제 전 상대 가격 변화(H2)와 해체 마진만 분석합니다. 삭제 후 가격 상승 가설은 대상 소멸로 분석 불가입니다. 생존 품목 사후 연구는 별도 설계로 분리합니다.', '',
+  '## 변경된 판매 일정', '',
+  '판매는 2026년 12월 31일 점검 전까지이며 구성품 일괄 삭제는 같은 날 06:00 KST로 연장됐습니다.', '',
+  `공식 연장 공지: ${report.schedule.notice}`, '',
+  report.schedule.historicalInterpretation, '',
+  '아래 표는 기존 사전등록의 품목·비교 기간·계산 규칙으로 재현한 기록입니다. 연장 기간의 일별 가격과 해체 마진은 실험의 패키지 이벤트 화면에서 확인할 수 있습니다.', '',
   '## 21종 자료 준비 상태', '',
   '평가 기간은 09-10부터 마지막 완료일(최대 10-21)까지입니다. 유효일은 API 관측 체결 5건 이상입니다.', '',
   '| 집단 | 품목 | 첫 관측 체결일 | 마지막 체결일 | 유효일/대상일 | 일봉 없음 | 5건 미만 |',
   '|---|---|---|---|---:|---:|---:|',
   ...report.audit.map(m => `| ${m.group} | ${m.name} | ${m.firstTradeDay ?? '—'} | ${m.lastTradeDay ?? '—'} | ${m.valid}/${m.expected} | ${m.noDailyRow.length} | ${m.thinDays.length} |`), '',
   `고정 구성 전체 충족일: 처치 ${report.groupCoverage.treatment}, 통제 ${report.groupCoverage.control}, 파급 ${report.groupCoverage.spillover}.`, '',
-  '## 가설별 계산', '', '| 가설 | 상태 | 관측 변화 |', '|---|---|---:|',
+  '## 11월 5일 예정일을 기준으로 한 계산 기록', '', '| 가설 | 상태 | 관측 변화 |', '|---|---|---:|',
   ...Object.entries(report.results).map(([key, r]) => `| ${key.toUpperCase()} | ${label[r.status as keyof typeof label]} | ${fmt(r.relativePercent)}% |`), '',
   'H2는 09-10~10-21 대비 10-22~11-04의 처치군-통제군 로그 차이를 exp(차이)-1로 변환한 상대 변화율입니다. 상승·하락 양방향을 기술합니다.', '',
-  `삭제 전 해체 마진(10-22~11-04): ${label[report.preExpiryMargin.status as keyof typeof label]}, 평균 ${fmt(report.preExpiryMargin.meanPercent)}%, 최소 ${fmt(report.preExpiryMargin.minPercent)}%, 최대 ${fmt(report.preExpiryMargin.maxPercent)}%, ±3% 밖 날짜 비율 ${fmt(report.preExpiryMargin.outside3PercentShare === null ? null : report.preExpiryMargin.outside3PercentShare * 100)}%.`, '',
+  `당초 비교 구간 해체 마진(10-22~11-04): ${label[report.preExpiryMargin.status as keyof typeof label]}, 평균 ${fmt(report.preExpiryMargin.meanPercent)}%, 최소 ${fmt(report.preExpiryMargin.minPercent)}%, 최대 ${fmt(report.preExpiryMargin.maxPercent)}%, ±3% 밖 날짜 비율 ${fmt(report.preExpiryMargin.outside3PercentShare === null ? null : report.preExpiryMargin.outside3PercentShare * 100)}%.`, '',
   '일별 체결가는 동시 매매 가능한 가격이 아니므로 마진은 실제 수익·무차익 입증이 아닙니다.', '',
   '## 사건 전 진단', '',
   ...Object.entries(report.diagnostics).map(([g, d]) => `- ${g}: 공통 유효일 ${d.valid}일, 초과 로그 가격의 일간 기울기 ${fmt(d.excessLogSlopePerDay === null ? null : d.excessLogSlopePerDay * 100)} 로그%/일, 연속일 변화 상관 ${fmt(d.dailyChangeCorrelation)}.`), '',
   '기울기와 상관은 진단 자료이며 평행추세를 입증하거나 통제군을 자동 교체하는 기준이 아닙니다.', '',
   '## 플라시보와 탐지 민감도', '',
   `시간 플라시보 후보 29개 중 현재 계산 가능 ${report.timePlacebo.usable}개, 목요일 후보 5개 중 ${report.timePlacebo.usableThursdays}개. 겹치는 구간이므로 독립 반복이 아닙니다.`,
-  '- 삭제 후 실제 사건값이 정의되지 않으므로 H3 순위는 계산하지 않습니다. 시간 플라시보는 사건 전 변동의 기술 자료입니다.',
+  '- H3 순위는 기존 규칙대로 계산하지 않습니다. 시간 플라시보는 당초 계획의 비교 구간에서 관측한 변동 자료입니다.',
   '- 공간 플라시보는 단일 품목과 6종·7종 합성의 단위가 달라 실제 효과와 순위를 매기지 않습니다. 개별 결과는 JSON에 기록합니다.',
   `- H2 가정하 참고 탐지 변화: ${fmt(report.sensitivity.h2?.relativePercent ?? null)}%`,
   '- 참고 탐지 변화는 10-21 완료 뒤, 연속일 변화 20개 이상일 때만 계산합니다. 실제 검정력 80%를 보장하지 않습니다.', '',
@@ -52,7 +55,7 @@ const lines = [
   '- 고정 구성 전체가 유효한 공통 날짜만 사용합니다. 각 비교 구간의 80% 이상이 필요하며 부족하면 종목을 빼거나 보간하지 않고 보류합니다.',
   '- 관측 체결 수는 API 상한 때문에 하한입니다. 5건 조건은 수집 완전성 보장이 아닙니다.',
   '- 일봉 없음은 무거래와 수집 실패를 구분하지 못합니다. 과거 가동률·최초 수집 시각을 추정해서 채우지 않습니다.',
-  '- 삭제 대상의 11-05 이후 일봉은 계산에서 제외합니다. 남은 기록은 삭제 후 가격으로 해석하지 않고 점검 대상으로 기록합니다. 체결 기준 3·10건 및 증폭권 제외 결과는 JSON에 함께 제공합니다.',
+  '- 기존 계산을 재현하기 위해 원래 삭제 대상의 11월 5일 이후 일봉을 이 표의 계산에서 제외합니다. JSON의 postExpiryRows는 연장 기간에 관측된 기록입니다. 체결 기준 3·10건 및 증폭권 제외 결과도 JSON에 포함합니다.',
   '- 판매 종료는 미리 알려진 사건입니다. 신규 패키지·점검·기타 이벤트가 겹치면 효과를 분리할 수 없습니다.',
   '- 이번 구현은 관측 비교 연구입니다. 유의성 판정, 매수 추천, 무차익 입증을 제공하지 않습니다.', '',
   '## 재현', '',
@@ -81,5 +84,5 @@ for (const line of lines) {
   }
 }
 if (table) html.push('</table></div>');
-writeFileSync(`${out}/package-study.html`, `<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>삭제 전 연구 · 자료 점검</title><style>body{max-width:1100px;margin:32px auto;padding:0 20px;font:16px/1.7 system-ui;color:#162033}p{overflow-wrap:anywhere}h1{font-size:26px}h2{margin-top:36px;font-size:21px}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}td,th{padding:9px;border-bottom:1px solid #dce3ed;text-align:left;white-space:nowrap}a{color:#185ed2}footer{margin-top:40px;color:#526078}</style><nav><a href="research.html">실험으로 돌아가기</a> · <a href="data/package-study.md">보고서 원문</a> · <a href="data/package-study.json">계산 결과 JSON</a> · <a href="https://github.com/kimtaehoon1107-gif/dnf-price-tracker/blob/main/docs/package-end-preregistration.md">분석 규칙</a> · <a href="https://df.nexon.com/community/news/seriashop/656">공식 상품 공지</a></nav><main>${html.join('\n')}</main><footer>네오플 오픈 API를 이용한 비공식 개인 프로젝트입니다. 네오플·넥슨이 운영하거나 보증하지 않습니다.</footer></html>`);
+writeFileSync(`${out}/package-study.html`, `<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>유랑악단 판매 연장과 기존 연구 기록</title><style>body{max-width:1100px;margin:32px auto;padding:0 20px;font:16px/1.7 system-ui;color:#162033}p{overflow-wrap:anywhere}h1{font-size:26px}h2{margin-top:36px;font-size:21px}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}td,th{padding:9px;border-bottom:1px solid #dce3ed;text-align:left;white-space:nowrap}a{color:#185ed2}footer{margin-top:40px;color:#526078}</style><nav><a href="research.html#package">패키지 분석으로 돌아가기</a> · <a href="data/package-study.md">보고서 원문</a> · <a href="data/package-study.json">계산 결과 JSON</a> · <a href="https://github.com/kimtaehoon1107-gif/dnf-price-tracker/blob/main/docs/package-end-preregistration.md">분석 규칙</a> · <a href="${report.schedule.notice}">공식 연장 공지</a></nav><main>${html.join('\n')}</main><footer>네오플 오픈 API를 이용한 비공식 개인 프로젝트입니다. 네오플·넥슨이 운영하거나 보증하지 않습니다.</footer></html>`);
 console.log(JSON.stringify({ version: report.version, through: report.through, coverage: report.groupCoverage, diagnostics: report.diagnostics, out }));
