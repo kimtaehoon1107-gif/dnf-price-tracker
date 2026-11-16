@@ -623,6 +623,7 @@ function renderList() {
     });
 
   document.getElementById('view').innerHTML = `
+    <h2 class="market-list-title">경매장 시세</h2>
     ${summaryCards()}
 
     ${categoryTabs(cats)}
@@ -962,6 +963,7 @@ async function renderDetail(it) {
   }
   document.getElementById('view').innerHTML = `
     <a class="back" href="#">← 전체 목록</a>
+    <section class="detail-overview" aria-label="현재 시세 요약">
     <div class="dh">
       <img src="${it.img}" alt="" width="48" height="48">
       <div>
@@ -983,15 +985,22 @@ async function renderDetail(it) {
     <div class="bigchg ${cls(it.chg)}">${it.chg === null
       ? (isZeroCard ? '24시간 평균 변화 비교 불가' : '데이터 없음')
       : `${pct(it.chg)} <span style="color:var(--ink-3);font-weight:500">24시간 평균 변화</span>`}</div>
+    </section>
+    <div class="detail-jumps" role="group" aria-label="상세 화면 바로가기">
+      <button type="button" data-detail-jump="price-panel">가격 차트</button>
+      <button type="button" data-detail-jump="event-details">이벤트</button>
+      <button type="button" data-detail-jump="stock-panel">매물과 가격</button>
+      ${isZeroCard ? '' : '<button type="button" data-detail-jump="weekday-panel">요일별 흐름</button>'}
+    </div>
 
-    <div class="panel">
+    <div class="panel" id="price-panel">
       <div class="panel-head price-chart-head">
         <h3>${isZeroCard ? `${cardTier} 가격 흐름` : '가격 흐름 · 거래 수량'}</h3>
       </div>
       <p class="desc" id="fc-desc">불러오는 중…</p>
       <div class="chart${isZeroCard ? '' : ' tall'}" id="c1"></div>
       <details class="event-study" id="event-details">
-        <summary><span>가격 영향 이벤트 · 이벤트 스터디</span><small id="event-count"></small><i aria-hidden="true">⌄</i></summary>
+        <summary><span>이벤트와 가격 변화</span><small id="event-count"></small><i aria-hidden="true">⌄</i></summary>
         <div class="event-body">
           <p class="desc">D-NOTE는 방송 예정 시각 기준의 시간봉 탐색 분석을 보여줍니다. 그 밖의 이벤트는 요일 패턴을 보정한 일봉 전후 3일 참고 비교입니다. 관측된 변화만으로 인과관계를 판단할 수 없습니다.${isZeroCard ? ` 카드 가격은 ${cardTier} 최저 판매가만 사용합니다.` : ''}</p>
           <div id="event-list"></div>
@@ -1040,6 +1049,15 @@ async function renderDetail(it) {
       <div id="weekday-profile"></div>
     </div>`}`;
 
+  document.querySelectorAll('[data-detail-jump]').forEach((button) => {
+    button.onclick = () => {
+      const target = document.getElementById(button.dataset.detailJump);
+      if (target.id === 'event-details') target.open = true;
+      target.tabIndex = -1;
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({ block: 'start' });
+    };
+  });
   document.querySelectorAll('.upgrade-sw button').forEach((button) => {
     button.onclick = () => {
       cardMode = button.dataset.cardMode;
