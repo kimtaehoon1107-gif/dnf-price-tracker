@@ -20,6 +20,7 @@ export function pricePosition(days, price, today, window = 30, min = 14) {
   const same = complete.filter((x) => x.vwap === price).length;
   const prices = complete.map((x) => x.vwap);
   return { ready: true, days: complete.length, percentile: (below + same / 2) / complete.length * 100,
+    below, same, above: complete.length - below - same,
     low: Math.min(...prices), high: Math.max(...prices), from: complete[0].d, to: complete.at(-1).d };
 }
 

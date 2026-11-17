@@ -1,7 +1,7 @@
 import { loadSummary } from "./summary-data.js?v=20261010-ux-polish";
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
-import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260928-distribution';
+import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20261118-price-context';
 import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261117-focus';
 import { packagePanelHTML, bunnyPackagePanelHTML } from './package.js?v=20261112-bunny';
 
@@ -975,20 +975,27 @@ async function renderDetail(it) {
       <button class="${showingMax ? '' : 'on'}" data-card-mode="zero" type="button">0업</button>
       <button class="${showingMax ? 'on' : ''}" data-card-mode="max" type="button">풀업${baseItem.max_upgrade ? ` (${baseItem.max_upgrade}업)` : ''}</button>
     </div>` : ''}
-    <div class="price-meta price-basis">${isZeroCard ? `${cardTier} 최저 판매가` : '최근 1시간 평균 거래가'}</div>
-    <div class="detail-price-line">
-      <div class="bigpx">${fmt(representativePrice(it))}${representativePrice(it) == null ? '' : '<small>골드</small>'}</div>
-      <div class="bigchg ${cls(it.chg)}">${it.chg === null ? '24시간 비교 자료 없음'
-        : `${pct(it.chg)} <span>24시간 평균 변동</span>`}</div>
+    <div class="detail-price-quotes${isZeroCard ? ' single' : ''}">
+      <div>
+        <div class="price-meta">${isZeroCard ? `${cardTier} 최저 매물가` : '최근 1시간 평균 거래가'}</div>
+        <div class="bigpx">${fmt(representativePrice(it))}${representativePrice(it) == null ? '' : '<small>골드</small>'}</div>
+        ${isZeroCard && representativePrice(it) == null ? `<div class="price-meta">${it.listings === 0 ? '현재 확인된 매물 없음' : '현재 판매가 기록 없음'}</div>` : ''}
+        ${!isZeroCard && it.vwap1h == null ? '<div class="price-meta">최근 1시간 거래 관측 없음</div>' : ''}
+        ${it.chg != null ? `<div class="bigchg ${cls(it.chg)}">${pct(it.chg)} <span>24시간 평균 변동</span></div>` : ''}
+      </div>
+      ${isZeroCard ? '' : `<div class="detail-lowest-ask">
+        <div class="price-meta">확인된 최저 매물가</div>
+        <div class="bigpx">${it.min_ask > 0 ? `${fmt(it.min_ask)}<small>골드</small>` : '—'}</div>
+        <div class="price-meta" id="min-ask-qty">${it.min_ask > 0 ? '' : it.listings === 0 ? '확인된 매물 없음' : '판매가 기록 없음'}</div>
+      </div>`}
     </div>
-    ${isZeroCard && representativePrice(it) == null ? `<div class="price-meta">${it.listings === 0 ? '현재 확인된 매물 없음' : '현재 판매가 기록 없음'}</div>` : ''}
-    ${!isZeroCard && it.vwap1h == null ? '<div class="price-meta">최근 1시간에 관측된 거래가 없습니다.</div>' : ''}
     </section>
     <div class="panel" id="price-panel">
       <div class="panel-head price-chart-head">
         <h3>가격 추이</h3>
       </div>
       <div class="chart${isZeroCard ? '' : ' tall'}" id="c1"></div>
+      ${isZeroCard ? '' : '<p class="price-context" id="price-position">최근 거래가와 비교하는 중…</p>'}
       <details class="event-study" id="event-details">
         <summary><span>이벤트와 가격 변화</span><small id="event-count"></small><i aria-hidden="true">⌄</i></summary>
         <div class="event-body">
@@ -1008,15 +1015,12 @@ async function renderDetail(it) {
         ${it.vwap1h == null ? '최근 1시간 관측 거래 없음' : `최근 1시간 거래 ${fmt(it.trades1h)}건 · 수량 ${fmt(it.api_qty1h)}개로 계산한 평균가`} · ${priceTime(DATA.priceAsOf)} KST 기준</p>`}
       <div class="kv">${isZeroCard ? `
       <div><div class="k">24시간 평균 ${cardTier} 최저 판매가</div><div class="v">${fmt(it.vwap24)}</div></div>
-      <div><div class="k">현재 ${cardTier} 최저 판매가</div><div class="v">${fmt(it.min_ask)}</div></div>
       <div><div class="k">${cardTier} 등록 매물</div><div class="v">${fmt(it.listings)}</div></div>
       <div><div class="k">${cardTier} 가격 관측</div><div class="v">${fmt(it.trades)}</div></div>
       <div><div class="k">가격 기준</div><div class="v">${cardTier}만</div></div>
       <div><div class="k">이력</div><div class="v">${it.span_days >= 1 ? it.span_days.toFixed(1) + '일' : (it.span_days * 24).toFixed(0) + '시간'}</div></div>` : `
       <div><div class="k">최근 24시간 평균 거래가</div><div class="v">${fmt(it.vwap24)}</div></div>
-      <div id="price-position"><div class="k">최근 가격 중 현재 수준</div><div class="v flat">…</div></div>
       <div><div class="k">최근 24시간 수집된 거래 수량</div><div class="v">${fmt(it.api_qty24)}</div></div>
-      <div><div class="k">최저 판매가</div><div class="v">${fmt(it.min_ask)}</div><div class="depth-sub" id="min-ask-qty"></div></div>
       <div><div class="k">등록 매물</div><div class="v">${fmt(it.listings)}</div></div>
       <div><div class="k">수집된 거래 기록</div><div class="v">${fmt(it.trades)} <span style="font-size:12px;color:var(--ink-3);font-weight:500">${it.g}등급</span></div></div>
       <div><div class="k">이력</div><div class="v">${it.span_days >= 1 ? it.span_days.toFixed(1) + '일' : (it.span_days * 24).toFixed(0) + '시간'}</div></div>`}
@@ -1137,14 +1141,15 @@ async function renderDetail(it) {
   if (positionEl) {
     const today = new Date(DATA.builtAt).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
     const pos = pricePosition(d, it.vwap24, today);
-    const md = (day) => `${Number(day.slice(5, 7))}/${Number(day.slice(8, 10))}`;
+    const comparison = pos.ready && (pos.same === pos.days
+      ? '모든 날의 하루 평균가와 같아요.'
+      : pos.above >= pos.below
+        ? `중 <b>${pos.above}일</b>의 하루 평균가보다 낮아요.`
+        : `중 <b>${pos.below}일</b>의 하루 평균가보다 높아요.`);
     positionEl.innerHTML = pos.ready
-      ? `<div class="k">최근 ${pos.days}개 기록일의 가격 중</div>
-         <div class="v">${pos.percentile <= 50 ? `하위 ${Math.max(1, Math.round(pos.percentile))}%` : `상위 ${Math.max(1, Math.round(100 - pos.percentile))}%`}</div>
-         <div class="pos-bar" title="기록일 평균 거래가 ${fmt(pos.low)} ~ ${fmt(pos.high)}"><i style="left:${pos.percentile.toFixed(1)}%"></i></div>
-         <div class="depth-sub">24시간 평균가 기준 · ${md(pos.from)}~${md(pos.to)}</div>`
-      : `<div class="k">최근 가격 중 현재 수준</div><div class="v flat">${it.vwap24 > 0 ? `${pos.days}/${pos.min}개` : '-'}</div>
-         <div class="depth-sub">${it.vwap24 > 0 ? `관측일 ${pos.min}개부터 계산` : '최근 24시간 거래 없음'}</div>`;
+      ? `최근 24시간 평균 거래가 <b>${fmt(it.vwap24)}골드</b>는 최근 거래 기록 ${pos.days}일${pos.same === pos.days ? '의 ' : ' '}${comparison}`
+      : it.vwap24 > 0 ? `과거 가격과 비교하려면 거래 관측일이 ${pos.min}일 필요해요. 현재 ${pos.days}일이에요.`
+        : '최근 24시간에 관측된 거래가 없어 과거 가격과 비교할 수 없어요.';
   }
   const stock = s.stock ?? [];
   const stockAt = bySecond(stock, 't');

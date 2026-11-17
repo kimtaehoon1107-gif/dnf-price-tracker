@@ -43,6 +43,7 @@ const month = Array.from({ length: 31 }, (_, i) => ({ d: `2026-08-${String(i + 1
 const position = pricePosition(month, 105, '2026-08-31');
 assert.equal(position.days, 30, '당일 미완성 일봉 제외, 최근 30일');
 assert.equal(position.percentile, 5.5 / 30 * 100, '같은 값은 절반만 아래로 셈');
+assert.deepEqual([position.below, position.same, position.above], [5, 1, 24], '문장에는 동률을 뺀 실제 일수를 사용');
 assert.equal(position.low, 100);
 assert.deepEqual([position.from, position.to], ['2026-08-01', '2026-08-30'], '실제 비교 기간을 함께 반환');
 assert.equal(pricePosition(month.slice(0, 10), 105, '2026-08-31').ready, false, '14일 미만이면 계산하지 않음');

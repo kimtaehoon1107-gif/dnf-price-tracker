@@ -317,9 +317,6 @@ a.ranking-row:hover { background: var(--page); }
 
 .depth-kv { margin-bottom: 16px; }
 .depth-sub { font-size: 12px; color: var(--ink-3); }
-/* 30일 가격 위치. 왼쪽이 최근 30일 최저, 오른쪽이 최고다. 색은 등락색을 피한다. */
-.pos-bar { position: relative; height: 4px; margin: 7px 0 4px; border-radius: 2px; background: var(--line-2); max-width: 140px; }
-.pos-bar i { position: absolute; top: 50%; width: 10px; height: 10px; border-radius: 50%; background: var(--ink); border: 2px solid var(--card); transform: translate(-50%, -50%); }
 .depth-chart { overflow-x: auto; }
 .depth-chart svg { display: block; width: 100%; }
 .depth-grid { stroke: var(--line); stroke-width: 1; }
@@ -879,11 +876,15 @@ header.top nav a.on { font-weight: 700; text-decoration: underline; text-underli
 .detail-overview {
   padding: 4px 0 18px;
 }
-.detail-price-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 14px; }
-.detail-overview .bigpx { font-size: clamp(32px, 4.5vw, 46px); line-height: 1.15; margin: 0; }
+.detail-price-quotes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; margin-top: 12px; max-width: 600px; }
+.detail-price-quotes.single { grid-template-columns: 1fr; }
+.detail-lowest-ask { border-left: 1px solid var(--line-2); padding-left: 20px; }
+.detail-overview .bigpx { font-size: clamp(26px, 4.5vw, 40px); line-height: 1.2; margin: 2px 0; overflow-wrap: anywhere; }
 .detail-overview .price-meta { color: var(--ink-2); }
 .detail-overview .bigchg { margin: 0; }
 .detail-overview .bigchg span { color: var(--ink-2); font-size: 13px; font-weight: 500; }
+.price-context { margin: 10px 0 14px; padding: 12px 14px; border-radius: 8px; background: var(--page); color: var(--ink-2); font-size: 14px; }
+.price-context b { color: var(--ink); }
 .detail-jumps { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; }
 .market-overview { margin: 0 0 12px; }
 .market-overview[open] .cards { margin: 8px 0 0; }
@@ -912,6 +913,9 @@ details.detail-metrics { margin: 0 0 14px; padding: 0 20px; border: 1px solid va
 @media (max-width: 780px) {
   .market-list-title { margin-bottom: 12px; }
   .detail-overview { padding: 0 2px 14px; }
+  .detail-price-quotes { gap: 10px; }
+  .detail-lowest-ask { padding-left: 10px; }
+  .detail-overview .bigpx small { font-size: 12px; }
   .panel h3 { font-size: 17px; }
   .row .nm .t b { font-size: 14px; line-height: 1.4; }
   .row .px b { font-size: 14px; }
