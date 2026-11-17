@@ -2,7 +2,7 @@ import { loadSummary } from "./summary-data.js?v=20261010-ux-polish";
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
 import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20260928-distribution';
-import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261111-event-dates';
+import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261117-focus';
 import { packagePanelHTML, bunnyPackagePanelHTML } from './package.js?v=20261112-bunny';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
@@ -624,9 +624,8 @@ function renderList() {
 
   document.getElementById('view').innerHTML = `
     <h2 class="market-list-title">경매장 시세</h2>
-    ${summaryCards()}
-
     ${categoryTabs(cats)}
+    <details class="market-overview"><summary>시장 요약</summary>${summaryCards()}</details>
     ${tab === '카드' ? cardJobTabs() : ''}
     ${tab === '유랑악단 패키지' ? packagePanelHTML(DATA) : ''}
     ${tab === '바니바니 패키지' ? bunnyPackagePanelHTML(DATA.bunnyMargin) : ''}
@@ -972,32 +971,23 @@ async function renderDetail(it) {
         ${it.is_final && it.final_since ? `<div class="meta">${it.category === '칭호' ? '종결 성능 최초 등장' : '종결 지정'} ${it.final_since} · <b style="color:var(--ink-2)">D+${sinceDays(it.final_since)}</b></div>` : ''}
       </div>
     </div>
-    ${it.category === '칭호' && it.is_final && it.final_since ? `<p class="price-meta">칭호 D+는 같은 종결 성능 등급이 처음 등장한 날부터 계산합니다. 상품별 출시일과는 다릅니다.<br>일반형은 프로스트의 전설, 플래티넘형은 프로스트의 전설 플래티넘을 기준으로 합니다. <a href="https://df.nexon.com/community/news/seriashop/541?category=2" target="_blank" rel="noopener noreferrer">최초 출시 안내 ↗</a></p>` : ''}
     ${isZeroCard ? `<div class="upgrade-sw" role="group" aria-label="카드 업그레이드 단계">
       <button class="${showingMax ? '' : 'on'}" data-card-mode="zero" type="button">0업</button>
       <button class="${showingMax ? 'on' : ''}" data-card-mode="max" type="button">풀업${baseItem.max_upgrade ? ` (${baseItem.max_upgrade}업)` : ''}</button>
     </div>` : ''}
-    <div class="price-meta price-basis">${isZeroCard ? `현재 ${cardTier} 최저 판매가` : '현재 시세 · 최근 1시간 평균 거래가 (거래 수량 반영)'}</div>
-    <div class="bigpx">${fmt(representativePrice(it))}${representativePrice(it) == null ? '' : '<small>골드</small>'}</div>
-    ${isZeroCard && representativePrice(it) == null ? `<div class="price-meta">${it.listings === 0 ? '현재 확인된 매물 없음' : '현재 판매가 기록 없음'}</div>` : ''}
-    ${isZeroCard ? '' : `<div class="price-meta">최근 단건 체결가 ${it.last_trade_at ? `${fmt(it.last_price)}골드 · ${priceTime(it.last_trade_at)} KST` : '기록 없음'}</div>
-      <div class="price-meta">${it.vwap1h == null ? '최근 1시간 관측 거래 없음' : `최근 1시간 거래 ${fmt(it.trades1h)}건 · 수량 ${fmt(it.api_qty1h)}개로 계산`} · ${priceTime(DATA.priceAsOf)} KST 기준</div>`}
-    <div class="bigchg ${cls(it.chg)}">${it.chg === null
-      ? (isZeroCard ? '24시간 평균 변화 비교 불가' : '데이터 없음')
-      : `${pct(it.chg)} <span style="color:var(--ink-3);font-weight:500">24시간 평균 변화</span>`}</div>
-    </section>
-    <div class="detail-jumps" role="group" aria-label="상세 화면 바로가기">
-      <button type="button" data-detail-jump="price-panel">가격 차트</button>
-      <button type="button" data-detail-jump="event-details">이벤트</button>
-      <button type="button" data-detail-jump="stock-panel">매물과 가격</button>
-      ${isZeroCard ? '' : '<button type="button" data-detail-jump="weekday-panel">요일별 흐름</button>'}
+    <div class="price-meta price-basis">${isZeroCard ? `${cardTier} 최저 판매가` : '최근 1시간 평균 거래가'}</div>
+    <div class="detail-price-line">
+      <div class="bigpx">${fmt(representativePrice(it))}${representativePrice(it) == null ? '' : '<small>골드</small>'}</div>
+      <div class="bigchg ${cls(it.chg)}">${it.chg === null ? '24시간 비교 자료 없음'
+        : `${pct(it.chg)} <span>24시간 평균 변동</span>`}</div>
     </div>
-
+    ${isZeroCard && representativePrice(it) == null ? `<div class="price-meta">${it.listings === 0 ? '현재 확인된 매물 없음' : '현재 판매가 기록 없음'}</div>` : ''}
+    ${!isZeroCard && it.vwap1h == null ? '<div class="price-meta">최근 1시간에 관측된 거래가 없습니다.</div>' : ''}
+    </section>
     <div class="panel" id="price-panel">
       <div class="panel-head price-chart-head">
-        <h3>${isZeroCard ? `${cardTier} 가격 흐름` : '가격 흐름 · 거래 수량'}</h3>
+        <h3>가격 추이</h3>
       </div>
-      <p class="desc" id="fc-desc">불러오는 중…</p>
       <div class="chart${isZeroCard ? '' : ' tall'}" id="c1"></div>
       <details class="event-study" id="event-details">
         <summary><span>이벤트와 가격 변화</span><small id="event-count"></small><i aria-hidden="true">⌄</i></summary>
@@ -1006,8 +996,17 @@ async function renderDetail(it) {
           <div id="event-list"></div>
         </div>
       </details>
+      <div class="detail-jumps" role="group" aria-label="상세 화면 바로가기">
+        <button type="button" data-detail-jump="stock-panel">매물과 가격 ↓</button>
+        ${isZeroCard ? '' : '<button type="button" data-detail-jump="weekday-panel">요일별 흐름 ↓</button>'}
+      </div>
     </div>
-    <div class="detail-metrics" aria-label="시세 보조 지표"><div class="kv">${isZeroCard ? `
+    <details class="panel detail-metrics">
+      <summary>가격·거래 상세</summary>
+      ${it.category === '칭호' && it.is_final && it.final_since ? `<p class="price-meta">칭호 D+는 같은 종결 성능 등급이 처음 등장한 날부터 계산합니다. 일반형은 프로스트의 전설, 플래티넘형은 프로스트의 전설 플래티넘을 기준으로 합니다. <a href="https://df.nexon.com/community/news/seriashop/541?category=2" target="_blank" rel="noopener noreferrer">최초 출시 안내 ↗</a></p>` : ''}
+      ${isZeroCard ? '' : `<p class="price-meta">최근 단건 체결가 ${it.last_trade_at ? `${fmt(it.last_price)}골드 · ${priceTime(it.last_trade_at)} KST` : '기록 없음'}<br>
+        ${it.vwap1h == null ? '최근 1시간 관측 거래 없음' : `최근 1시간 거래 ${fmt(it.trades1h)}건 · 수량 ${fmt(it.api_qty1h)}개로 계산한 평균가`} · ${priceTime(DATA.priceAsOf)} KST 기준</p>`}
+      <div class="kv">${isZeroCard ? `
       <div><div class="k">24시간 평균 ${cardTier} 최저 판매가</div><div class="v">${fmt(it.vwap24)}</div></div>
       <div><div class="k">현재 ${cardTier} 최저 판매가</div><div class="v">${fmt(it.min_ask)}</div></div>
       <div><div class="k">${cardTier} 등록 매물</div><div class="v">${fmt(it.listings)}</div></div>
@@ -1021,7 +1020,7 @@ async function renderDetail(it) {
       <div><div class="k">등록 매물</div><div class="v">${fmt(it.listings)}</div></div>
       <div><div class="k">수집된 거래 기록</div><div class="v">${fmt(it.trades)} <span style="font-size:12px;color:var(--ink-3);font-weight:500">${it.g}등급</span></div></div>
       <div><div class="k">이력</div><div class="v">${it.span_days >= 1 ? it.span_days.toFixed(1) + '일' : (it.span_days * 24).toFixed(0) + '시간'}</div></div>`}
-    </div></div>
+    </div></details>
 
     ${isZeroCard ? upgradeEconomicsHTML(baseItem) : ''}
 
@@ -1052,7 +1051,6 @@ async function renderDetail(it) {
   document.querySelectorAll('[data-detail-jump]').forEach((button) => {
     button.onclick = () => {
       const target = document.getElementById(button.dataset.detailJump);
-      if (target.id === 'event-details') target.open = true;
       target.tabIndex = -1;
       target.focus({ preventScroll: true });
       target.scrollIntoView({ block: 'start' });
@@ -1135,7 +1133,6 @@ async function renderDetail(it) {
   };
 
   const d = s.daily ?? [];
-  const desc = document.getElementById('fc-desc');
   const positionEl = document.getElementById('price-position');
   if (positionEl) {
     const today = new Date(DATA.builtAt).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
@@ -1188,7 +1185,7 @@ async function renderDetail(it) {
   if (weekday.state !== 'ready') document.getElementById('view').append(document.getElementById('weekday-panel'));
   }
 
-  desc.textContent = isZeroCard
+  const chartBasis = isZeroCard
     ? `일평균 ${cardTier} 최저 판매가 · 실제 거래가와 다릅니다.`
     : s.inlineForecast ? '일별 평균 거래가(거래 수량 반영) · 점선은 요일 추가 ARIMA 실험 예측입니다.' : '일별 수량 가중 중앙값 · 상단의 최근 1시간 평균 거래가와 계산 기준이 다릅니다.';
   let calcNote = null;
@@ -1207,7 +1204,7 @@ async function renderDetail(it) {
   renderPriceDistribution(document.getElementById('c1'), isZeroCard
     ? { basis: 'ask', asOf: DATA.priceAsOf ?? DATA.builtAt, daily: d }
     : s.inlineForecast ? { ...s.distribution, metric: 'vwap', daily: d.map(row => ({ ...row, ...(s.distribution?.daily.find(p => p.d === row.d) ?? {}), vwap: row.vwap })), forecast: s.inlineForecast } : s.distribution,
-    events.map(event => ({ ...event, badge: EVENT_TYPES[event.type].badge })), calcNote);
+    events.map(event => ({ ...event, badge: EVENT_TYPES[event.type].badge })), calcNote, chartBasis);
   const chartsAvailable = await chartReady;
   if (location.hash.slice(1) !== it.item_id || cardMode !== (showingMax ? 'max' : 'zero')) return;
   const chartError = '<p role="status" class="desc">차트를 불러오지 못했습니다. 가격·매물 정보는 계속 확인할 수 있습니다. 잠시 후 다시 접속해 주세요.</p>';

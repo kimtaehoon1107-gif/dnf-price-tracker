@@ -31,9 +31,19 @@
 .pd-events button { font-size: 12px; padding: 4px 8px; }
 .price-distribution .pd-event-rail .event-pin { position: absolute; transform: translateX(-50%); width: 44px; height: 40px; min-height: 40px; padding: 0; color: var(--blue); background: var(--blue-bg); }
 .pd-event-rail .event-pin::before { left: calc(50% - 4px); }
+.price-distribution.pd-focused { display: block; }
+.pd-focused .pd-toolbar { margin: 12px 0 0; }
+.pd-forecast-key { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-2); font-size: 12px; }
+.pd-forecast-key i { width: 16px; border-top: 2px dashed #8b5cf6; }
+.pd-focused .pd-readout { margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: var(--page); }
+.pd-focused .pd-price { font-size: 17px; margin: 2px 0; }
+.pd-chart-guide { margin-top: 8px; color: var(--ink-2); font-size: 14px; }
+.pd-chart-guide > summary { cursor: pointer; min-height: 44px; padding: 10px 0; }
+.pd-chart-guide .pd-period-change { margin: 10px 0; }
 @media(max-width:600px) {
   .price-distribution button { min-height: 44px; }
   .pd-readout { align-items: flex-start; }
+  .pd-focused .pd-toolbar { gap: 6px 12px; }
   .pd-price { font-size: 22px; }
   /* 차트를 기간 버튼 바로 아래에 두고 읽는 값·범례·안내는 차트 아래로 내린다.
      보이는 순서만 바꾼다. DOM 순서가 그대로라 키보드·스크린리더 순서는 달라지지 않는다. */

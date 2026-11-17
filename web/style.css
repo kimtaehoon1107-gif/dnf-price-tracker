@@ -877,15 +877,20 @@ h3.sub {
 header.top nav a.on { font-weight: 700; text-decoration: underline; text-underline-offset: 5px; }
 
 .detail-overview {
-  padding: 22px 24px;
-  border-radius: var(--radius);
-  border: 1px solid var(--line-2);
-  background: var(--card);
+  padding: 4px 0 18px;
 }
-.detail-overview .bigpx { font-size: clamp(30px, 4vw, 40px); line-height: 1.2; }
+.detail-price-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 14px; }
+.detail-overview .bigpx { font-size: clamp(32px, 4.5vw, 46px); line-height: 1.15; margin: 0; }
 .detail-overview .price-meta { color: var(--ink-2); }
-.detail-overview .bigchg { margin: 8px 0 0; }
-.detail-jumps { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 18px; }
+.detail-overview .bigchg { margin: 0; }
+.detail-overview .bigchg span { color: var(--ink-2); font-size: 13px; font-weight: 500; }
+.detail-jumps { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; }
+.market-overview { margin: 0 0 12px; }
+.market-overview[open] .cards { margin: 8px 0 0; }
+.market-overview > summary, .detail-metrics > summary { cursor: pointer; min-height: 44px; padding: 10px 0; font-weight: 600; }
+.market-overview > summary { color: var(--ink-2); }
+details.detail-metrics { margin: 0 0 14px; padding: 0 20px; border: 1px solid var(--line); }
+.detail-metrics[open] { padding-bottom: 18px; }
 .detail-jumps button {
   min-height: 44px;
   padding: 6px 12px;
@@ -906,7 +911,7 @@ header.top nav a.on { font-weight: 700; text-decoration: underline; text-underli
 
 @media (max-width: 780px) {
   .market-list-title { margin-bottom: 12px; }
-  .detail-overview { padding: 16px; }
+  .detail-overview { padding: 0 2px 14px; }
   .panel h3 { font-size: 17px; }
   .row .nm .t b { font-size: 14px; line-height: 1.4; }
   .row .px b { font-size: 14px; }
