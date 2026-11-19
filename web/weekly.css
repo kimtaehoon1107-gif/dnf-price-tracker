@@ -1,0 +1,41 @@
+.weekly { max-width: 860px; }
+.weekly .page-title { margin: 0 0 20px; }
+.weekly-intro, .weekly-movers section, .weekly-details, .weekly-method {
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+.weekly-intro { padding: clamp(16px, 4vw, 32px); }
+.weekly-intro h2 {
+  margin: 6px 0 8px;
+  font-size: clamp(22px, 4vw, 31px);
+  line-height: 1.32;
+  letter-spacing: -.03em;
+}
+.weekly-intro p { margin: 0; color: var(--ink-2); }
+.weekly-intro .weekly-dates { font-size: .875rem; color: var(--ink-3); }
+.weekly-movers:not([hidden]) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
+.weekly-movers section { padding: 14px 18px; }
+.weekly-movers h2 { margin: 0; font-size: 1rem; }
+.weekly-movers ul { padding: 0; margin: 4px 0 0; list-style: none; }
+.weekly-movers li { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
+.weekly-movers li + li { border-top: 1px solid var(--line); }
+.weekly a { text-decoration: underline; text-underline-offset: 3px; }
+.weekly :is(a, summary):focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+.weekly-details, .weekly-method { margin: 12px 0; padding: 0 16px; }
+.weekly summary { padding: 11px 0; min-height: 44px; cursor: pointer; font-weight: 650; }
+.weekly table { width: 100%; border-collapse: collapse; text-align: right; font-variant-numeric: tabular-nums; }
+.weekly th, .weekly td { padding: 9px 5px; border-top: 1px solid var(--line); }
+.weekly th:first-child { text-align: left; overflow-wrap: anywhere; }
+.weekly thead th { font-size: .875rem; }
+.weekly th small, .weekly td small { display: block; font-size: .8125rem; color: var(--ink-3); }
+.weekly-method p { color: var(--ink-2); margin: 0 0 12px; }
+.weekly-mobile-link { display: none; }
+@media (max-width: 780px) {
+  .weekly-mobile-link { display: inline-flex; min-height: 44px; align-items: center; color: var(--blue); }
+}
+@media (max-width: 540px) {
+  .weekly-movers:not([hidden]) { grid-template-columns: 1fr; }
+  .weekly-details { padding: 0 10px; }
+  .weekly table { font-size: .875rem; }
+}

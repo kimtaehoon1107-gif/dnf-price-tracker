@@ -90,7 +90,7 @@ export function renderThursdayMarkers(root, rows, position, onSelect) {
 let cleanup = () => {};
 export function disposePriceDistribution() { cleanup(); cleanup = () => {}; }
 
-export function renderPriceDistribution(root, data, events = [], calcNote = null) {
+export function renderPriceDistribution(root, data, events = [], calcNote = null, chartBasis = '') {
   disposePriceDistribution();
   const legendary = data?.basis === 'legendary';
   const ask = data?.basis === 'ask' || legendary;
@@ -99,22 +99,30 @@ export function renderPriceDistribution(root, data, events = [], calcNote = null
   const hasBand = r => Number.isFinite(r.q25) && Number.isFinite(r.q75);
   const priceLabel = legendary ? (data.metric === 'min' ? '전체 최저 판매가 · 일평균' : data.metric === 'tenth' ? '10번째 매물 · 일평균' : data.metric === 'mean10' ? '최저가 매물 10건 평균 · 일평균' : 'P10 · 일평균') : '평균 최저 판매가';
   if (!data?.daily?.length) { root.textContent = ask ? '최저 판매가 관측 자료가 없습니다.' : '거래 분포 자료가 없습니다.'; return; }
-  root.className = 'price-distribution';
-  root.innerHTML = `<div class="pd-toolbar"><div class="pd-periods" aria-label="조회 기간">
-    <button type="button" data-period="7">7일</button><button type="button" data-period="30">30일</button><button type="button" data-period="all">전체</button></div><span class="pd-extent"></span></div>
-    <p class="hint pd-recording-start"></p>
-    <div class="pd-period-change"></div>
-    <div class="pd-readout"><div><span class="pd-selected"></span><div class="pd-price"></div><div class="pd-range"></div></div><div class="pd-qty"></div></div>
-    ${ask ? '' : `<div class="pd-legend"><span><i class="pd-line-key"></i>${mean ? '일평균 거래가' : '수량 가중 중앙값'}</span><span><i class="pd-band-key"></i>주요 거래 가격대</span><span>○ 거래 5건 미만</span>${forecast ? '<span style="color:#8b5cf6">┄┄ 실험 예측</span>' : ''}</div>`}
-    <p class="hint pd-forecast-note" ${data.forecast ? '' : 'hidden'}></p>
-    <div class="pd-plot"></div><div class="pd-thursdays" aria-label="목요일 · 실제 패치 여부와 별개"></div>
-    <div class="event-rail pd-event-rail" role="group" aria-label="날짜별 이벤트" hidden></div><div class="pd-events"></div>
-    <div class="pd-status"></div><div class="pd-announcement" aria-live="polite"></div>
+  root.className = chartBasis ? 'price-distribution pd-focused' : 'price-distribution';
+  const toolbar = `<div class="pd-toolbar"><div class="pd-periods" aria-label="조회 기간">
+    <button type="button" data-period="7">7일</button><button type="button" data-period="30">30일</button><button type="button" data-period="all">전체</button></div>
+    ${chartBasis ? (forecast ? '<span class="pd-forecast-key"><i aria-hidden="true"></i>실험 예측</span>' : '') : '<span class="pd-extent"></span>'}</div>`;
+  const recording = '<p class="hint pd-recording-start"></p>';
+  const periodChangeHTML = '<div class="pd-period-change"></div>';
+  const readout = '<div class="pd-readout"><div><span class="pd-selected"></span><div class="pd-price"></div><div class="pd-range"></div></div><div class="pd-qty"></div></div>';
+  const legend = ask ? '' : `<div class="pd-legend"><span><i class="pd-line-key"></i>${mean ? '일평균 거래가' : '수량 가중 중앙값'}</span><span><i class="pd-band-key"></i>주요 거래 가격대</span><span>○ 거래 5건 미만</span>${forecast ? '<span style="color:#8b5cf6">┄┄ 실험 예측</span>' : ''}</div>`;
+  const forecastNote = `<p class="hint pd-forecast-note" ${data.forecast ? '' : 'hidden'}></p>`;
+  const plot = `<div class="pd-plot"></div><div class="pd-thursdays" aria-label="목요일 · 실제 패치 여부와 별개"></div>
+    <div class="event-rail pd-event-rail" role="group" aria-label="날짜별 이벤트" hidden></div>${chartBasis ? '' : '<div class="pd-events"></div>'}`;
+  const status = '<div class="pd-status"></div><div class="pd-announcement" aria-live="polite"></div>';
+  const help = `
     ${calcNote ? '<details class="pd-help calc-note"><summary></summary><p></p></details>' : ''}
     <details class="pd-help" ${ask ? 'hidden' : ''}><summary>주요 거래 가격대란?</summary><p>관측한 거래를 개당 가격순으로 놓고, 누적 수량이 25%와 75%에 도달하는 가격을 표시합니다. 가운데 50%에 해당하는 가격 구간이며 동일 가격에 거래가 몰리면 포함 수량은 더 많을 수 있습니다. 미래 가격의 예측 범위가 아닙니다. 거래 5건 미만은 표시 기준상 점만 남기며, 5건 이상이라고 통계적 신뢰성을 보장하지 않습니다.</p></details>
     <details class="pd-raw" ${legendary ? 'hidden' : ''}><summary>${ask ? '관측 최저·최고 호가와 횟수' : '고가·저가와 평균 확인'}</summary><p></p></details>
     <p class="hint">${ask ? '가격이 확인된 관측만 평균합니다. 빈 구간은 매물 없음과 수집 공백을 구분할 수 없어 연결하지 않습니다.' : '수집된 거래 수량은 전체 거래량의 일부입니다. API가 최근 거래를 최대 100건까지만 제공해 누락이 있을 수 있습니다. 빈 구간은 거래 관측이 없으며 무거래와 수집 공백을 구분할 수 없습니다. 원본이 불완전한 과거 구간은 분포를 표시하지 않습니다.'}</p>`;
+  root.innerHTML = chartBasis
+    ? `${toolbar}${plot}${readout}${status}
+      <details class="pd-chart-guide"><summary>차트 기준과 기간 변화</summary><p class="hint pd-basis"></p>
+      <p class="hint pd-extent"></p>${recording}${periodChangeHTML}${legend}${forecastNote}${help}</details>`
+    : `${toolbar}${recording}${periodChangeHTML}${readout}${legend}${forecastNote}${plot}${status}${help}`;
   const $ = s => root.querySelector(s);
+  if (chartBasis) $('.pd-basis').textContent = chartBasis;
   if(data.forecast) $('.pd-forecast-note').textContent = forecast
     ? `실험 예측 · 검증 중 | 요일 추가 ARIMA(1,1,0) · 학습 ${forecast.trainFrom}–${forecast.trainThrough} (21일). 점선은 오늘 추정과 내일부터 7일의 일평균 예상값입니다. 오늘 수집 중인 실제 가격에서 연결하지 않습니다. 과거 오차가 미래 성능을 보장하지 않습니다.`
     : data.forecast.reason ?? '최신 예측을 사용할 수 없습니다.';
@@ -122,7 +130,7 @@ export function renderPriceDistribution(root, data, events = [], calcNote = null
     const note = $('.calc-note');
     note.querySelector('summary').textContent = calcNote.summary;
     note.querySelector('p').textContent = calcNote.text;
-    note.open = typeof matchMedia === 'undefined' || !matchMedia('(max-width:600px)').matches; // 좁은 화면에서는 접어 둔다
+    note.open = !chartBasis && (typeof matchMedia === 'undefined' || !matchMedia('(max-width:600px)').matches);
   }
   // 선택한 기간이 아니라 해당 가격 기준의 전체 제공 이력에서 찾는다.
   const firstRecordedDate = data.daily.filter(row => (ask || mean ? row.vwap : row.median) > 0)
@@ -212,7 +220,7 @@ export function renderPriceDistribution(root, data, events = [], calcNote = null
     };
     const missing=rows.filter(r=>r.state==='missing').length, unavailable=rows.filter(r=>r.state==='unavailable').length;
     $('.pd-status').textContent=[missing?`관측 없음 ${missing}일`:'',unavailable?`분포 자료 없음 ${unavailable}일`:''].filter(Boolean).join(' · ');
-    const eventBox=$('.pd-events');eventBox.replaceChildren();
+    const eventBox=$('.pd-events');eventBox?.replaceChildren();
     const rail = $('.pd-event-rail');
     rail.replaceChildren();
     const lanes = [];
@@ -239,7 +247,7 @@ export function renderPriceDistribution(root, data, events = [], calcNote = null
       pin.setAttribute('aria-label', pin.title);
       pin.onclick = () => openEvent(row);
       rail.append(pin);
-      for (const event of dayEvents) {
+      for (const event of eventBox ? dayEvents : []) {
         const button = document.createElement('button');
         button.type = 'button';
         button.textContent = `${md(event.starts)} · ${event.name}`;

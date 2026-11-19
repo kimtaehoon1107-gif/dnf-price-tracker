@@ -27,17 +27,17 @@
 <!-- app.js가 정적으로 불러오는 모듈을 병렬로 미리 받는다. 안 하면 app.js를 받아 읽은 뒤에야 하위 모듈을 찾아 3단계로 이어진다.
      목록과 ?v= 값은 import 그래프와 같아야 한다. (scripts/test-module-preload.ts가 대조) -->
 <link rel="modulepreload" href="summary-data.js?v=20261010-ux-polish">
-<link rel="modulepreload" href="metrics.js?v=20260928-distribution">
-<link rel="modulepreload" href="price-distribution.js?v=20261111-event-dates">
+<link rel="modulepreload" href="metrics.js?v=20261118-price-context">
+<link rel="modulepreload" href="price-distribution.js?v=20261117-focus">
 <link rel="modulepreload" href="package.js?v=20261112-bunny">
 <!-- 글꼴 스타일시트는 첫 화면을 막지 않게 받는다(다 받으면 media를 all로 바꿔 적용). 외부 서버가 느려도 첫 화면이 기다리지 않는다. -->
 <link rel="stylesheet" href="pretendard-400-600.css?v=20261010-fonts" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="pretendard-400-600.css?v=20261010-fonts"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="style.css?v=20261103-event-study">
+<link rel="stylesheet" href="style.css?v=20261120-weekly">
 <link rel="stylesheet" href="research.css?v=20261010-ux-polish">
 <link rel="stylesheet" href="package.css?v=20261002-comparison">
-<link rel="stylesheet" href="price-distribution.css?v=20261111-event-dates">
+<link rel="stylesheet" href="price-distribution.css?v=20261117-focus">
 <link rel="stylesheet" href="chat.css?v=20261011-periods">
 
 <meta name="theme-color" content="#ffffff">
@@ -61,6 +61,7 @@
     <a class="brand" href="index.html">던파 경매장</a>
     <nav>
       <a href="index.html" class="on">시세</a>
+      <a href="weekly.html">주간 시황</a>
       <a href="ranking.html">TOP100</a>
       <a href="analysis.html">분석</a>
       <a href="research.html">실험</a>
@@ -71,6 +72,7 @@
       <summary>메뉴</summary>
       <nav aria-label="모바일 주 메뉴">
         <a href="index.html" class="on">시세</a>
+        <a href="weekly.html">주간 시황</a>
         <a href="ranking.html">TOP100</a>
         <a href="analysis.html">분석</a>
         <a href="research.html">실험</a>
@@ -102,7 +104,7 @@
 </footer>
 
 </div>
-<script type="module" src="app.js?v=20261112-bunny"></script>
+<script type="module" src="app.js?v=20261120-weekly"></script>
 <script type="module" src="chat.js?v=20261011-periods"></script>
 
 </body>

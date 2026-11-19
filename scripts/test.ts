@@ -25,6 +25,7 @@ import './test-sidebar.ts';
 import './test-research.ts';
 import './test-forecast-recording.ts';
 import './test-weekday-trend.ts';
+import './test-weekly-market.ts';
 import './test-package.ts';
 import './test-package-study.ts';
 import './test-package-study-input.ts';

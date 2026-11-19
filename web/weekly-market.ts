@@ -1,0 +1,49 @@
+type TradeItem = { item_id: string; item_name: string; category: string };
+type TradeDay = { d: string; vwap: number; qty: number };
+type Week = { start: string; end: string };
+const DAY = 86_400_000;
+const MIN_DAYS = 5;
+
+export function buildWeeklyMarket(
+  dataThrough: string,
+  items: readonly TradeItem[],
+  dailyBy: ReadonlyMap<string, readonly TradeDay[]>,
+) {
+  // Represent KST calendar dates at UTC midnight for date arithmetic only.
+  const dayKst = new Date(dataThrough).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+  const date = new Date(`${dayKst}T00:00:00Z`);
+  const monday = +date - ((date.getUTCDay() + 6) % 7) * DAY;
+  const dateAt = (days: number) => new Date(monday + days * DAY).toISOString().slice(0, 10);
+  const previousWeek = { start: dateAt(-14), end: dateAt(-8) };
+  const latestWeek = { start: dateAt(-7), end: dateAt(-1) };
+
+  const summarize = (days: readonly TradeDay[], week: Week) => {
+    const observed = days.filter(({ d, vwap, qty }) =>
+      d >= week.start && d <= week.end && vwap > 0 && qty > 0);
+    if (observed.length < MIN_DAYS) return null;
+    const qty = observed.reduce((sum, day) => sum + day.qty, 0);
+    const gold = observed.reduce((sum, day) => sum + day.vwap * day.qty, 0);
+    return { days: observed.length, qty, price: gold / qty };
+  };
+
+  const comparisons = items.flatMap(({ item_id, item_name, category }) => {
+    const days = dailyBy.get(item_id) ?? [];
+    const previous = summarize(days, previousWeek);
+    const latest = summarize(days, latestWeek);
+    if (!previous || !latest) return [];
+    const change = (latest.price / previous.price - 1) * 100;
+    const changePct = Number(change.toFixed(1));
+    return [{ id: item_id, name: item_name, category, previous, latest, changePct }];
+  }).sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct));
+
+  const changes = comparisons.map((row) => row.changePct).sort((a, b) => a - b);
+  const middle = Math.floor(changes.length / 2);
+  const medianChangePct = changes.length === 0 ? null
+    : changes.length % 2 === 1 ? changes[middle]
+    : (changes[middle - 1] + changes[middle]) / 2;
+
+  return {
+    dataThrough, previousWeek, latestWeek, minDays: MIN_DAYS, totalItems: items.length,
+    medianChangePct, comparisons,
+  };
+}
