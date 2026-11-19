@@ -865,7 +865,29 @@ h3.sub {
   line-height: 1.25;
   letter-spacing: -.035em;
 }
-.market-list-title { margin: 4px 0 18px; }
+.market-start { margin: 0 0 18px; }
+.market-start .market-list-title { margin: 4px 0 6px; }
+.market-start p { margin: 0 0 12px; color: var(--ink-2); }
+.market-actions { display: flex; gap: 8px 16px; flex-wrap: wrap; align-items: center; }
+.market-actions input {
+  flex: 1 1 240px;
+  max-width: 420px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
+}
+.market-actions input::placeholder { color: var(--ink-3); }
+.market-actions a { display: inline-flex; min-height: 44px; align-items: center; color: var(--blue); font-weight: 650; }
+.market-actions a:hover { text-decoration: underline; }
+.market-actions :is(a, input):focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.market-search-status { margin: 0 0 10px; color: var(--ink-2); }
+#market-items[hidden], #market-items .row[hidden] { display: none; }
 .panel h3 { font-size: 18px; line-height: 1.4; margin-bottom: 8px; }
 .panel-head h3 { margin-bottom: 0; }
 .panel .desc, .hint { font-size: 14px; line-height: 1.65; color: var(--ink-2); }

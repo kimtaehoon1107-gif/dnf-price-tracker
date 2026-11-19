@@ -351,6 +351,7 @@ function hourlyPriceSegments(points) {
 
 let DATA = null;
 let tab = '전체';
+let marketQuery = '';
 // 기본 정렬은 24h 거래대금. 변동률로 정렬하면 하루 한두 건 거래된 아이템의
 // 의미 없는 ±40%가 맨 위를 차지한다.
 let job = '전체';
@@ -623,7 +624,14 @@ function renderList() {
     });
 
   document.getElementById('view').innerHTML = `
-    <h2 class="market-list-title">경매장 시세</h2>
+    <section class="market-start" aria-labelledby="market-list-title">
+      <h2 class="market-list-title" id="market-list-title">경매장 시세</h2>
+      <p>품목을 선택하면 최근 거래가, 최저 매물가, 가격 차트를 볼 수 있어요.</p>
+      <div class="market-actions">
+        <input id="market-search" type="search" aria-label="현재 분류에서 품목 이름 검색" placeholder="품목 이름 검색" autocomplete="off" value="${esc(marketQuery)}">
+        <a href="weekly.html">지난주 시황 보기</a>
+      </div>
+    </section>
     ${categoryTabs(cats)}
     <details class="market-overview"><summary>시장 요약</summary>${summaryCards()}</details>
     ${tab === '카드' ? cardJobTabs() : ''}
@@ -632,7 +640,8 @@ function renderList() {
     ${weekdayTrendHTML()}
     ${tab === '실반 하모니 박스' ? `<p class="desc">실반 멜로디 카드와 선택한 개봉 보상 4종의 시세입니다. 실반 하모니 박스는 NPC 개봉 메뉴로, 별도 거래 가격이 없습니다. <a href="https://df.nexon.com/pg/forestbandpkg" target="_blank" rel="noopener">공식 안내 ↗</a></p>` : ''}
 
-    <div class="list">
+    <p class="market-search-status" id="market-search-status" role="status" hidden></p>
+    <div class="list" id="market-items">
       <div class="lh">
         <span class="r">#</span>
         <span data-k="item_name">아이템</span>
@@ -642,7 +651,7 @@ function renderList() {
         <span class="r h6">14일 추이</span>
         <span class="r h7" data-k="gap" title="현재 최저 판매가를 최근 24시간 평균 거래가와 비교한 값">24시간 평균<br>거래가 대비</span>
       </div>
-      ${lg && ['전체', '카드'].includes(tab) ? `<a class="row legendary-row" href="#legendary-card">
+      ${lg && ['전체', '카드'].includes(tab) ? `<a class="row legendary-row" data-market-name="레전더리 카드 재료 시세" href="#legendary-card">
         <div class="rank r">지수</div>
         <div class="nm"><div class="legendary-icon" aria-hidden="true">0업</div><div class="t">
           <b>레전더리 카드 재료 시세<span class="tag">0업</span></b>
@@ -664,7 +673,7 @@ function renderList() {
         const sub = isCard
           ? [r.job_role, shownStat, r.max_last_price ? `풀업 ${fmt(r.max_last_price)}` : null]
           : [r.item_rarity, shownStat, `${r.g}등급 · 표본 ${fmt(r.trades)}`];
-        return `<a class="row" href="#${r.item_id}">
+        return `<a class="row" data-market-name="${esc(r.item_name)}" href="#${r.item_id}">
           <div class="rank r">${i + 1}</div>
           <div class="nm">
             <img src="${r.img}" alt="" loading="lazy" width="32" height="32">
@@ -699,6 +708,26 @@ function renderList() {
       <b>카드</b>는 0업 최저 판매가만 표시하며 거래 등급을 매기지 않습니다.
       <b>종결</b>은 현재 기준 최상위 아이템이며, 패치로 교체되면 갱신됩니다.
     </p>`;
+
+  const search = document.getElementById('market-search');
+  const status = document.getElementById('market-search-status');
+  const list = document.getElementById('market-items');
+  const normalizeName = (name) => name.normalize('NFKC').toLowerCase().replace(/\s+/g, '');
+  const searchRows = [...list.querySelectorAll('[data-market-name]')];
+  const updateSearch = () => {
+    marketQuery = search.value;
+    const query = normalizeName(marketQuery);
+    let count = 0;
+    for (const row of searchRows) {
+      row.hidden = !normalizeName(row.dataset.marketName).includes(query);
+      if (!row.hidden) count += 1;
+    }
+    list.hidden = Boolean(query) && count === 0;
+    status.hidden = !query;
+    status.textContent = count ? `검색 결과 ${count}개` : '일치하는 품목이 없어요. 이름이나 분류를 바꿔 보세요.';
+  };
+  search.addEventListener('input', updateSearch);
+  updateSearch();
 
   bindWeekdayTrend();
   document.querySelectorAll('.tab').forEach((el) => {

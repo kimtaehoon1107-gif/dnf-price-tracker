@@ -24,6 +24,7 @@ import { splitSeries, askGapPath } from '../src/series-split.ts';
 import { gameDayTurnover } from '../src/build-game-day-turnover.ts';
 import { loadPackageStudyInput } from '../src/package-study-input.ts';
 import { eventStudyForItem } from '../src/event-study-export.ts';
+import { buildWeeklyMarket } from './weekly-market.ts';
 
 const hourlyEventReport = JSON.parse(readFileSync('docs/evidence/d-note-20261103/results.json', 'utf8'));
 
@@ -308,6 +309,8 @@ const byItem = <T extends { item_id: string }>(rows: T[]) => {
   return m;
 };
 const dailyBy = byItem(daily);
+const weeklyMarket = buildWeeklyMarket(quality.through, items.filter((it) => it.price_basis === 'trade'), dailyBy);
+writeFileSync(`${OUT}/data/weekly-market.json`, JSON.stringify(weeklyMarket));
 const hourlyBy = byItem(hourly);
 // R2 복원·중복 제거를 마친 임시 DB의 집계만 내보낸다. Supabase 추가 조회는 없다.
 const distributions = process.env.BUILD_DATABASE_URL ? (await query(`
@@ -677,7 +680,7 @@ writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
 
 for (const f of ['index.html', 'ranking.html', 'analysis.html', 'guide.html', 'feedback.html', 'feedback.js', 'feedback.css', 'chat.js', 'chat.css', 'summary-data.js', 'favicon.svg', 'og-image.png', 'pretendard-400-600.css', 'app.js', 'price-distribution.js', 'price-distribution.css', 'sidebar.js', 'sidebar.css', 'sidebar-model.js', 'update-calendar.json', 'metrics.js', 'ranking.js', 'style.css', 'research.html', 'research.js', 'research-ui.js', 'research.css', 'package.js', 'package.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
 writeFileSync(`${OUT}/.nojekyll`, '');
-for (const f of ['seasonal.html','seasonal.js','seasonal.css','forecast-review.js','forecast-review-model.js','forecast-review.css','forecast-review.json']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
+for (const f of ['seasonal.html','seasonal.js','seasonal.css','forecast-review.js','forecast-review-model.js','forecast-review.css','forecast-review.json','weekly.html','weekly.js','weekly.css']) copyFileSync(`web/${f}`, `${OUT}/${f}`);
 
 console.log('[history-cache] 합계', JSON.stringify(historyCache.stats));
 console.log(`빌드 완료 — ${items.length}종 · 체결 ${meta.trades.toLocaleString()}건 · 일봉 ${daily.length}행 · 예측 ${forecasts.size}종 · 범위 ${bands.size}종`);
