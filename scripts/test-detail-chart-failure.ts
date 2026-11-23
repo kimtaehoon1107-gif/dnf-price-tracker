@@ -9,15 +9,17 @@ const node = (id) => {
   if (!nodes.has(id)) nodes.set(id, { innerHTML: '', textContent: '', style: {}, append() {} });
   return nodes.get(id);
 };
-let scriptStarted = false, distributionRendered = false;
+let scriptStarted = false, distributionRendered = false, failSeries = false;
+const seriesPanel = { hidden: false };
 const days = Array.from({length: 14}, (_, i) => ({
   d: new Date(Date.UTC(2026, 8, 23 + i)).toISOString().slice(0, 10), vwap: 120,
 }));
-const context = vm.createContext({ console, Date, window: {}, location: {hash:'#sample'},
+const context = vm.createContext({ console: { ...console, error() {} }, Date, window: {}, location: {hash:'#sample'},
   getComputedStyle: () => ({getPropertyValue: () => '#333333'}),
-  document: {documentElement: {}, getElementById: node, querySelectorAll: () => [],
+  document: {documentElement: {}, getElementById: node, querySelectorAll: (selector) => selector === '[data-detail-series]' ? [seriesPanel] : [],
     createElement: () => ({remove() {}}), head: {append(script) {scriptStarted = true; script.onerror();}}},
   fetch: async () => { await Promise.resolve(); assert(scriptStarted, 'chart request starts before series finishes');
+    if (failSeries) return { ok: false, status: 503 };
     return {ok:true,json:async()=>({daily:days,completeBefore:'2026-10-06',depth:[],hourly:[],stock:[{t:'2026-10-06T00:00:00Z',qty:10,listings:2}],askGap:[{t:'2026-10-06T00:00:00Z',gap:1}],events:[]})}; }
 });
 const source = readFileSync('web/app.js','utf8');
@@ -31,7 +33,8 @@ await module.link(name => {
  return new vm.SyntheticModule(Object.keys(exports),function(){for(const [key,value] of Object.entries(exports))this.setExport(key,value)},{context});
 });
 await module.evaluate(); module.namespace.fixture();
-await module.namespace.renderDetail({item_id:'sample',item_name:'테스트',category:'소울 결정',price_basis:'trade',vwap24:100,span_days:30,last_price:90,last_trade_at:'2026-10-06T06:30:00Z'});
+const item = {item_id:'sample',item_name:'테스트',category:'소울 결정',price_basis:'trade',vwap24:100,span_days:30,last_price:90,last_trade_at:'2026-10-06T06:30:00Z'};
+await module.namespace.renderDetail(item);
 assert(distributionRendered);
 assert.match(node('depth').innerHTML,/현재 열린 매물이 없습니다/);
 assert.match(node('price-position').innerHTML,/현재 13일/, '집계 완료 전 날짜를 가격 비교에 포함하지 않는다');
@@ -40,4 +43,9 @@ assert.match(node('view').innerHTML,/최근 1시간 거래 관측 없음<br>마�
 assert.match(node('stock-chart').innerHTML,/차트를 불러오지 못했습니다/);
 assert.match(node('c4').innerHTML,/차트를 불러오지 못했습니다/);
 assert.match(node('view').innerHTML,/구매 수량별 매물 가격/);
-console.log('차트 요청 병렬 시작·CDN 실패 시 독립 정보 유지 통과');
+failSeries = true;
+await module.namespace.renderDetail(item);
+assert.match(node('price-panel').innerHTML,/가격 추이를 불러오지 못했습니다/);
+assert.match(node('view').innerHTML,/마지막 거래가/);
+assert.equal(seriesPanel.hidden, true);
+console.log('차트 요청 병렬 시작·CDN 및 시계열 요청 실패 시 가격 정보 유지 통과');

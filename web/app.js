@@ -1059,7 +1059,7 @@ async function renderDetail(it) {
 
     ${isZeroCard ? upgradeEconomicsHTML(baseItem) : ''}
 
-    <div class="panel" id="stock-panel">
+    <div class="panel" id="stock-panel" data-detail-series>
       <h3>최근 7일 · ${isZeroCard ? `${cardTier} ` : ''}가격과 판매 중인 수량</h3>
       <p class="desc">${isZeroCard ? '선택한 단계의 시간별 평균 최저 판매가와' : '시간별 평균 거래가와'} 각 시간의 마지막 판매 중인 수량을 같은 시간축에서 비교합니다. 현재 시간은 수집 중입니다.</p>
       <div class="kv depth-kv" id="stock-kv"></div>
@@ -1067,17 +1067,17 @@ async function renderDetail(it) {
       <div class="chart" id="stock-chart"></div>
       <p class="hint">빈 구간은 해당 자료가 없는 시간이며 0개와 구분합니다. 잔량은 신규 등록량이나 거래량이 아닙니다. 가격과 잔량의 동시 변화만으로 원인을 확정할 수는 없습니다.<br>매물 API는 최대 400건을 반환하므로 전체 물량보다 적을 수 있습니다.${isZeroCard ? ' 카드 단계는 같은 응답 안에서 구분합니다.' : ''}</p>
     </div>
-    ${isZeroCard ? '' : `<div class="panel">
+    ${isZeroCard ? '' : `<div class="panel" data-detail-series>
       <h3>24시간 평균 거래가 대비</h3>
       <p class="desc">각 관측 시점의 최저 판매가를 직전 24시간 평균 거래가와 비교합니다. 양수면 현재 최저 판매가가 최근 24시간 평균 거래가보다 높고, 음수면 낮습니다. 두 가격의 차이일 뿐이며, 이것만으로 매수 시점이나 다음 가격 방향을 판단할 수는 없습니다.</p>
       <div class="chart" id="c4"></div>
     </div>`}
-    ${hasDepth ? `<div class="panel">
+    ${hasDepth ? `<div class="panel" data-detail-series>
       <h3>구매 수량별 매물 가격</h3>
       <p class="desc">확인된 매물을 개당 가격이 싼 순서로 더합니다. 선은 각 구간의 개당 판매가이며, 구매 평균가는 아래 숫자로 확인합니다. 관측 이후 판매·취소될 수 있습니다.</p>
       <div id="depth">불러오는 중…</div>
     </div>` : ''}
-    ${isZeroCard ? '' : `<div class="panel" id="weekday-panel">
+    ${isZeroCard ? '' : `<div class="panel" id="weekday-panel" data-detail-series>
       <h3>요일별 가격 흐름</h3>
       <p class="desc" id="weekday-desc">완료된 일봉을 분석하는 중…</p>
       <div id="weekday-profile"></div>
@@ -1098,9 +1098,19 @@ async function renderDetail(it) {
     };
   });
 
-  const response = await fetchSeries(it.item_id);
-  if (!response.ok) throw new Error(`시계열 데이터 HTTP ${response.status}`);
-  const rawSeries = await response.json();
+  let rawSeries;
+  try {
+    const response = await fetchSeries(it.item_id);
+    if (!response.ok) throw new Error(`시계열 데이터 HTTP ${response.status}`);
+    rawSeries = await response.json();
+  } catch (error) {
+    if (location.hash.slice(1) !== it.item_id || cardMode !== (showingMax ? 'max' : 'zero')) return;
+    document.getElementById('price-panel').innerHTML =
+      '<p role="status">가격 추이를 불러오지 못했습니다. 위에서 거래가와 매물가를 확인할 수 있어요. 차트를 보려면 잠시 뒤 새로고침해 주세요.</p>';
+    document.querySelectorAll('[data-detail-series]').forEach((panel) => { panel.hidden = true; });
+    console.error(error);
+    return;
+  }
   const s = showingMax
     ? { ...rawSeries, ...rawSeries.max, stock: rawSeries.max?.stock ?? [], events: rawSeries.events ?? [], askGap: [] }
     : rawSeries;
