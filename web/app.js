@@ -483,7 +483,7 @@ function render() {
       if (location.hash.slice(1) !== id) return;
       console.error(error);
       document.getElementById('view').innerHTML = `
-        <a class="back" href="#">← 전체 목록</a>
+        <a class="back" href="#">← 시세 목록</a>
         <div class="panel"><h3>시계열 데이터를 불러오지 못했습니다</h3>
         <p class="desc">잠시 뒤 다시 시도해 주세요.</p></div>`;
     });
@@ -685,7 +685,7 @@ function renderList() {
           <div class="px">${isCard
             ? `<b title="0업 최저 판매가">${r.display_price === null ? '-' : fmt(r.display_price)}</b>${r.display_price === null ? '<small class="flat">매물 없음</small>' : ''}`
             : r.vwap1h == null
-              ? `<b class="flat nov" title="최근 1시간 관측 거래이 없어 평균을 표시하지 않습니다">최근 1시간 거래 없음</b>
+              ? `<b class="flat nov" title="최근 1시간 관측 거래가 없어 평균을 표시하지 않습니다">최근 1시간 거래 없음</b>
                  <small class="flat" title="${priceTime(r.last_trade_at)} KST">최근 ${r.last_trade_at ? `${fmt(r.last_price)}${clockTag(r.last_trade_at)}` : '-'}</small>`
               : `<b title="최근 1시간 거래 ${fmt(r.trades1h)}건 · 수량 ${fmt(r.api_qty1h)}개로 계산">${fmt(r.display_price)}</b>
                  <small class="flat" title="${priceTime(r.last_trade_at)} KST">거래 ${fmt(r.last_price)}${clockTag(r.last_trade_at)}</small>`}
@@ -866,19 +866,19 @@ const bySecond = (rows, key) =>
 async function renderLegendary() {
   const chartReady = Promise.resolve().then(loadChartLibrary).then(() => true, () => false);
   const view = document.getElementById('view');
-  view.innerHTML = '<a class="back" href="#">← 전체 목록</a><div class="panel">레전더리 카드 시세를 불러오는 중…</div>';
+  view.innerHTML = '<a class="back" href="#">← 시세 목록</a><div class="panel">레전더리 카드 시세를 불러오는 중…</div>';
   const response = await fetch('data/legendary.json', { cache: 'no-cache' });
   if (!response.ok) throw new Error(`레전더리 시계열 HTTP ${response.status}`);
   const data = await response.json();
   if (location.hash.slice(1) !== 'legendary-card') return;
   const latest = data.hourly.at(-1);
   if (!latest) {
-    view.innerHTML = '<a class="back" href="#">← 전체 목록</a><div class="panel"><h3>레전더리 카드 재료 시세 · 0업</h3><p>0업 가격 관측 기록이 아직 없습니다.</p></div>';
+    view.innerHTML = '<a class="back" href="#">← 시세 목록</a><div class="panel"><h3>레전더리 카드 재료 시세 · 0업</h3><p>0업 가격 관측 기록이 아직 없습니다.</p></div>';
     return;
   }
   const weekday = data.weekday;
   view.innerHTML = `
-    <a class="back" href="#">← 전체 목록</a>
+    <a class="back" href="#">← 시세 목록</a>
     <div class="dh"><div class="legendary-icon" aria-hidden="true">0업</div><div>
       <h2>레전더리 카드 재료 시세<span class="tag">0업</span></h2>
       <div class="meta">강화·합성 재료의 저가 매물 기준 · ${latest.scanned}종 대상</div>
@@ -989,8 +989,10 @@ async function renderDetail(it) {
       chg: it.max_chg,
     };
   }
+  const latestTrade = !isZeroCard && it.vwap1h == null && it.last_trade_at && it.last_price > 0;
+  const headlinePrice = latestTrade ? it.last_price : representativePrice(it);
   document.getElementById('view').innerHTML = `
-    <a class="back" href="#">← 전체 목록</a>
+    <a class="back" href="#">← 시세 목록</a>
     <section class="detail-overview" aria-label="현재 시세 요약">
     <div class="dh">
       <img src="${it.img}" alt="" width="48" height="48">
@@ -1006,10 +1008,10 @@ async function renderDetail(it) {
     </div>` : ''}
     <div class="detail-price-quotes${isZeroCard ? ' single' : ''}">
       <div>
-        <div class="price-meta">${isZeroCard ? `${cardTier} 최저 매물가` : '최근 1시간 평균 거래가'}</div>
-        <div class="bigpx">${fmt(representativePrice(it))}${representativePrice(it) == null ? '' : '<small>골드</small>'}</div>
+        <div class="price-meta">${isZeroCard ? `${cardTier} 최저 매물가` : latestTrade ? '마지막 거래가' : '최근 1시간 평균 거래가'}</div>
+        <div class="bigpx">${fmt(headlinePrice)}${headlinePrice == null ? '' : '<small>골드</small>'}</div>
         ${isZeroCard && representativePrice(it) == null ? `<div class="price-meta">${it.listings === 0 ? '현재 확인된 매물 없음' : '현재 판매가 기록 없음'}</div>` : ''}
-        ${!isZeroCard && it.vwap1h == null ? '<div class="price-meta">최근 1시간 거래 관측 없음</div>' : ''}
+        ${!isZeroCard && it.vwap1h == null ? `<div class="price-meta">최근 1시간 거래 관측 없음${latestTrade ? `<br>마지막 거래 ${priceTime(it.last_trade_at)} KST` : ''}</div>` : ''}
         ${it.chg != null ? `<div class="bigchg ${cls(it.chg)}">${pct(it.chg)} <span>24시간 평균 변동</span></div>` : ''}
       </div>
       ${isZeroCard ? '' : `<div class="detail-lowest-ask">
@@ -1168,8 +1170,9 @@ async function renderDetail(it) {
   const d = s.daily ?? [];
   const positionEl = document.getElementById('price-position');
   if (positionEl) {
-    const today = new Date(DATA.builtAt).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
-    const pos = pricePosition(d, it.vwap24, today);
+    const completeBefore = s.completeBefore
+      ?? new Date(DATA.priceAsOf ?? DATA.builtAt).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+    const pos = pricePosition(d, it.vwap24, completeBefore);
     const comparison = pos.ready && (pos.same === pos.days
       ? '모든 날의 하루 평균가와 같아요.'
       : pos.above >= pos.below

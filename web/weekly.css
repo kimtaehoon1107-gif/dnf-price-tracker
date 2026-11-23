@@ -18,7 +18,8 @@
 .weekly-movers section { padding: 14px 18px; }
 .weekly-movers h2 { margin: 0; font-size: 1rem; }
 .weekly-movers ul { padding: 0; margin: 4px 0 0; list-style: none; }
-.weekly-movers li { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
+.weekly-movers li { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 52px; padding: 6px 0; }
+.weekly-movers li small { display: block; color: var(--ink-3); font-size: .8125rem; }
 .weekly-movers li + li { border-top: 1px solid var(--line); }
 .weekly a { text-decoration: underline; text-underline-offset: 3px; }
 .weekly :is(a, summary):focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
@@ -30,10 +31,6 @@
 .weekly thead th { font-size: .875rem; }
 .weekly th small, .weekly td small { display: block; font-size: .8125rem; color: var(--ink-3); }
 .weekly-method p { color: var(--ink-2); margin: 0 0 12px; }
-.weekly-mobile-link { display: none; }
-@media (max-width: 780px) {
-  .weekly-mobile-link { display: inline-flex; min-height: 44px; align-items: center; color: var(--blue); }
-}
 @media (max-width: 540px) {
   .weekly-movers:not([hidden]) { grid-template-columns: 1fr; }
   .weekly-details { padding: 0 10px; }
