@@ -483,7 +483,7 @@ function render() {
       if (location.hash.slice(1) !== id) return;
       console.error(error);
       document.getElementById('view').innerHTML = `
-        <a class="back" href="#">← 전체 목록</a>
+        <a class="back" href="#">← 시세 목록</a>
         <div class="panel"><h3>시계열 데이터를 불러오지 못했습니다</h3>
         <p class="desc">잠시 뒤 다시 시도해 주세요.</p></div>`;
     });
@@ -685,7 +685,7 @@ function renderList() {
           <div class="px">${isCard
             ? `<b title="0업 최저 판매가">${r.display_price === null ? '-' : fmt(r.display_price)}</b>${r.display_price === null ? '<small class="flat">매물 없음</small>' : ''}`
             : r.vwap1h == null
-              ? `<b class="flat nov" title="최근 1시간 관측 거래이 없어 평균을 표시하지 않습니다">최근 1시간 거래 없음</b>
+              ? `<b class="flat nov" title="최근 1시간 관측 거래가 없어 평균을 표시하지 않습니다">최근 1시간 거래 없음</b>
                  <small class="flat" title="${priceTime(r.last_trade_at)} KST">최근 ${r.last_trade_at ? `${fmt(r.last_price)}${clockTag(r.last_trade_at)}` : '-'}</small>`
               : `<b title="최근 1시간 거래 ${fmt(r.trades1h)}건 · 수량 ${fmt(r.api_qty1h)}개로 계산">${fmt(r.display_price)}</b>
                  <small class="flat" title="${priceTime(r.last_trade_at)} KST">거래 ${fmt(r.last_price)}${clockTag(r.last_trade_at)}</small>`}
@@ -866,19 +866,19 @@ const bySecond = (rows, key) =>
 async function renderLegendary() {
   const chartReady = Promise.resolve().then(loadChartLibrary).then(() => true, () => false);
   const view = document.getElementById('view');
-  view.innerHTML = '<a class="back" href="#">← 전체 목록</a><div class="panel">레전더리 카드 시세를 불러오는 중…</div>';
+  view.innerHTML = '<a class="back" href="#">← 시세 목록</a><div class="panel">레전더리 카드 시세를 불러오는 중…</div>';
   const response = await fetch('data/legendary.json', { cache: 'no-cache' });
   if (!response.ok) throw new Error(`레전더리 시계열 HTTP ${response.status}`);
   const data = await response.json();
   if (location.hash.slice(1) !== 'legendary-card') return;
   const latest = data.hourly.at(-1);
   if (!latest) {
-    view.innerHTML = '<a class="back" href="#">← 전체 목록</a><div class="panel"><h3>레전더리 카드 재료 시세 · 0업</h3><p>0업 가격 관측 기록이 아직 없습니다.</p></div>';
+    view.innerHTML = '<a class="back" href="#">← 시세 목록</a><div class="panel"><h3>레전더리 카드 재료 시세 · 0업</h3><p>0업 가격 관측 기록이 아직 없습니다.</p></div>';
     return;
   }
   const weekday = data.weekday;
   view.innerHTML = `
-    <a class="back" href="#">← 전체 목록</a>
+    <a class="back" href="#">← 시세 목록</a>
     <div class="dh"><div class="legendary-icon" aria-hidden="true">0업</div><div>
       <h2>레전더리 카드 재료 시세<span class="tag">0업</span></h2>
       <div class="meta">강화·합성 재료의 저가 매물 기준 · ${latest.scanned}종 대상</div>
@@ -989,8 +989,10 @@ async function renderDetail(it) {
       chg: it.max_chg,
     };
   }
+  const latestTrade = !isZeroCard && it.vwap1h == null && it.last_trade_at && it.last_price > 0;
+  const headlinePrice = latestTrade ? it.last_price : representativePrice(it);
   document.getElementById('view').innerHTML = `
-    <a class="back" href="#">← 전체 목록</a>
+    <a class="back" href="#">← 시세 목록</a>
     <section class="detail-overview" aria-label="현재 시세 요약">
     <div class="dh">
       <img src="${it.img}" alt="" width="48" height="48">
@@ -1006,10 +1008,10 @@ async function renderDetail(it) {
     </div>` : ''}
     <div class="detail-price-quotes${isZeroCard ? ' single' : ''}">
       <div>
-        <div class="price-meta">${isZeroCard ? `${cardTier} 최저 매물가` : '최근 1시간 평균 거래가'}</div>
-        <div class="bigpx">${fmt(representativePrice(it))}${representativePrice(it) == null ? '' : '<small>골드</small>'}</div>
+        <div class="price-meta">${isZeroCard ? `${cardTier} 최저 매물가` : latestTrade ? '마지막 거래가' : '최근 1시간 평균 거래가'}</div>
+        <div class="bigpx">${fmt(headlinePrice)}${headlinePrice == null ? '' : '<small>골드</small>'}</div>
         ${isZeroCard && representativePrice(it) == null ? `<div class="price-meta">${it.listings === 0 ? '현재 확인된 매물 없음' : '현재 판매가 기록 없음'}</div>` : ''}
-        ${!isZeroCard && it.vwap1h == null ? '<div class="price-meta">최근 1시간 거래 관측 없음</div>' : ''}
+        ${!isZeroCard && it.vwap1h == null ? `<div class="price-meta">최근 1시간 거래 관측 없음${latestTrade ? `<br>마지막 거래 ${priceTime(it.last_trade_at)} KST` : ''}</div>` : ''}
         ${it.chg != null ? `<div class="bigchg ${cls(it.chg)}">${pct(it.chg)} <span>24시간 평균 변동</span></div>` : ''}
       </div>
       ${isZeroCard ? '' : `<div class="detail-lowest-ask">
@@ -1057,7 +1059,7 @@ async function renderDetail(it) {
 
     ${isZeroCard ? upgradeEconomicsHTML(baseItem) : ''}
 
-    <div class="panel" id="stock-panel">
+    <div class="panel" id="stock-panel" data-detail-series>
       <h3>최근 7일 · ${isZeroCard ? `${cardTier} ` : ''}가격과 판매 중인 수량</h3>
       <p class="desc">${isZeroCard ? '선택한 단계의 시간별 평균 최저 판매가와' : '시간별 평균 거래가와'} 각 시간의 마지막 판매 중인 수량을 같은 시간축에서 비교합니다. 현재 시간은 수집 중입니다.</p>
       <div class="kv depth-kv" id="stock-kv"></div>
@@ -1065,17 +1067,17 @@ async function renderDetail(it) {
       <div class="chart" id="stock-chart"></div>
       <p class="hint">빈 구간은 해당 자료가 없는 시간이며 0개와 구분합니다. 잔량은 신규 등록량이나 거래량이 아닙니다. 가격과 잔량의 동시 변화만으로 원인을 확정할 수는 없습니다.<br>매물 API는 최대 400건을 반환하므로 전체 물량보다 적을 수 있습니다.${isZeroCard ? ' 카드 단계는 같은 응답 안에서 구분합니다.' : ''}</p>
     </div>
-    ${isZeroCard ? '' : `<div class="panel">
+    ${isZeroCard ? '' : `<div class="panel" data-detail-series>
       <h3>24시간 평균 거래가 대비</h3>
       <p class="desc">각 관측 시점의 최저 판매가를 직전 24시간 평균 거래가와 비교합니다. 양수면 현재 최저 판매가가 최근 24시간 평균 거래가보다 높고, 음수면 낮습니다. 두 가격의 차이일 뿐이며, 이것만으로 매수 시점이나 다음 가격 방향을 판단할 수는 없습니다.</p>
       <div class="chart" id="c4"></div>
     </div>`}
-    ${hasDepth ? `<div class="panel">
+    ${hasDepth ? `<div class="panel" data-detail-series>
       <h3>구매 수량별 매물 가격</h3>
       <p class="desc">확인된 매물을 개당 가격이 싼 순서로 더합니다. 선은 각 구간의 개당 판매가이며, 구매 평균가는 아래 숫자로 확인합니다. 관측 이후 판매·취소될 수 있습니다.</p>
       <div id="depth">불러오는 중…</div>
     </div>` : ''}
-    ${isZeroCard ? '' : `<div class="panel" id="weekday-panel">
+    ${isZeroCard ? '' : `<div class="panel" id="weekday-panel" data-detail-series>
       <h3>요일별 가격 흐름</h3>
       <p class="desc" id="weekday-desc">완료된 일봉을 분석하는 중…</p>
       <div id="weekday-profile"></div>
@@ -1096,9 +1098,19 @@ async function renderDetail(it) {
     };
   });
 
-  const response = await fetchSeries(it.item_id);
-  if (!response.ok) throw new Error(`시계열 데이터 HTTP ${response.status}`);
-  const rawSeries = await response.json();
+  let rawSeries;
+  try {
+    const response = await fetchSeries(it.item_id);
+    if (!response.ok) throw new Error(`시계열 데이터 HTTP ${response.status}`);
+    rawSeries = await response.json();
+  } catch (error) {
+    if (location.hash.slice(1) !== it.item_id || cardMode !== (showingMax ? 'max' : 'zero')) return;
+    document.getElementById('price-panel').innerHTML =
+      '<p role="status">가격 추이를 불러오지 못했습니다. 위에서 거래가와 매물가를 확인할 수 있어요. 차트를 보려면 잠시 뒤 새로고침해 주세요.</p>';
+    document.querySelectorAll('[data-detail-series]').forEach((panel) => { panel.hidden = true; });
+    console.error(error);
+    return;
+  }
   const s = showingMax
     ? { ...rawSeries, ...rawSeries.max, stock: rawSeries.max?.stock ?? [], events: rawSeries.events ?? [], askGap: [] }
     : rawSeries;
@@ -1168,8 +1180,9 @@ async function renderDetail(it) {
   const d = s.daily ?? [];
   const positionEl = document.getElementById('price-position');
   if (positionEl) {
-    const today = new Date(DATA.builtAt).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
-    const pos = pricePosition(d, it.vwap24, today);
+    const completeBefore = s.completeBefore
+      ?? new Date(DATA.priceAsOf ?? DATA.builtAt).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+    const pos = pricePosition(d, it.vwap24, completeBefore);
     const comparison = pos.ready && (pos.same === pos.days
       ? '모든 날의 하루 평균가와 같아요.'
       : pos.above >= pos.below

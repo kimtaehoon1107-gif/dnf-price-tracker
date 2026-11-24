@@ -66,7 +66,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ${{ github.ref == 'refs/heads/main' && 'github-pages' || 'build-preview' }}
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deploy_retry.outputs.page_url || steps.deploy.outputs.page_url }}
     services:
       postgres:
         image: postgres:17
@@ -178,14 +178,25 @@ jobs:
         run: node --no-warnings scripts/package-study.ts
 
       - uses: actions/configure-pages@v5
+        if: github.ref == 'refs/heads/main'
       - uses: actions/upload-pages-artifact@v3
+        if: github.ref == 'refs/heads/main'
         with:
           path: dist
       - id: deploy
         if: github.ref == 'refs/heads/main'
+        continue-on-error: true
         uses: actions/deploy-pages@v4
-        with:
-          timeout: 1200000
+      # 업로드 직후 GitHub가 배포 파일을 찾지 못할 수 있다. 배포 URL을 받기 전의 실패만 같은 파일로 재시도한다.
+      - name: Pages 재시도 대기
+        if: steps.deploy.outcome == 'failure' && steps.deploy.outputs.page_url == ''
+        run: sleep 10
+      - id: deploy_retry
+        if: steps.deploy.outcome == 'failure' && steps.deploy.outputs.page_url == ''
+        uses: actions/deploy-pages@v4
+      - name: 생성된 Pages 배포 실패 반영
+        if: steps.deploy.outcome == 'failure' && steps.deploy.outputs.page_url != ''
+        run: exit 1
       - uses: actions/upload-artifact@v4
         if: github.ref != 'refs/heads/main'
         with:

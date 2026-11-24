@@ -24,7 +24,11 @@ function showMovers(id, rows) {
     const change = document.createElement('strong');
     change.textContent = changeText(item.changePct);
     change.className = direction(item.changePct);
-    row.append(itemLink(item), change);
+    const name = document.createElement('span');
+    const coverage = document.createElement('small');
+    coverage.textContent = `관측 수량 ${format.format(item.latest.qty)}개 · ${item.latest.days}일`;
+    name.append(itemLink(item), coverage);
+    row.append(name, change);
     list.append(row);
   }
 }
@@ -36,14 +40,14 @@ function showReport(report) {
   const unchanged = comparisons.length - up.length - down.length;
   const mid = medianChangePct === null ? null : Number(medianChangePct.toFixed(1));
 
-  $('weekly-dates').textContent = `지난주 ${range(latestWeek)} · 그 전주 ${range(previousWeek)} (KST)`;
+  $('weekly-dates').textContent = `비교 주간 ${range(latestWeek)} · 그 전주 ${range(previousWeek)} (KST)`;
   $('weekly-headline').textContent = mid === null ? '두 주를 비교할 수 있는 품목이 아직 없어요'
     : up.length > down.length ? '평균 거래가가 오른 품목이 더 많았어요'
     : down.length > up.length ? '평균 거래가가 내린 품목이 더 많았어요'
     : up.length === 0 ? '가격 변동률이 모두 0.0%였어요'
     : '오른 품목과 내린 품목 수가 같았어요';
   $('weekly-breadth').textContent = comparisons.length
-    ? `${comparisons.length}종 중 ${up.length}종 상승 · ${down.length}종 하락 · ${unchanged}종 0.0%. 품목별 등락률의 가운데 값은 ${changeText(mid)}예요.`
+    ? `체결 품목 ${report.totalItems}종 중 ${comparisons.length}종을 비교했어요. ${up.length}종 상승 · ${down.length}종 하락 · ${unchanged}종 보합. 등락률의 가운데 값은 ${changeText(mid)}예요.`
     : `각 주에 거래가 확인된 날이 ${report.minDays}일 이상인 품목이 있으면 표시됩니다.`;
   $('weekly-coverage').textContent =
     `월요일 0시부터 일요일까지를 한 주로 봅니다. 추적 중인 체결 품목 ${report.totalItems}종 중 각 주에 거래가 관측된 날이 ${report.minDays}일 이상인 품목만 비교했습니다.`;
@@ -62,7 +66,7 @@ function showReport(report) {
       const price = row.insertCell();
       price.textContent = format.format(item.latest.price);
       const previousPrice = document.createElement('small');
-      previousPrice.textContent = `전주 ${format.format(item.previous.price)}`;
+      previousPrice.textContent = `그 전주 ${format.format(item.previous.price)}`;
       price.append(previousPrice);
       const change = row.insertCell();
       change.textContent = changeText(item.changePct);
@@ -70,7 +74,7 @@ function showReport(report) {
       const volume = row.insertCell();
       volume.textContent = `${format.format(item.latest.qty)} (${item.latest.days}일)`;
       const previousVolume = document.createElement('small');
-      previousVolume.textContent = `전주 ${format.format(item.previous.qty)} (${item.previous.days}일)`;
+      previousVolume.textContent = `그 전주 ${format.format(item.previous.qty)} (${item.previous.days}일)`;
       volume.append(previousVolume);
     }
     $('weekly-movers').hidden = false;
