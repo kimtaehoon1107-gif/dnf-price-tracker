@@ -24,7 +24,7 @@ import { splitSeries, askGapPath } from '../src/series-split.ts';
 import { gameDayTurnover } from '../src/build-game-day-turnover.ts';
 import { loadPackageStudyInput } from '../src/package-study-input.ts';
 import { eventStudyForItem } from '../src/event-study-export.ts';
-import { buildWeeklyMarket } from './weekly-market.ts';
+import { buildWeeklyMarket, buildWeeklyHistory } from './weekly-market.ts';
 
 const hourlyEventReport = JSON.parse(readFileSync('docs/evidence/d-note-20261103/results.json', 'utf8'));
 
@@ -68,6 +68,7 @@ const items = (await query<{
   last_trade_at: Date | null; vwap1h: number | null; trades1h: number; api_qty1h: number;
   vwap24: number | null; vwap_prev: number | null; api_qty24: number;
   listings: number; min_ask: number | null; median_ask: number | null;
+  ask_observed_at: Date | null; ask_qty: number | null; max_ask_observed_at: Date | null;
   max_upgrade: number | null; max_trades: number; max_span_days: number;
   max_last_price: number | null; max_vwap24: number | null; max_vwap_prev: number | null;
   max_listings: number; max_min_ask: number | null; max_median_ask: number | null;
@@ -111,14 +112,14 @@ const items = (await query<{
     GROUP BY s.item_id
   ),
   last_snap AS (
-    SELECT DISTINCT ON (s.item_id) s.item_id, s.listing_count, s.min_unit_price, s.median
+    SELECT DISTINCT ON (s.item_id) s.item_id, s.listing_count, s.min_unit_price, s.median, s.captured_at, s.total_qty
     FROM listing_snapshots s JOIN items i USING (item_id)
     WHERE i.category <> '카드' OR s.upgrade = 0
     ORDER BY s.item_id, s.captured_at DESC
   ),
   last_max_snap AS (
     SELECT DISTINCT ON (s.item_id) s.item_id, s.upgrade, s.upgrade_max,
-           s.listing_count, s.min_unit_price, s.median
+           s.listing_count, s.min_unit_price, s.median, s.captured_at
     FROM listing_snapshots s JOIN items i USING (item_id)
     WHERE i.category = '카드' AND s.upgrade > 0 AND s.upgrade = s.upgrade_max
     ORDER BY s.item_id, s.captured_at DESC
@@ -148,12 +149,14 @@ const items = (await query<{
          a.vwap24, a.vwap_prev, COALESCE(a.api_qty24,0) AS api_qty24,
          COALESCE(ls.listing_count,0) AS listings,
          ls.min_unit_price::float8 AS min_ask, ls.median::float8 AS median_ask,
+         ls.captured_at AS ask_observed_at, ls.total_qty::float8 AS ask_qty,
          COALESCE(lms.upgrade, lms.upgrade_max)::int AS max_upgrade,
          COALESCE(cma.trades,0) AS max_trades, COALESCE(cma.span_days,0) AS max_span_days,
          lms.min_unit_price::float8 AS max_last_price,
          cma.vwap24 AS max_vwap24, cma.vwap_prev AS max_vwap_prev,
          COALESCE(lms.listing_count,0) AS max_listings,
-         lms.min_unit_price::float8 AS max_min_ask, lms.median::float8 AS max_median_ask
+         lms.min_unit_price::float8 AS max_min_ask, lms.median::float8 AS max_median_ask,
+         lms.captured_at AS max_ask_observed_at
   FROM items i
   LEFT JOIN agg a USING (item_id)
   LEFT JOIN card_max_agg cma USING (item_id)
@@ -273,13 +276,17 @@ const stock = (await history('stock', 't', ['item_id', 'upgrade', 't'])<{
       OR (i.category = '카드' AND (s.upgrade = 0 OR (s.upgrade > 0 AND s.upgrade = s.upgrade_max))))
   ORDER BY s.item_id, s.upgrade, date_trunc('hour', s.captured_at), s.captured_at DESC, s.id DESC`)).rows;
 
+// The collector writes last_seen_at and captured_at from the same auction response.
+const depthItems = items.filter((it) => it.ask_observed_at && ['재료·소모품', '소울 결정'].includes(it.category));
 const depth = (await query<{ item_id: string; price: number; qty: number }>(`
   SELECT l.item_id, l.unit_price::float8 AS price, SUM(l.cur_count)::float8 AS qty
-  FROM listings l JOIN items i USING (item_id)
+  FROM unnest($1::text[], $2::timestamptz[]) AS snapshot(item_id, observed_at)
+  JOIN listings l ON l.item_id = snapshot.item_id AND l.last_seen_at = snapshot.observed_at
   WHERE l.closed_at IS NULL AND l.cur_count > 0 AND l.unit_price > 0
-    AND i.category = ANY($1)
   GROUP BY l.item_id, l.unit_price
-  ORDER BY l.item_id, l.unit_price`, [['재료·소모품', '소울 결정']])).rows;
+  ORDER BY l.item_id, l.unit_price`, [
+    depthItems.map((it) => it.item_id), depthItems.map((it) => it.ask_observed_at!.toISOString()),
+  ])).rows;
 
 const events = (await query<{
   id: string; name: string; type: string;
@@ -309,8 +316,10 @@ const byItem = <T extends { item_id: string }>(rows: T[]) => {
   return m;
 };
 const dailyBy = byItem(daily);
-const weeklyMarket = buildWeeklyMarket(quality.through, items.filter((it) => it.price_basis === 'trade'), dailyBy);
+const tradeItems = items.filter((it) => it.price_basis === 'trade');
+const weeklyMarket = buildWeeklyMarket(quality.through, tradeItems, dailyBy);
 writeFileSync(`${OUT}/data/weekly-market.json`, JSON.stringify(weeklyMarket));
+writeFileSync(`${OUT}/data/weekly-history.json`, JSON.stringify(buildWeeklyHistory(weeklyMarket, tradeItems, dailyBy)));
 const hourlyBy = byItem(hourly);
 // R2 복원·중복 제거를 마친 임시 DB의 집계만 내보낸다. Supabase 추가 조회는 없다.
 const distributions = process.env.BUILD_DATABASE_URL ? (await query(`
@@ -441,6 +450,8 @@ for (const it of items) {
   const band = it.price_basis === 'trade' && tradesPerDay >= 5 ? naiveBand(complete as Point[], 7, todayKst) : null;
   if (band) bands.set(it.item_id, band);
   // 상세 화면이 처음에 쓰는 핵심 파일과, 패널이 보일 때 받는 호가 차이 파일로 나눠 쓴다(src/series-split.ts).
+  const observedDepth = depthBy.get(it.item_id) ?? [];
+  const verifiedDepth = observedDepth[0]?.price === it.min_ask && observedDepth.reduce((sum, row) => sum + row.qty, 0) === it.ask_qty;
   const { core, askGapFile } = splitSeries({
     completeBefore: weekdayBefore, forecastDay: todayKst,
     priceBasis: it.price_basis, daily: d, hourly: hourlyBy.get(it.item_id) ?? [],
@@ -452,7 +463,8 @@ for (const it of items) {
     } : null,
     askGap: askGapBy.get(it.item_id) ?? [],
     stock: stockBy.get(it.item_id) ?? [],
-    depth: depthBy.get(it.item_id) ?? [], events: eventsBy.get(it.item_id) ?? [],
+    depth: verifiedDepth ? observedDepth : [], depthObservedAt: verifiedDepth ? it.ask_observed_at : null,
+    events: eventsBy.get(it.item_id) ?? [],
     hourlyEventStudy: eventStudyForItem(hourlyEventReport, it.item_id),
     max: it.category === '카드' ? {
       priceBasis: 'askMax', daily: cardDailyMaxBy.get(it.item_id) ?? [],

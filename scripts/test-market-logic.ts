@@ -8,7 +8,7 @@ import {
   selectCardListings,
   varianceRatio,
 } from '../src/market-logic.ts';
-import { askGap, representativePrice, matchesCategory, pricePosition } from '../web/metrics.js';
+import { askGap, representativePrice, matchesCategory, pricePosition, marketSearchTerm } from '../web/metrics.js';
 
 const same = { soldDate: '2026-09-08T00:00:00Z', unitPrice: 100, count: 3, reinforce: 0 };
 assert.deepEqual(duplicateSequences([
@@ -119,3 +119,6 @@ assert.equal(varianceRatio(walk, 1), null);
 assert.equal(varianceRatio([...walk.slice(0, 30), Infinity]), null);
 
 console.log('시장 로직 테스트 통과');
+
+assert.equal(marketSearchTerm('무 큐'), '무색큐브조각');
+assert.equal(marketSearchTerm(' +１０ 장비 증폭권 '), '+10장비증폭권');

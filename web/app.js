@@ -1,8 +1,7 @@
 import { loadSummary } from "./summary-data.js?v=20261010-ux-polish";
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
-import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition } from './metrics.js?v=20261118-price-context';
-import { renderPriceDistribution, disposePriceDistribution } from './price-distribution.js?v=20261117-focus';
+import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition, marketSearchTerm } from './metrics.js?v=20261125-market';
 import { packagePanelHTML, bunnyPackagePanelHTML } from './package.js?v=20261112-bunny';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
@@ -352,6 +351,9 @@ function hourlyPriceSegments(points) {
 let DATA = null;
 let tab = '전체';
 let marketQuery = '';
+let searchItems = [];
+let watchedItems = new Set();
+const watchKey = 'dnf-market-watch';
 // 기본 정렬은 24h 거래대금. 변동률로 정렬하면 하루 한두 건 거래된 아이템의
 // 의미 없는 ±40%가 맨 위를 차지한다.
 let job = '전체';
@@ -391,6 +393,17 @@ function renderDataStatus(now = Date.now()) {
       : '. 사이트는 매시간 갱신되며 실시간 가격이 아닙니다.');
 }
 
+let distributionModule, distributionPromise;
+function loadDistribution() {
+  return distributionPromise ??= import('./price-distribution.js?v=20261117-focus')
+    .then((module) => (distributionModule = module))
+    .catch((error) => {
+      distributionPromise = undefined;
+      console.error(error);
+      return null;
+    });
+}
+
 let chartLibrary;
 function loadChartLibrary() {
   if (window.LightweightCharts) return Promise.resolve();
@@ -404,6 +417,15 @@ function loadChartLibrary() {
 }
 async function boot() {
   DATA = await loadSummary();
+  const tracked = new Set(DATA.items.map((item) => item.item_id));
+  searchItems = [
+    ...DATA.items.map((item) => ({ item, tracked: true })),
+    ...(DATA.marketRanking?.items ?? []).filter((item) => !tracked.has(item.item_id)).map((item) => ({ item, tracked: false })),
+  ].map((entry) => ({ ...entry, name: marketSearchTerm(entry.item.item_name) }));
+  try {
+    const saved = JSON.parse(localStorage.getItem(watchKey) ?? '[]');
+    if (Array.isArray(saved)) watchedItems = new Set(saved.filter((id) => tracked.has(id)));
+  } catch { /* Storage can be unavailable in a restricted browser. */ }
   renderDataStatus();
   setInterval(renderDataStatus, 60000);
   render();
@@ -469,7 +491,7 @@ function render() {
   depthObserver = null;
   askGapObserver?.disconnect();
   askGapObserver = null;
-  disposePriceDistribution();
+  distributionModule?.disposePriceDistribution();
   legendaryForecastCleanup?.();
   legendaryForecastCleanup = null;
   const id = location.hash.slice(1);
@@ -605,6 +627,68 @@ function cardJobTabs() {
   </div>`;
 }
 
+function marketSearchHTML() {
+  const saved = DATA.items.filter((item) => watchedItems.has(item.item_id));
+  return `<section class="market-start" aria-labelledby="market-list-title">
+    <h2 class="market-list-title" id="market-list-title">경매장 시세</h2>
+    <div class="market-actions">
+      <input id="market-search" type="search" aria-label="전체 품목 검색" placeholder="품목 이름 검색" autocomplete="off" value="${esc(marketQuery)}">
+      <a href="weekly.html">주간 시황 보기</a>
+    </div>
+    <div class="market-examples" aria-label="추천 검색어">
+      ${['무큐', '바니바니', '순례의 증표'].map((name) => `<button type="button" data-market-example="${name}">${name}</button>`).join('')}
+    </div>
+    ${saved.length ? `<nav class="market-saved" aria-label="관심 품목"><b>관심 품목</b>
+      ${saved.map((item) => `<a href="#${item.item_id}">${esc(item.item_name)}</a>`).join('')}
+    </nav>` : ''}
+    <p class="market-search-status" id="market-search-status" role="status" hidden></p>
+    <div id="market-results" hidden></div>
+  </section>`;
+}
+
+function bindMarketSearch() {
+  const search = document.getElementById('market-search');
+  const status = document.getElementById('market-search-status');
+  const results = document.getElementById('market-results');
+  const browse = document.getElementById('market-browse');
+  const update = () => {
+    marketQuery = search.value;
+    const query = marketSearchTerm(marketQuery);
+    browse.hidden = Boolean(query);
+    status.hidden = results.hidden = !query;
+    if (!query) return;
+
+    const matches = searchItems.filter(({ name }) => name.includes(query));
+    const legendary = DATA.legendary?.[0] && marketSearchTerm('레전더리 카드 재료 시세').includes(query);
+    const tracked = matches.filter((row) => row.tracked);
+    const ranked = matches.filter((row) => !row.tracked);
+    const count = matches.length + Number(Boolean(legendary));
+    status.textContent = count ? `검색 결과 ${count}개` : '추적 품목과 TOP100에서 찾지 못했어요.';
+    const result = ({ item, tracked }) => {
+      const price = tracked ? representativePrice(item) ?? item.last_price : item.last_price;
+      const isCard = item.price_basis === 'ask0';
+      const basis = tracked ? (isCard ? '0업 최저 매물가' : item.vwap1h == null ? '마지막 거래가' : '최근 1시간 평균 거래가')
+        : '최근 체결가';
+      const href = tracked ? `#${item.item_id}` : `ranking.html#${item.item_id}`;
+      return `<a class="market-result" href="${href}">
+        <span><b>${esc(item.item_name)}</b><small>${esc(tracked ? item.category : item.item_type_detail)}${!tracked ? ' · 순위 보기' : ''}</small></span>
+        <span class="market-result-price"><b>${price > 0 ? fmt(price) + '골드' : '가격 자료 없음'}</b><small>${basis}</small></span>
+      </a>`;
+    };
+    results.innerHTML = `${tracked.length || legendary ? `<section class="market-result-group"><h3>상시 추적 품목</h3>
+      ${tracked.map(result).join('')}${legendary ? '<a class="market-result" href="#legendary-card"><b>레전더리 카드 재료 시세</b></a>' : ''}
+      </section>` : ''}
+      ${ranked.length ? `<section class="market-result-group"><h3>TOP100 관측</h3>
+      <p class="desc">${priceTime(DATA.marketRanking.capturedAt)} KST 집계 · 마지막 확인 체결가</p>
+      ${ranked.map(result).join('')}</section>` : ''}`;
+  };
+  search.addEventListener('input', update);
+  document.querySelectorAll('[data-market-example]').forEach((button) => {
+    button.onclick = () => { search.value = button.dataset.marketExample; update(); };
+  });
+  update();
+}
+
 // ── 목록 ───────────────────────────────────────────────────────
 function renderList() {
   const all = DATA.items.map(enrich);
@@ -624,14 +708,8 @@ function renderList() {
     });
 
   document.getElementById('view').innerHTML = `
-    <section class="market-start" aria-labelledby="market-list-title">
-      <h2 class="market-list-title" id="market-list-title">경매장 시세</h2>
-      <p>품목을 선택하면 최근 거래가, 최저 매물가, 가격 차트를 볼 수 있어요.</p>
-      <div class="market-actions">
-        <input id="market-search" type="search" aria-label="현재 분류에서 품목 이름 검색" placeholder="품목 이름 검색" autocomplete="off" value="${esc(marketQuery)}">
-        <a href="weekly.html">지난주 시황 보기</a>
-      </div>
-    </section>
+    ${marketSearchHTML()}
+    <div id="market-browse">
     ${categoryTabs(cats)}
     <details class="market-overview"><summary>시장 요약</summary>${summaryCards()}</details>
     ${tab === '카드' ? cardJobTabs() : ''}
@@ -640,8 +718,7 @@ function renderList() {
     ${weekdayTrendHTML()}
     ${tab === '실반 하모니 박스' ? `<p class="desc">실반 멜로디 카드와 선택한 개봉 보상 4종의 시세입니다. 실반 하모니 박스는 NPC 개봉 메뉴로, 별도 거래 가격이 없습니다. <a href="https://df.nexon.com/pg/forestbandpkg" target="_blank" rel="noopener">공식 안내 ↗</a></p>` : ''}
 
-    <p class="market-search-status" id="market-search-status" role="status" hidden></p>
-    <div class="list" id="market-items">
+    <div class="list">
       <div class="lh">
         <span class="r">#</span>
         <span data-k="item_name">아이템</span>
@@ -651,7 +728,7 @@ function renderList() {
         <span class="r h6">14일 추이</span>
         <span class="r h7" data-k="gap" title="현재 최저 판매가를 최근 24시간 평균 거래가와 비교한 값">24시간 평균<br>거래가 대비</span>
       </div>
-      ${lg && ['전체', '카드'].includes(tab) ? `<a class="row legendary-row" data-market-name="레전더리 카드 재료 시세" href="#legendary-card">
+      ${lg && ['전체', '카드'].includes(tab) ? `<a class="row legendary-row" href="#legendary-card">
         <div class="rank r">지수</div>
         <div class="nm"><div class="legendary-icon" aria-hidden="true">0업</div><div class="t">
           <b>레전더리 카드 재료 시세<span class="tag">0업</span></b>
@@ -673,7 +750,7 @@ function renderList() {
         const sub = isCard
           ? [r.job_role, shownStat, r.max_last_price ? `풀업 ${fmt(r.max_last_price)}` : null]
           : [r.item_rarity, shownStat, `${r.g}등급 · 표본 ${fmt(r.trades)}`];
-        return `<a class="row" data-market-name="${esc(r.item_name)}" href="#${r.item_id}">
+        return `<a class="row" href="#${r.item_id}">
           <div class="rank r">${i + 1}</div>
           <div class="nm">
             <img src="${r.img}" alt="" loading="lazy" width="32" height="32">
@@ -707,27 +784,9 @@ function renderList() {
       <b>등급</b>은 일평균 거래 건수입니다 — A ≥ 60건, B ≥ 20건, C ≥ 5건, D는 그 미만.
       <b>카드</b>는 0업 최저 판매가만 표시하며 거래 등급을 매기지 않습니다.
       <b>종결</b>은 현재 기준 최상위 아이템이며, 패치로 교체되면 갱신됩니다.
-    </p>`;
+    </p></div>`;
 
-  const search = document.getElementById('market-search');
-  const status = document.getElementById('market-search-status');
-  const list = document.getElementById('market-items');
-  const normalizeName = (name) => name.normalize('NFKC').toLowerCase().replace(/\s+/g, '');
-  const searchRows = [...list.querySelectorAll('[data-market-name]')];
-  const updateSearch = () => {
-    marketQuery = search.value;
-    const query = normalizeName(marketQuery);
-    let count = 0;
-    for (const row of searchRows) {
-      row.hidden = !normalizeName(row.dataset.marketName).includes(query);
-      if (!row.hidden) count += 1;
-    }
-    list.hidden = Boolean(query) && count === 0;
-    status.hidden = !query;
-    status.textContent = count ? `검색 결과 ${count}개` : '일치하는 품목이 없어요. 이름이나 분류를 바꿔 보세요.';
-  };
-  search.addEventListener('input', updateSearch);
-  updateSearch();
+  bindMarketSearch();
 
   bindWeekdayTrend();
   document.querySelectorAll('.tab').forEach((el) => {
@@ -769,6 +828,8 @@ function renderInventory(all, cats) {
   const total = cards.reduce((a, c) => a + (c.min_ask || c.last_price || 0), 0);
 
   document.getElementById('view').innerHTML = `
+    ${marketSearchHTML()}
+    <div id="market-browse">
     ${summaryCards()}
     ${categoryTabs(cats)}
 
@@ -810,8 +871,9 @@ function renderInventory(all, cats) {
         </div>
       </div>`).join('')}
 
-    <p class="hint">0업과 풀업 최저 판매가를 분리해 표시합니다. 유리한 선택은 현재 레전더리 0업 카드 최저가와 단계당 기대 재료 2.5장을 사용한 <b>기대값</b>이며, 실제 강화 비용은 운에 따라 달라집니다.</p>`;
+    <p class="hint">0업과 풀업 최저 판매가를 분리해 표시합니다. 유리한 선택은 현재 레전더리 0업 카드 최저가와 단계당 기대 재료 2.5장을 사용한 <b>기대값</b>이며, 실제 강화 비용은 운에 따라 달라집니다.</p></div>`;
 
+  bindMarketSearch();
   document.querySelectorAll('.job-sw button').forEach((el) => {
     el.onclick = () => { job = el.dataset.j; renderList(); };
   });
@@ -864,6 +926,7 @@ const bySecond = (rows, key) =>
 
 // ── 레전더리 재료 시세 ─────────────────────────────────────────
 async function renderLegendary() {
+  const distributionReady = loadDistribution();
   const chartReady = Promise.resolve().then(loadChartLibrary).then(() => true, () => false);
   const view = document.getElementById('view');
   view.innerHTML = '<a class="back" href="#">← 시세 목록</a><div class="panel">레전더리 카드 시세를 불러오는 중…</div>';
@@ -922,9 +985,12 @@ async function renderLegendary() {
     </div>`;
 
   const box = document.getElementById('legendary-chart');
+  const distribution = await distributionReady;
+  if (location.hash.slice(1) !== 'legendary-card' || !box.isConnected) return;
   const drawPrice = () => {
     const metric = document.getElementById('legendary-price').value;
-    renderPriceDistribution(box, { basis: 'legendary', metric, asOf: data.asOf,
+    if (!distribution) { box.textContent = '가격 차트를 불러오지 못했습니다.'; return; }
+    distribution.renderPriceDistribution(box, { basis: 'legendary', metric, asOf: data.asOf,
       daily: data.daily.map(row => ({ ...row, hours: metric === 'min' ? row.hours : row.materialHours, vwap: row[metric] })) });
   };
   document.getElementById('legendary-price').onchange = drawPrice;
@@ -967,7 +1033,8 @@ async function fetchSeries(itemId) {
 }
 
 async function renderDetail(it) {
-  // Start concurrently with the series request; a CDN failure must not hide non-chart data.
+  // Start chart requests alongside the series request.
+  const distributionReady = loadDistribution();
   const chartReady = Promise.resolve().then(loadChartLibrary).then(() => true, () => false);
   const baseItem = it;
   const hasDepth = ['재료·소모품', '소울 결정'].includes(it.category);
@@ -982,6 +1049,7 @@ async function renderDetail(it) {
       vwap24: it.max_vwap24,
       vwap_prev: it.max_vwap_prev,
       min_ask: it.max_min_ask,
+      ask_observed_at: it.max_ask_observed_at,
       median_ask: it.max_median_ask,
       listings: it.max_listings,
       trades: it.max_trades,
@@ -991,6 +1059,11 @@ async function renderDetail(it) {
   }
   const latestTrade = !isZeroCard && it.vwap1h == null && it.last_trade_at && it.last_price > 0;
   const headlinePrice = latestTrade ? it.last_price : representativePrice(it);
+  const priceAsOf = DATA.priceAsOf ?? DATA.builtAt;
+  const now = Date.now();
+  const recentAsk = now - Date.parse(it.ask_observed_at) < 3 * 3600000;
+  const canCompare = !isZeroCard && recentAsk && now - Date.parse(priceAsOf) < 3 * 3600000 && it.api_qty24 >= 5 && Number.isFinite(it.gap);
+  const askTime = it.ask_observed_at ? `매물 관측 ${priceTime(it.ask_observed_at)} KST` : '';
   document.getElementById('view').innerHTML = `
     <a class="back" href="#">← 시세 목록</a>
     <section class="detail-overview" aria-label="현재 시세 요약">
@@ -1001,6 +1074,7 @@ async function renderDetail(it) {
         <div class="meta">${esc(it.item_rarity)} · ${esc(it.item_type_detail)}${it.slot ? ' · ' + esc(it.slot) : ''}${it.job_role ? ' · ' + esc(it.job_role) : ''}${selectedKeyStat ? ' · 부여 능력치 ' + esc(selectedKeyStat) : ''}</div>
         ${it.is_final && it.final_since ? `<div class="meta">${it.category === '칭호' ? '종결 성능 최초 등장' : '종결 지정'} ${it.final_since} · <b style="color:var(--ink-2)">D+${sinceDays(it.final_since)}</b></div>` : ''}
       </div>
+      <button type="button" id="watch-item" class="watch-item" aria-pressed="${watchedItems.has(it.item_id)}">${watchedItems.has(it.item_id) ? '관심 저장됨' : '관심 저장'}</button>
     </div>
     ${isZeroCard ? `<div class="upgrade-sw" role="group" aria-label="카드 업그레이드 단계">
       <button class="${showingMax ? '' : 'on'}" data-card-mode="zero" type="button">0업</button>
@@ -1012,14 +1086,18 @@ async function renderDetail(it) {
         <div class="bigpx">${fmt(headlinePrice)}${headlinePrice == null ? '' : '<small>골드</small>'}</div>
         ${isZeroCard && representativePrice(it) == null ? `<div class="price-meta">${it.listings === 0 ? '현재 확인된 매물 없음' : '현재 판매가 기록 없음'}</div>` : ''}
         ${!isZeroCard && it.vwap1h == null ? `<div class="price-meta">최근 1시간 거래 관측 없음${latestTrade ? `<br>마지막 거래 ${priceTime(it.last_trade_at)} KST` : ''}</div>` : ''}
+        ${!isZeroCard && it.vwap1h != null ? `<div class="price-meta">${priceTime(priceAsOf)} KST 기준 · ${fmt(it.trades1h)}건</div>` : ''}
+        ${isZeroCard && askTime ? `<div class="price-meta">${askTime}</div>` : ''}
         ${it.chg != null ? `<div class="bigchg ${cls(it.chg)}">${pct(it.chg)} <span>24시간 평균 변동</span></div>` : ''}
       </div>
       ${isZeroCard ? '' : `<div class="detail-lowest-ask">
         <div class="price-meta">확인된 최저 매물가</div>
         <div class="bigpx">${it.min_ask > 0 ? `${fmt(it.min_ask)}<small>골드</small>` : '—'}</div>
+        ${askTime ? `<div class="price-meta">${askTime}</div>` : ''}
         <div class="price-meta" id="min-ask-qty">${it.min_ask > 0 ? '' : it.listings === 0 ? '확인된 매물 없음' : '판매가 기록 없음'}</div>
       </div>`}
     </div>
+    ${canCompare ? `<p class="quote-context">최저 매물가는 최근 24시간 평균 거래가 ${fmt(it.vwap24)}골드와${Math.abs(it.gap) < 0.05 ? ' 비슷해요.' : ` 비교해 <b>${fmt(Math.abs(it.gap), 1)}% ${it.gap < 0 ? '낮아요' : '높아요'}</b>.`}</p>` : ''}
     </section>
     <div class="panel" id="price-panel">
       <div class="panel-head price-chart-head">
@@ -1036,6 +1114,7 @@ async function renderDetail(it) {
       </details>
       <div class="detail-jumps" role="group" aria-label="상세 화면 바로가기">
         <button type="button" data-detail-jump="stock-panel">매물과 가격 ↓</button>
+        ${hasDepth ? '<button type="button" data-detail-jump="depth-panel">10개·100개 구매 가격 ↓</button>' : ''}
         ${isZeroCard ? '' : '<button type="button" data-detail-jump="weekday-panel">요일별 흐름 ↓</button>'}
       </div>
     </div>
@@ -1072,9 +1151,9 @@ async function renderDetail(it) {
       <p class="desc">각 관측 시점의 최저 판매가를 직전 24시간 평균 거래가와 비교합니다. 양수면 현재 최저 판매가가 최근 24시간 평균 거래가보다 높고, 음수면 낮습니다. 두 가격의 차이일 뿐이며, 이것만으로 매수 시점이나 다음 가격 방향을 판단할 수는 없습니다.</p>
       <div class="chart" id="c4"></div>
     </div>`}
-    ${hasDepth ? `<div class="panel" data-detail-series>
+    ${hasDepth ? `<div class="panel" id="depth-panel" data-detail-series>
       <h3>구매 수량별 매물 가격</h3>
-      <p class="desc">확인된 매물을 개당 가격이 싼 순서로 더합니다. 선은 각 구간의 개당 판매가이며, 구매 평균가는 아래 숫자로 확인합니다. 관측 이후 판매·취소될 수 있습니다.</p>
+      <p class="desc">같은 시각에 관측한 매물을 싼 순서로 더한 참고 가격입니다. 관측 이후 판매되거나 취소될 수 있습니다.</p>
       <div id="depth">불러오는 중…</div>
     </div>` : ''}
     ${isZeroCard ? '' : `<div class="panel" id="weekday-panel" data-detail-series>
@@ -1083,6 +1162,14 @@ async function renderDetail(it) {
       <div id="weekday-profile"></div>
     </div>`}`;
 
+  const watchButton = document.getElementById('watch-item');
+  watchButton.onclick = () => {
+    if (watchedItems.has(it.item_id)) watchedItems.delete(it.item_id);
+    else watchedItems.add(it.item_id);
+    try { localStorage.setItem(watchKey, JSON.stringify([...watchedItems])); } catch { /* Retain this session's selection. */ }
+    watchButton.setAttribute('aria-pressed', String(watchedItems.has(it.item_id)));
+    watchButton.textContent = watchedItems.has(it.item_id) ? '관심 저장됨' : '관심 저장';
+  };
   document.querySelectorAll('[data-detail-jump]').forEach((button) => {
     button.onclick = () => {
       const target = document.getElementById(button.dataset.detailJump);
@@ -1117,7 +1204,8 @@ async function renderDetail(it) {
   // 해시가 바뀐 사이 이전 요청이 늦게 도착하면 새 상세 화면을 덮지 않는다.
   if (location.hash.slice(1) !== it.item_id || cardMode !== (showingMax ? 'max' : 'zero')) return;
   if (hasDepth) {
-    const depth = (s.depth ?? []).filter(level => level.price > 0 && level.qty > 0).sort((a, b) => a.price - b.price);
+    const sameSnapshot = recentAsk && it.ask_observed_at && s.depthObservedAt === it.ask_observed_at;
+    const depth = sameSnapshot ? (s.depth ?? []).filter(level => level.price > 0 && level.qty > 0).sort((a, b) => a.price - b.price) : [];
     const minQty = document.getElementById('min-ask-qty');
     if (minQty && depth.length && depth[0].price === Number(it.min_ask)) {
       const qty = depth.filter(level => level.price === depth[0].price).reduce((sum, level) => sum + level.qty, 0);
@@ -1129,17 +1217,18 @@ async function renderDetail(it) {
       ? `<div class="v">${fmt(q.avg)}<small> 골드</small></div>`
       : `<div class="v flat">매물 부족</div><div class="depth-sub">${fmt(q.filled)}/${target}개</div>`;
     document.getElementById('depth').innerHTML = depth.length ? `
+      <p class="desc">${askTime}</p>
       <div class="kv depth-kv">
         <div><div class="k">10개 구매 평균</div>${quote(q10, 10)}</div>
         <div><div class="k">100개 구매 평균</div>${quote(q100, 100)}</div>
-        <div><div class="k">현재 열린 수량</div><div class="v">${fmt(totalQty)}<small> 개</small></div></div>
+        <div><div class="k">관측된 수량</div><div class="v">${fmt(totalQty)}<small> 개</small></div></div>
       </div>
       <div class="upgrade-sw" role="group" aria-label="매물 사다리 수량 범위">
         <button type="button" class="on" data-depth-limit="10" aria-pressed="true">1~10개</button>
         <button type="button" data-depth-limit="100" aria-pressed="false">1~100개</button>
       </div>
       <div id="depth-plot">${depthSVG(depth)}</div>`
-      : '<p style="color:var(--ink-3);margin:0">현재 열린 매물이 없습니다.</p>';
+      : `<p class="desc">${it.listings === 0 ? '관측된 매물이 없습니다.' : '같은 시각의 매물별 가격과 수량을 확인할 수 없어 계산을 보류했어요.'}</p>`;
     const plot = document.getElementById('depth-plot');
     let depthLimit = 10, lastWidth = 0;
     const drawDepth = () => {
@@ -1248,7 +1337,11 @@ async function renderDetail(it) {
         ' 오늘의 중앙값은 수집에 따라 바뀔 수 있습니다.',
     };
   }
-  renderPriceDistribution(document.getElementById('c1'), isZeroCard
+  const distribution = await distributionReady;
+  if (location.hash.slice(1) !== it.item_id || cardMode !== (showingMax ? 'max' : 'zero')) return;
+  const priceChart = document.getElementById('c1');
+  if (!distribution) priceChart.textContent = '가격 차트를 불러오지 못했습니다.';
+  else distribution.renderPriceDistribution(priceChart, isZeroCard
     ? { basis: 'ask', asOf: DATA.priceAsOf ?? DATA.builtAt, daily: d }
     : s.inlineForecast ? { ...s.distribution, metric: 'vwap', daily: d.map(row => ({ ...row, ...(s.distribution?.daily.find(p => p.d === row.d) ?? {}), vwap: row.vwap })), forecast: s.inlineForecast } : s.distribution,
     events.map(event => ({ ...event, badge: EVENT_TYPES[event.type].badge })), calcNote, chartBasis);
