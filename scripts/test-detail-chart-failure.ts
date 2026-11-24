@@ -11,6 +11,7 @@ const node = (id) => {
 };
 let scriptStarted = false, distributionRendered = false, failSeries = false;
 const seriesPanel = { hidden: false };
+let snapshot = {};
 const days = Array.from({length: 14}, (_, i) => ({
   d: new Date(Date.UTC(2026, 8, 23 + i)).toISOString().slice(0, 10), vwap: 120,
 }));
@@ -20,15 +21,23 @@ const context = vm.createContext({ console: { ...console, error() {} }, Date, wi
     createElement: () => ({remove() {}}), head: {append(script) {scriptStarted = true; script.onerror();}}},
   fetch: async () => { await Promise.resolve(); assert(scriptStarted, 'chart request starts before series finishes');
     if (failSeries) return { ok: false, status: 503 };
-    return {ok:true,json:async()=>({daily:days,completeBefore:'2026-10-06',depth:[],hourly:[],stock:[{t:'2026-10-06T00:00:00Z',qty:10,listings:2}],askGap:[{t:'2026-10-06T00:00:00Z',gap:1}],events:[]})}; }
+    return {ok:true,json:async()=>({daily:days,completeBefore:'2026-10-06',depth:[],hourly:[],...snapshot,stock:[{t:'2026-10-06T00:00:00Z',qty:10,listings:2}],askGap:[{t:'2026-10-06T00:00:00Z',gap:1}],events:[]})}; }
 });
 const source = readFileSync('web/app.js','utf8');
-const module = new vm.SourceTextModule(source + '\nexport {renderDetail}; export function fixture() { DATA = {builtAt: "2026-10-07T00:00:00Z"}; }', {context});
+const module = new vm.SourceTextModule(source + '\nexport {renderDetail}; export function fixture(builtAt = "2026-10-07T00:00:00Z") { DATA = {builtAt}; }', { context, importModuleDynamically: async (specifier) => {
+  assert(specifier.startsWith('./price-distribution.js'));
+  const renderer = new vm.SyntheticModule(['renderPriceDistribution', 'disposePriceDistribution'], function () {
+    this.setExport('renderPriceDistribution', () => { distributionRendered = true; });
+    this.setExport('disposePriceDistribution', () => {});
+  }, { context });
+  await renderer.link(() => assert.fail('Unexpected chart import'));
+  await renderer.evaluate();
+  return renderer;
+} });
 await module.link(name => {
  const exports = name.includes('summary-data') ? {loadSummary:()=>new Promise(()=>{})}
   : name.includes('forecast-review') ? {itemForecastPanel:()=>'',mountForecastReview:()=>{}}
   : name.includes('package.js') ? packageUI
-  : name.includes('price-distribution') ? {renderPriceDistribution:()=>{distributionRendered=true},disposePriceDistribution:()=>{}}
   : metrics;
  return new vm.SyntheticModule(Object.keys(exports),function(){for(const [key,value] of Object.entries(exports))this.setExport(key,value)},{context});
 });
@@ -36,7 +45,7 @@ await module.evaluate(); module.namespace.fixture();
 const item = {item_id:'sample',item_name:'테스트',category:'소울 결정',price_basis:'trade',vwap24:100,span_days:30,last_price:90,last_trade_at:'2026-10-06T06:30:00Z'};
 await module.namespace.renderDetail(item);
 assert(distributionRendered);
-assert.match(node('depth').innerHTML,/현재 열린 매물이 없습니다/);
+assert.match(node('depth').innerHTML,/계산을 보류했어요/);
 assert.match(node('price-position').innerHTML,/현재 13일/, '집계 완료 전 날짜를 가격 비교에 포함하지 않는다');
 assert.match(node('view').innerHTML,/마지막 거래가<\/div>\s*<div class="bigpx">90<small>골드/);
 assert.match(node('view').innerHTML,/최근 1시간 거래 관측 없음<br>마지막 거래/);
@@ -49,3 +58,17 @@ assert.match(node('price-panel').innerHTML,/가격 추이를 불러오지 못했
 assert.match(node('view').innerHTML,/마지막 거래가/);
 assert.equal(seriesPanel.hidden, true);
 console.log('차트 요청 병렬 시작·CDN 및 시계열 요청 실패 시 가격 정보 유지 통과');
+
+failSeries = false;
+const observedAt = new Date().toISOString();
+const quoteItem = { ...item, min_ask: 90, ask_observed_at: observedAt, gap: -10, api_qty24: 10, listings: 2 };
+module.namespace.fixture(observedAt);
+const levels = [{ price: 90, qty: 10 }, { price: 120, qty: 90 }];
+snapshot = { depth: levels, depthObservedAt: observedAt };
+await module.namespace.renderDetail(quoteItem);
+assert.match(node('view').innerHTML, /10% 낮아요/);
+assert.match(node('depth').innerHTML, /100개 구매 평균<\/div><div class="v">117/);
+snapshot = { depth: levels, depthObservedAt: '2026-10-06T05:00:00Z' };
+await module.namespace.renderDetail(quoteItem);
+assert.match(node('depth').innerHTML, /계산을 보류했어요/);
+assert.doesNotMatch(node('depth').innerHTML, /100개 구매 평균/);

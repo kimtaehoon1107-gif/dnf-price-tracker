@@ -36,3 +36,11 @@
   .weekly-details { padding: 0 10px; }
   .weekly table { font-size: .875rem; }
 }
+
+.weekly-select { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 12px; }
+.weekly-select[hidden] { display: none; }
+.weekly-select select { min-height: 44px; max-width: 100%; padding: 5px 9px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; }
+.weekly-intro .weekly-category { margin-top: 10px; color: var(--ink); font-weight: 700; }
+.weekly-history { padding: 14px 16px; margin: 12px 0; background: var(--card); border: 1px solid var(--line-2); border-radius: var(--radius); }
+.weekly-history h2 { margin: 0 0 8px; font-size: 1rem; }
+.weekly-history .weekly-select { margin-bottom: 6px; }

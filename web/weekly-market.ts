@@ -4,6 +4,15 @@ type Week = { start: string; end: string };
 const DAY = 86_400_000;
 const MIN_DAYS = 5;
 
+function summarizeWeek(days: readonly TradeDay[], week: Week) {
+  const observed = days.filter(({ d, vwap, qty }) =>
+    d >= week.start && d <= week.end && vwap > 0 && qty > 0);
+  if (observed.length < MIN_DAYS) return null;
+  const qty = observed.reduce((sum, day) => sum + day.qty, 0);
+  const gold = observed.reduce((sum, day) => sum + day.vwap * day.qty, 0);
+  return { days: observed.length, qty, price: gold / qty };
+}
+
 export function buildWeeklyMarket(
   dataThrough: string,
   items: readonly TradeItem[],
@@ -17,19 +26,10 @@ export function buildWeeklyMarket(
   const previousWeek = { start: dateAt(-14), end: dateAt(-8) };
   const latestWeek = { start: dateAt(-7), end: dateAt(-1) };
 
-  const summarize = (days: readonly TradeDay[], week: Week) => {
-    const observed = days.filter(({ d, vwap, qty }) =>
-      d >= week.start && d <= week.end && vwap > 0 && qty > 0);
-    if (observed.length < MIN_DAYS) return null;
-    const qty = observed.reduce((sum, day) => sum + day.qty, 0);
-    const gold = observed.reduce((sum, day) => sum + day.vwap * day.qty, 0);
-    return { days: observed.length, qty, price: gold / qty };
-  };
-
   const comparisons = items.flatMap(({ item_id, item_name, category }) => {
     const days = dailyBy.get(item_id) ?? [];
-    const previous = summarize(days, previousWeek);
-    const latest = summarize(days, latestWeek);
+    const previous = summarizeWeek(days, previousWeek);
+    const latest = summarizeWeek(days, latestWeek);
     if (!previous || !latest) return [];
     const change = (latest.price / previous.price - 1) * 100;
     const changePct = Number(change.toFixed(1));
@@ -46,4 +46,26 @@ export function buildWeeklyMarket(
     dataThrough, previousWeek, latestWeek, minDays: MIN_DAYS, totalItems: items.length,
     medianChangePct, comparisons,
   };
+}
+
+export function buildWeeklyHistory(
+  latest: ReturnType<typeof buildWeeklyMarket>,
+  items: readonly TradeItem[],
+  dailyBy: ReadonlyMap<string, readonly TradeDay[]>,
+) {
+  const offset = (date: string, days: number) => new Date(Date.parse(date) - days * DAY).toISOString();
+  const past = [1, 2, 3].map((i) => buildWeeklyMarket(offset(latest.dataThrough, i * 7), items, dailyBy));
+  // Four completed weeks for each issue, with no observations from later weeks.
+  const weeks = Array.from({ length: 7 }, (_, i) => {
+    const week = {
+      start: offset(latest.latestWeek.start, i * 7).slice(0, 10),
+      end: offset(latest.latestWeek.end, i * 7).slice(0, 10),
+    };
+    const prices = Object.fromEntries(items.flatMap(({ item_id }) => {
+      const price = summarizeWeek(dailyBy.get(item_id) ?? [], week);
+      return price ? [[item_id, price]] : [];
+    }));
+    return { ...week, prices };
+  });
+  return { dataThrough: latest.dataThrough, past, weeks };
 }

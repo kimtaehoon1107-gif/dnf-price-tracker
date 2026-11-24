@@ -37,12 +37,20 @@ async function run({ series, askGapResponse, observer, early }: { series: object
     trigger(isIntersecting = true) { this.cb([{ isIntersecting }]); } };
   if (early) { early.response.catch(() => {}); context.__seriesRequest = early; } // index.html <head>가 미리 요청해 둔 시계열 파일(공유 링크로 상세에 바로 들어온 경우)
   vm.createContext(context);
-  const module = new vm.SourceTextModule(source + '\nexport {renderDetail}; export function fixture() { DATA = {builtAt: "2026-10-07T00:00:00Z"}; }', { context });
+  const module = new vm.SourceTextModule(source + '\nexport {renderDetail}; export function fixture() { DATA = {builtAt: "2026-10-07T00:00:00Z"}; }', { context, importModuleDynamically: async (specifier) => {
+  assert(specifier.startsWith('./price-distribution.js'));
+  const renderer = new vm.SyntheticModule(['renderPriceDistribution', 'disposePriceDistribution'], function () {
+    this.setExport('renderPriceDistribution', () => {});
+    this.setExport('disposePriceDistribution', () => {});
+  }, { context });
+  await renderer.link(() => assert.fail('Unexpected chart import'));
+  await renderer.evaluate();
+  return renderer;
+} });
   await module.link((name) => {
     const exports: Record<string, unknown> = name.includes('summary-data') ? { loadSummary: () => new Promise(() => {}) }
       : name.includes('forecast-review') ? { itemForecastPanel: () => '', mountForecastReview: () => {} }
       : name.includes('package.js') ? packageUI
-      : name.includes('price-distribution') ? { renderPriceDistribution: () => {}, disposePriceDistribution: () => {} }
       : metrics;
     return new vm.SyntheticModule(Object.keys(exports), function () { for (const [key, value] of Object.entries(exports)) this.setExport(key, value); }, { context });
   });

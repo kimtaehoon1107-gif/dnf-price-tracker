@@ -136,8 +136,8 @@ async function boot() {
           <span class="dim h-qty">${fmt(row.observed_qty)}</span>
           <span class="basis-tag ${row.basis}${times !== null && times > WIDE_FACTOR ? ' wide' : ''}" title="${esc(tip)}">${label}${times === null ? '' : ` ${factorText(times)}`}</span>`;
         return tracked.has(row.item_id)
-          ? `<a class="ranking-row" href="index.html#${row.item_id}">${content}</a>`
-          : `<div class="ranking-row">${content}</div>`;
+          ? `<a class="ranking-row" id="${esc(row.item_id)}" href="index.html#${row.item_id}">${content}</a>`
+          : `<div class="ranking-row" id="${esc(row.item_id)}" tabindex="-1">${content}</div>`;
       }).join('')}
     </div>` : '<div class="panel"><h3>아직 순위 데이터가 없습니다</h3><p class="desc">다음 시장 탐색이 끝나면 표시됩니다.</p></div>'}
 
@@ -151,6 +151,11 @@ async function boot() {
       ${minFactor && maxFactor ? `환산 배수는 종목마다 달라 현재 <b>${factorText(minFactor)}</b>에서 <b>${factorText(maxFactor)}</b>까지이며,
       배수가 클수록 관측 구간이 짧아 오차가 큽니다. ×${WIDE_FACTOR}을 넘는 종목은 배지를 진하게 표시했습니다.` : ''}
     </div>`;
+  const selected = document.getElementById(location.hash.slice(1));
+  if (selected?.classList.contains('ranking-row')) {
+    selected.focus({ preventScroll: true });
+    selected.scrollIntoView({ block: 'center' });
+  }
   mountTurnover(ranking?.gameDayTurnover);
 }
 

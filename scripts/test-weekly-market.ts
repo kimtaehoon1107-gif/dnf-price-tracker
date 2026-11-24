@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { buildWeeklyMarket } from '../web/weekly-market.ts';
+import { buildWeeklyMarket, buildWeeklyHistory } from '../web/weekly-market.ts';
 
 const items = ['weighted', 'down', 'sparse'].map((id) => ({ item_id: id, item_name: id, category: '재료' }));
 const days = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
@@ -24,3 +24,12 @@ assert.equal(report.totalItems, 3);
 assert.deepEqual(report.comparisons.map(({ id, changePct }) => [id, changePct]), [['weighted', 57.1], ['down', -10]]);
 assert.deepEqual(report.comparisons[0].latest, { days: 7, qty: 14, price: 2200 / 14 });
 assert.equal(report.medianChangePct, 23.55);
+
+const archive = buildWeeklyHistory(report, items, dailyBy);
+assert.equal(archive.dataThrough, report.dataThrough);
+assert.deepEqual(archive.past.map((r) => r.latestWeek.start), ['2026-11-02', '2026-10-26', '2026-10-19']);
+assert.equal(archive.weeks.length, 7);
+assert.deepEqual(archive.weeks[0].prices.weighted, report.comparisons[0].latest);
+assert.equal(archive.weeks[0].prices.sparse, undefined);
+assert.deepEqual(archive.weeks[1].prices.sparse, { days: 7, qty: 7, price: 100 },
+  '주간 가격은 그 주 자체의 표본으로 계산한다');
