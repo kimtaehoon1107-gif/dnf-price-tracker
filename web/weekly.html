@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="pretendard-400-600.css?v=20261010-fonts"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap"></noscript>
 <link rel="stylesheet" href="style.css?v=20261125-market">
-<link rel="stylesheet" href="weekly.css?v=20261125-market">
+<link rel="stylesheet" href="weekly.css?v=20261125-market-review">
 <meta property="og:title" content="주간 경매장 시황">
 <meta property="og:description" content="지난주와 그 전주의 평균 거래가와 관측 수량을 비교합니다.">
 <meta property="og:type" content="website">
@@ -54,13 +54,24 @@
   <h1 class="page-title">주간 경매장 시황</h1>
   <p id="weekly-status" role="status">지난주 시황을 불러오는 중입니다.</p>
   <label id="weekly-edition-label" class="weekly-select" hidden><span>주간 시황 회차</span><select id="weekly-edition"></select></label>
+  <p id="weekly-edition-notice" role="status" hidden></p>
   <article id="weekly-report" hidden>
     <header class="weekly-intro">
       <p id="weekly-dates" class="weekly-dates"></p>
       <h2 id="weekly-headline"></h2>
       <p id="weekly-breadth"></p>
       <p id="weekly-category" class="weekly-category" hidden></p>
+      <p id="weekly-recalculated" class="weekly-recalculated" hidden>지난 회차는 현재 공개 자료로 다시 계산한 결과입니다.</p>
     </header>
+    <section id="weekly-watch" class="weekly-history" hidden aria-labelledby="weekly-watch-title">
+      <h2 id="weekly-watch-title">내 관심 품목</h2>
+      <p id="weekly-watch-status"></p>
+      <table id="weekly-watch-table" hidden>
+        <caption class="sr-only">관심 품목의 두 주 평균 거래가와 관측일</caption>
+        <thead><tr><th scope="col">품목</th><th scope="col">평균 거래가<br><small>골드</small></th><th scope="col">등락</th></tr></thead>
+        <tbody id="weekly-watch-rows"></tbody>
+      </table>
+    </section>
     <div id="weekly-movers" class="weekly-movers" hidden>
       <section>
         <h2>가장 많이 오른 품목</h2>
@@ -100,6 +111,6 @@
   </article>
   <footer>네오플 오픈 API를 이용하는 비공식 개인 프로젝트입니다.</footer>
 </main>
-<script type="module" src="weekly.js?v=20261125-market"></script>
+<script type="module" src="weekly.js?v=20261125-market-review"></script>
 </body>
 </html>

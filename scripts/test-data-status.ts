@@ -36,8 +36,18 @@ module.namespace.fixture({builtAt:'2026-10-28T03:00:00Z'});
 const broadcastHTML=module.namespace.eventStudyHTML([{id:'broadcast',name:'퍼스트 서버 D-NOTE 라이브',type:'방송',starts:'2026-10-27',starts_at:'2026-10-27T10:00:00Z',source_url:'https://df.nexon.com/community/news/notice/2928724'}],[],'trade');
 assert.match(broadcastHTML,/라이브 방송/);
 assert.match(broadcastHTML,/방송 시작/);
+assert.match(broadcastHTML,/2026\. 10\. 27\. 19:00 KST/,'호스트 시간대와 무관하게 KST 날짜로 표시');
 assert.match(broadcastHTML,/19:00 KST/,'UTC 10시는 KST 19시로 표시');
 assert.doesNotMatch(broadcastHTML,/20:00|<span>적용<\/span>/,'서버 오픈이나 패치 적용 시각과 구분');
+assert.match(broadcastHTML,/기준일 이전 관측 기록 없음/);
+const event = { id: 'patch', name: '퍼스트 서버 패치', type: '퍼스트서버', starts: '2026-10-27' };
+module.namespace.fixture({builtAt:'2026-11-03T00:00:00Z',weekday:Array.from({length:7},(_,i)=>({k:i+1,ret:0,vol:1}))});
+const eventDays = ['2026-10-13','2026-10-14','2026-10-15','2026-10-31','2026-11-01','2026-11-02']
+  .map(d => ({d, vwap: d < event.starts ? 100 : 110, qty: 2}));
+const patchHTML = module.namespace.eventStudyHTML([event],eventDays,'trade');
+assert.match(patchHTML,/이전 10\/13, 10\/14, 10\/15 · 당일부터 10\/31, 11\/01, 11\/02/);
+assert.match(patchHTML,/\+10\.00%/,'실제 관측일 표시가 계산을 바꾸지 않는다');
+assert.match(module.namespace.eventStudyHTML([event],eventDays.slice(0,4),'trade'),/이전 3\/3일 · 당일부터 1\/3일/);
 
 const savedStudy=JSON.parse(readFileSync('docs/evidence/d-note-20261103/results.json','utf8'));
 const broadcast={id:'broadcast',name:'퍼스트 서버 D-NOTE 라이브',type:'방송',starts:'2026-10-27',starts_at:'2026-10-27T10:00:00Z',source_url:'https://df.nexon.com/community/news/notice/2928724'};
