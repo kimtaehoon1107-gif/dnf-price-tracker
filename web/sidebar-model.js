@@ -4,6 +4,11 @@ export function rankedItems(items, direction) {
     .filter(i => direction === 'up' ? i.change > 0 : i.change < 0)
     .sort((a,b) => (direction === 'up' ? b.change-a.change : a.change-b.change) || a.item_id.localeCompare(b.item_id)).slice(0,10);
 }
+export function calendarThumbnail(url) {
+  return typeof url === 'string'
+    && /^https:\/\/bbscdn\.df\.nexon\.com\/data6\/commu\/\d{6}\/[0-9a-f-]+\.(?:jpe?g|png|webp|gif)$/i.test(url) ? url : null;
+}
+
 export function calendarCells(year, month) {
   return [...Array(new Date(Date.UTC(year,month,1)).getUTCDay()).fill(null), ...Array.from({ length: new Date(Date.UTC(year,month+1,0)).getUTCDate() }, (_, i) => i+1)];
 }

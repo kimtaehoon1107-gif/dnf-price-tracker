@@ -27,6 +27,11 @@ assert.equal(open.endDate,null);
 assert.equal(periodsOnDate([open],'2026-09-01')[0].phase,'기간 중');
 const shop=periodRows('<ul data-id="123"><li><b>여름 패키지</b></li><li>2026.08.01 ~ 2026.08.20</li></ul>','seriashop')[0];
 assert.equal(shop.category,'패키지');
+const officialImage = 'https://bbscdn.df.nexon.com/data6/commu/202611/e357533d-e9a7-b13d-f4f1-8da0091d0257.jpg';
+const imageTag = `<img src="${officialImage}" alt="">`;
+assert.equal(periodRows(eventHtml.replace('<b>',imageTag + '<b>'),'event')[0].thumbnail, officialImage);
+assert.equal(periodRows(eventHtml.replace('<b>','<img src="https://example.com/ad.jpg"><b>'),'event')[0].thumbnail, undefined);
+assert.equal(periodRows(`<ul data-id="123"><li>${imageTag}</li><li><b>여름 패키지</b></li><li>2026.08.01 ~ 2026.08.20</li></ul>`,'seriashop')[0].thumbnail, officialImage);
 assert.equal(uniquePeriods([{...shop,source:'event'},shop]).length,1);
 assert.equal(uniquePeriods([shop,{...shop,source:'event'}])[0].source,'seriashop');
 
