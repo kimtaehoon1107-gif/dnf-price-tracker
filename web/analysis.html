@@ -83,6 +83,7 @@
 <details class="detail-table pipeline-details">
   <summary><span>검사 상세 보기</span><i aria-hidden="true">⌄</i></summary>
   <p id="pipeline-detail">검사 기록을 불러오는 중입니다.</p>
+  <p id="archive-status">R2 보관 검증 기록을 불러오는 중입니다.</p>
 </details>
 <div class="note" id="analysis-status" aria-live="polite">검증 상태를 불러오는 중입니다.</div>
 
@@ -361,6 +362,12 @@ fetch('data/summary.json').then(r => {
       `빌드 당시: ${collectionState} · ${aggregateState}${q && q.mismatches !== 0 ? ' · 원본 대조 불일치' : ''}. ${elapsed}.` +
       (aggregateStale || !Number.isFinite(dataAge) || dataAge >= 180
         ? ' ⚠ 오래된 분석 또는 기준 기록 없음 — 새로고침해 최신 데이터를 확인하세요.' : '');
+    const archives = ['B', 'C'].map(source => {
+      const verifiedAt = D.archiveVerifiedAt?.[source];
+      const hours = (Date.now() - Date.parse(verifiedAt)) / 3600000;
+      return Number.isFinite(hours) ? `${source} ${time(verifiedAt)} · ${Math.max(0, Math.floor(hours))}시간 경과` : `${source} 확인 불가`;
+    });
+    document.getElementById('archive-status').textContent = `빌드에서 확인한 R2 보관 검증 · ${archives.join(' / ')}`;
   }
   renderPipelineStatus();
   // 페이지를 오래 열어 두어도 과거 검사 통과를 현재의 신선함으로 오해하지 않게 한다.

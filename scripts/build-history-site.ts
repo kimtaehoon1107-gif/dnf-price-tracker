@@ -22,10 +22,11 @@ const local=new pg.Client({connectionString:url.toString(),ssl:false});
 const store=r2Store(), ssl={ca:readFileSync('certs/supabase-prod-ca-2021.crt','utf8'),rejectUnauthorized:true};
 const sources: pg.Client[]=[];
 const pending: Awaited<ReturnType<typeof captureReplica>>[]=[];
-async function run(script:string,asOf:string) {
+const archiveVerifiedAt: Record<string, string> = {};
+async function run(script:string,asOf:string,extraEnv:NodeJS.ProcessEnv={}) {
   await new Promise<void>((ok,fail)=>{
     const child=spawn(process.execPath,['--no-warnings',script],{env:{...process.env,
-      BUILD_DATABASE_URL:url.toString(),BUILD_AS_OF:asOf,BUILD_HISTORY_CACHE:''},stdio:'inherit'});
+      BUILD_DATABASE_URL:url.toString(),BUILD_AS_OF:asOf,BUILD_HISTORY_CACHE:'',...extraEnv},stdio:'inherit'});
     child.on('error',fail);child.on('close',code=>code===0?ok():fail(new Error(`${script} 실패 (${code})`)));
   });
 }
@@ -64,7 +65,14 @@ try {
     await restoreReplica(local,store,captured.replica,`live_${live.schema}`);
     await local.query('COMMIT');
     if(history) {
-      assert(await archiveStore.get(`verified/${history.id.slice(10,-5)}.json`),'새 DB 보관본 검증 기록 없음');
+      const verified = await archiveStore.get(`verified/${history.id.slice(10,-5)}.json`);
+      assert(verified,'새 DB 보관본 검증 기록 없음');
+      try {
+        const { manifest, verifiedAt } = JSON.parse(verified.toString('utf8'));
+        if (manifest === history.id && Number.isFinite(Date.parse(verifiedAt))) {
+          archiveVerifiedAt[live.schema === 'hist_b' ? 'B' : 'C'] = new Date(verifiedAt).toISOString();
+        }
+      } catch { /* 이전 형식의 검증 기록에는 표시용 시각이 없을 수 있다. */ }
       assert(Date.parse(history.manifest.createdAt)<=Date.parse(captured.replica.asOf),'DB 조회 시각보다 새로운 보관본');
       assert(Date.parse(captured.replica.asOf)-Date.parse(history.manifest.createdAt)<6*86400000,'새 DB 보관 공백');
       await restore(local,history.manifest,archiveStore);
@@ -101,7 +109,7 @@ try {
     await local.query(`TRUNCATE ${quote(table)}`);
     await local.query(`INSERT INTO ${quote(table)} SELECT * FROM jsonb_populate_recordset(NULL::${quote(table)},$1::jsonb)`,['['+rows.map(r=>r.row).join(',')+']']);
   }
-  await run('web/build.ts',asOf);
+  await run('web/build.ts',asOf,{BUILD_ARCHIVE_VERIFIED_AT:JSON.stringify(archiveVerifiedAt)});
   for(const p of pending) await publishReplica(store,p.replica,p.previous);
   console.log('[history-site]',JSON.stringify(report));
 } finally {
