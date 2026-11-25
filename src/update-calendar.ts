@@ -1,3 +1,5 @@
+import { calendarThumbnail } from '../web/sidebar-model.js';
+
 // 공식 목록의 날짜와 제목에 명시된 적용일만 사용한다. 날짜 추정은 하지 않는다.
 export const text = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;|&#160;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim();
 export function updateRows(html: string) {
@@ -32,7 +34,10 @@ export function periodRows(html: string, source: 'event' | 'seriashop') {
     if (!url) return []; // 쿠폰 팝업·임의 스크립트 링크 제외
     const startDate = range[1].replaceAll('.', '-'), endDate = range[2]?.replaceAll('.', '-') ?? null;
     if (endDate && endDate < startDate) return [];
-    return [{ id: `${source}:${id ?? target}`, source, title, category: title.includes('패키지') ? '패키지' : '이벤트', startDate, endDate, url }];
+    const thumbnail = [...m[2].matchAll(/<img\b[^>]*\ssrc=(["'])([^"']+)\1/gi)]
+      .map(match => calendarThumbnail(match[2])).find(Boolean);
+    return [{ id: `${source}:${id ?? target}`, source, title, category: title.includes('패키지') ? '패키지' : '이벤트', startDate, endDate, url,
+      ...(thumbnail ? { thumbnail } : {}) }];
   });
 }
 export function uniquePeriods(rows: any[]) {

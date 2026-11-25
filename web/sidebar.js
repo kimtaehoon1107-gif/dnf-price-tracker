@@ -1,6 +1,10 @@
-import { rankedItems, calendarCells, periodsOnDate } from './sidebar-model.js?v=20261011-periods';
+import { rankedItems, calendarCells, periodsOnDate, calendarThumbnail } from './sidebar-model.js?v=20261125-calendar-pictures';
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = n => Math.round(n).toLocaleString('ko-KR');
+const eventImage = (event) => {
+  const url = calendarThumbnail(event.thumbnail);
+  return url ? `<img class="tool-event-image" src="${esc(url)}" width="320" height="140" loading="lazy" decoding="async" alt="">` : '';
+};
 const icons = { calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M7 14h3M14 14h3M7 18h3"/>', ranking: '<path d="m3 17 6-6 4 4 8-10M15 5h6v6"/>' };
 export function mountSidebar(summary, rail, closeChat) {
   rail.setAttribute('aria-label', '시세 도구');
@@ -53,8 +57,9 @@ export function mountSidebar(summary, rail, closeChat) {
     const day=entries.filter(e=>e.date===selected);
     const activePeriods=periodsOnDate(periods,selected);
     body.innerHTML+=day.map(e=>`<article class="tool-event"><span>${esc(e.category)}</span><h4>${esc(e.title)}</h4><small>${esc(e.dateBasis)} · 게시 ${esc(e.publishedDate)}</small>${e.headings.length?'<p class="tool-muted">공식 본문 주요 항목</p><ul>'+e.headings.map(h=>`<li>${esc(h)}</li>`).join('')+'</ul>':''}<a href="${esc(e.url)}" target="_blank" rel="noopener">공식 원문 보기 ↗</a></article>`).join('') || (activePeriods.length ? '' : '<p class="tool-muted">저장된 일정이 없는 날짜입니다. 실제 일정이 없었다는 뜻은 아닙니다.</p>');
-    body.innerHTML+=activePeriods.map(p=>`<article class="tool-event"><span>${esc(p.category)} · ${p.category==='패키지'?'판매 ':''}${esc(p.phase)}</span><h4>${esc(p.title)}</h4><p>${p.category==='패키지'?'판매기간':'이벤트 기간'}<br>${esc(p.startDate)} ~ ${esc(p.endDate ?? '종료일 미정')}</p><small>공식 목록에 표시된 날짜 기준 · 시작·종료 시각은 원문 확인${p.category==='패키지'?' · 아이템 삭제일과 별개':''}</small><p><a href="${esc(p.url)}" target="_blank" rel="noopener">공식 원문 보기 ↗</a></p></article>`).join('');
+    body.innerHTML+=activePeriods.map(p=>`<article class="tool-event"><span>${esc(p.category)} · ${p.category==='패키지'?'판매 ':''}${esc(p.phase)}</span><h4>${esc(p.title)}</h4>${eventImage(p)}<p>${p.category==='패키지'?'판매기간':'이벤트 기간'}<br>${esc(p.startDate)} ~ ${esc(p.endDate ?? '종료일 미정')}</p><small>공식 목록에 표시된 날짜 기준 · 시작·종료 시각은 원문 확인${p.category==='패키지'?' · 아이템 삭제일과 별개':''}</small><p><a href="${esc(p.url)}" target="_blank" rel="noopener">공식 원문 보기 ↗</a></p></article>`).join('');
     body.innerHTML+=`<p class="tool-note">달력의 점은 업데이트 또는 시작·종료일입니다. 날짜를 누르면 그날 진행 중인 기간도 표시합니다.<br>제목에 적용일이 명시된 공지는 적용일에, 나머지는 게시일에 표시합니다. 목요일이라고 일정을 만들지 않습니다.<br>업데이트 확인: ${esc(new Date(calendar.checkedAt).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}))} KST<br>${Object.entries(calendar.periodCheckedAt ?? {}).map(([source,date])=>`${source==='event'?'이벤트':'패키지'} 확인: ${esc(new Date(date).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}))} KST`).join('<br>')}</p>`;
+    body.querySelectorAll('.tool-event-image').forEach(img => img.addEventListener('error', () => img.remove(), { once: true }));
     body.querySelectorAll('[data-date]').forEach(b=>b.onclick=()=>{selected=b.dataset.date;render();panel.querySelector(`[data-date="${selected}"]`).focus()});
     body.querySelectorAll('[data-month]').forEach(b=>b.onclick=()=>{const d=new Date(Date.UTC(year,month+Number(b.dataset.month),1));year=d.getUTCFullYear();month=d.getUTCMonth();selected=`${year}-${String(month+1).padStart(2,'0')}-01`;render()});
     body.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;render();panel.querySelector(`[data-filter="${filter}"]`).focus()});

@@ -6,6 +6,9 @@ const percent = new Intl.NumberFormat('ko-KR', { signDisplay: 'exceptZero', mini
 const changeText = (change) => `${percent.format(change)}%`;
 const direction = (change) => change > 0 ? 'up' : change < 0 ? 'down' : '';
 const range = ({ start, end }) => `${start.replaceAll('-', '.')} ~ ${end.replaceAll('-', '.')}`;
+const shortDate = (date) => date.slice(5).replace('-', '/');
+const shortRange = ({ start, end }) => start.slice(0, 4) === end.slice(0, 4)
+  ? `${shortDate(start)}–${shortDate(end)}` : range({ start, end });
 
 function itemLink(item) {
   const link = document.createElement('a');
@@ -14,23 +17,37 @@ function itemLink(item) {
   return link;
 }
 
-function showMovers(id, rows) {
+function showPriceItems(id, rows, showDays = false) {
   const list = $(id);
+  list.replaceChildren();
   if (!rows.length) {
     const empty = document.createElement('li');
     empty.textContent = '해당 품목 없음';
     list.append(empty);
   }
-  for (const item of rows.slice(0, 3)) {
+  for (const item of rows) {
     const row = document.createElement('li');
+    row.className = 'weekly-price-item';
     const change = document.createElement('strong');
     change.textContent = changeText(item.changePct);
-    change.className = direction(item.changePct);
-    const name = document.createElement('span');
-    const coverage = document.createElement('small');
-    coverage.textContent = `관측 수량 ${format.format(item.latest.qty)}개 · ${item.latest.days}일`;
-    name.append(itemLink(item), coverage);
-    row.append(name, change);
+    change.className = `weekly-change ${direction(item.changePct)}`;
+    const prices = document.createElement('div');
+    prices.className = 'weekly-prices';
+    const previous = document.createElement('span');
+    previous.textContent = format.format(item.previous.price);
+    const arrow = document.createElement('span');
+    arrow.textContent = '→';
+    arrow.setAttribute('aria-hidden', 'true');
+    const latest = document.createElement('b');
+    latest.textContent = `${format.format(item.latest.price)}골드`;
+    prices.setAttribute('aria-label', `그 전주 ${previous.textContent}골드, 비교 주 ${latest.textContent}`);
+    prices.append(previous, arrow, latest);
+    row.append(itemLink(item), change, prices);
+    if (showDays) {
+      const coverage = document.createElement('small');
+      coverage.textContent = `거래 관측 ${item.previous.days}일 → ${item.latest.days}일`;
+      row.append(coverage);
+    }
     list.append(row);
   }
 }
@@ -45,28 +62,13 @@ function showWatch(report) {
   $('weekly-watch').hidden = !saved.size;
   if (!saved.size) return;
   const rows = report.comparisons.filter((item) => saved.has(item.id));
-  $('weekly-watch-status').textContent = `저장한 ${saved.size}종 중 ${rows.length}종을 비교했어요.` +
-    (rows.length < saved.size ? ` 두 주 모두 거래 관측일이 ${report.minDays}일 이상인 품목의 거래가를 비교합니다.` : '');
-  $('weekly-watch-table').hidden = !rows.length;
-  const body = $('weekly-watch-rows');
-  body.replaceChildren();
-  for (const item of rows) {
-    const row = body.insertRow();
-    const name = document.createElement('th');
-    name.scope = 'row';
-    name.append(itemLink(item));
-    row.append(name);
-    const price = row.insertCell();
-    price.textContent = format.format(item.latest.price);
-    const days = document.createElement('small');
-    days.textContent = `관측 ${item.latest.days}일`;
-    const previous = document.createElement('small');
-    previous.textContent = `그 전주 ${format.format(item.previous.price)} · ${item.previous.days}일`;
-    price.append(days, previous);
-    const change = row.insertCell();
-    change.textContent = changeText(item.changePct);
-    change.className = direction(item.changePct);
-  }
+  const status = $('weekly-watch-status');
+  status.hidden = rows.length === saved.size;
+  status.textContent = rows.length
+    ? `저장한 ${saved.size}종 가운데 ${rows.length}종을 비교했어요.`
+    : `두 주 모두 거래가 ${report.minDays}일 이상 관측된 관심 품목이 없어요.`;
+  $('weekly-watch-rows').hidden = !rows.length;
+  showPriceItems('weekly-watch-rows', rows, true);
 }
 
 function showHistory() {
@@ -78,7 +80,7 @@ function showHistory() {
   for (const week of archive.weeks.slice(offset, offset + 4).reverse()) {
     const { price, qty, days } = week.prices[historyItem.value] ?? {};
     const row = body.insertRow();
-    row.insertCell().textContent = `${week.start.slice(5).replace('-', '/')} ~ ${week.end.slice(5).replace('-', '/')}`;
+    row.insertCell().textContent = shortRange(week);
     row.insertCell().textContent = price === undefined ? '자료 부족' : `${format.format(price)}골드`;
     row.insertCell().textContent = qty === undefined ? '—' : `${format.format(qty)}개 (${days}일)`;
   }
@@ -87,7 +89,7 @@ function showHistory() {
 function showReport(report) {
   currentReport = report;
   showWatch(report);
-  for (const id of ['weekly-up', 'weekly-down', 'weekly-items']) $(id).replaceChildren();
+  $('weekly-items').replaceChildren();
   $('weekly-movers').hidden = $('weekly-details').hidden = !report.comparisons.length;
   const selected = historyItem.value;
   historyItem.replaceChildren(...report.comparisons.map((item) => new Option(item.name, item.id)));
@@ -100,16 +102,20 @@ function showReport(report) {
   const unchanged = comparisons.length - up.length - down.length;
   const mid = medianChangePct === null ? null : Number(medianChangePct.toFixed(1));
 
-  $('weekly-dates').textContent = `비교 주간 ${range(latestWeek)} · 그 전주 ${range(previousWeek)} (KST)`;
+  $('weekly-dates').textContent = `${shortRange(previousWeek)} → ${shortRange(latestWeek)}`;
   $('weekly-recalculated').hidden = report === latestReport;
-  $('weekly-headline').textContent = mid === null ? '두 주를 비교할 수 있는 품목이 아직 없어요'
-    : up.length > down.length ? '평균 거래가가 오른 품목이 더 많았어요'
-    : down.length > up.length ? '평균 거래가가 내린 품목이 더 많았어요'
-    : up.length === 0 ? '가격 변동률이 모두 0.0%였어요'
+  $('weekly-headline').textContent = mid === null ? '두 주를 비교할 자료가 부족해요'
+    : up.length > down.length ? '오른 품목이 더 많았어요'
+    : down.length > up.length ? '내린 품목이 더 많았어요'
+    : up.length === 0 ? '모든 비교 품목이 보합이었어요'
     : '오른 품목과 내린 품목 수가 같았어요';
   $('weekly-breadth').textContent = comparisons.length
-    ? `${population}${comparisons.length}종을 비교했어요. ${up.length}종 상승 · ${down.length}종 하락 · ${unchanged}종 보합. 등락률의 가운데 값은 ${changeText(mid)}예요.`
+    ? `${comparisons.length}종의 주간 평균 거래가 비교`
     : `각 주에 거래가 확인된 날이 ${report.minDays}일 이상인 품목이 있으면 표시됩니다.`;
+  $('weekly-counts').hidden = !comparisons.length;
+  $('weekly-up-count').textContent = `${up.length}종`;
+  $('weekly-down-count').textContent = `${down.length}종`;
+  $('weekly-flat-count').textContent = `${unchanged}종`;
   const groups = new Map();
   for (const item of comparisons) {
     const group = groups.get(item.category) ?? { name: item.category, count: 0, up: 0, down: 0 };
@@ -123,13 +129,15 @@ function showReport(report) {
   $('weekly-category').hidden = !group;
   if (group) $('weekly-category').textContent = `${group.name} ${group.count}종 중 ${Math.max(group.up, group.down)}종 ${group.up > group.down ? '상승' : '하락'}`;
   $('weekly-coverage').textContent =
-    `월요일 0시부터 일요일까지를 한 주로 봅니다. 두 주에 각각 거래가 관측된 날이 ${report.minDays}일 이상인 품목만 비교합니다.`;
+    `${population}${comparisons.length}종을 비교했습니다. 월요일 0시부터 일요일까지를 한 주로 보고, 두 주에 각각 거래가 ${report.minDays}일 이상 관측된 품목을 비교합니다.`;
+  $('weekly-median').hidden = mid === null;
+  if (mid !== null) $('weekly-median').textContent = `품목별 등락률의 중앙값은 ${changeText(mid)}입니다.`;
   $('weekly-asof').textContent = `비교 기간 종료일 ${latestWeek.end.replaceAll('-', '.')} (KST). 현재 공개 자료 기준 ${new Date(latestReport.dataThrough).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} KST.`;
 
   if (comparisons.length) {
-    showMovers('weekly-up', up);
-    showMovers('weekly-down', down);
-    $('weekly-count').textContent = `비교한 ${comparisons.length}종 전체 보기`;
+    showPriceItems('weekly-up', up.slice(0, 3));
+    showPriceItems('weekly-down', down.slice(0, 3));
+    $('weekly-count').textContent = `전체 ${comparisons.length}종 가격·수량 보기`;
     for (const item of comparisons) {
       const row = $('weekly-items').insertRow();
       const name = document.createElement('th');

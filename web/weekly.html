@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="pretendard-400-600.css?v=20261010-fonts"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap"></noscript>
 <link rel="stylesheet" href="style.css?v=20261125-market">
-<link rel="stylesheet" href="weekly.css?v=20261125-market-review">
+<link rel="stylesheet" href="weekly.css?v=20261125-weekly-briefing">
 <meta property="og:title" content="주간 경매장 시황">
 <meta property="og:description" content="지난주와 그 전주의 평균 거래가와 관측 수량을 비교합니다.">
 <meta property="og:type" content="website">
@@ -51,66 +51,77 @@
   </div>
 </header>
 <main class="wrap weekly">
-  <h1 class="page-title">주간 경매장 시황</h1>
+  <div class="weekly-heading">
+    <h1 class="page-title">주간 시황</h1>
+    <label id="weekly-edition-label" class="weekly-select" hidden><span>비교할 주</span><select id="weekly-edition" aria-label="주간 시황 회차"></select></label>
+  </div>
   <p id="weekly-status" role="status">지난주 시황을 불러오는 중입니다.</p>
-  <label id="weekly-edition-label" class="weekly-select" hidden><span>주간 시황 회차</span><select id="weekly-edition"></select></label>
-  <p id="weekly-edition-notice" role="status" hidden></p>
+  <p class="weekly-note" id="weekly-edition-notice" role="status" hidden></p>
   <article id="weekly-report" hidden>
     <header class="weekly-intro">
       <p id="weekly-dates" class="weekly-dates"></p>
       <h2 id="weekly-headline"></h2>
-      <p id="weekly-breadth"></p>
+      <p class="weekly-note" id="weekly-breadth"></p>
+      <dl id="weekly-counts" class="weekly-counts" aria-label="평균 거래가가 오른 품목 수와 내린 품목 수" hidden>
+        <div><dt>오른 품목</dt><dd class="up" id="weekly-up-count"></dd></div>
+        <div><dt>내린 품목</dt><dd class="down" id="weekly-down-count"></dd></div>
+        <div><dt>보합</dt><dd id="weekly-flat-count"></dd></div>
+      </dl>
       <p id="weekly-category" class="weekly-category" hidden></p>
-      <p id="weekly-recalculated" class="weekly-recalculated" hidden>지난 회차는 현재 공개 자료로 다시 계산한 결과입니다.</p>
+      <p id="weekly-recalculated" class="weekly-note" hidden>과거 회차는 현재 자료로 다시 계산했습니다.</p>
     </header>
-    <section id="weekly-watch" class="weekly-history" hidden aria-labelledby="weekly-watch-title">
-      <h2 id="weekly-watch-title">내 관심 품목</h2>
-      <p id="weekly-watch-status"></p>
-      <table id="weekly-watch-table" hidden>
-        <caption class="sr-only">관심 품목의 두 주 평균 거래가와 관측일</caption>
-        <thead><tr><th scope="col">품목</th><th scope="col">평균 거래가<br><small>골드</small></th><th scope="col">등락</th></tr></thead>
-        <tbody id="weekly-watch-rows"></tbody>
-      </table>
-    </section>
-    <div id="weekly-movers" class="weekly-movers" hidden>
-      <section>
-        <h2>가장 많이 오른 품목</h2>
-        <ul id="weekly-up"></ul>
+    <div class="weekly-sections">
+      <section id="weekly-watch" class="weekly-panel" hidden aria-labelledby="weekly-watch-title">
+        <h2 id="weekly-watch-title">내 관심 품목</h2>
+        <p class="weekly-note" id="weekly-watch-status" hidden></p>
+        <ul class="weekly-price-list" id="weekly-watch-rows" hidden></ul>
       </section>
-      <section>
-        <h2>가장 많이 내린 품목</h2>
-        <ul id="weekly-down"></ul>
-      </section>
+      <div id="weekly-movers" class="weekly-movers" hidden>
+        <section class="weekly-panel">
+          <h2>가장 많이 오른 품목</h2>
+          <ul class="weekly-price-list" id="weekly-up"></ul>
+        </section>
+        <section class="weekly-panel">
+          <h2>가장 많이 내린 품목</h2>
+          <ul class="weekly-price-list" id="weekly-down"></ul>
+        </section>
+      </div>
+      <details id="weekly-details" class="weekly-disclosure" hidden>
+        <summary id="weekly-count">전체 품목 비교</summary>
+        <div class="weekly-detail-body">
+          <table>
+            <caption class="sr-only">두 주의 평균 거래가와 관측 거래 수량</caption>
+            <thead>
+              <tr><th scope="col">품목</th><th scope="col">평균 거래가<br><small>골드</small></th><th scope="col">등락률</th><th scope="col">관측 수량<br><small>개</small></th></tr>
+            </thead>
+            <tbody id="weekly-items"></tbody>
+          </table>
+        </div>
+      </details>
+      <details id="weekly-history" class="weekly-disclosure" hidden>
+        <summary>품목별 4주 가격 보기</summary>
+        <div class="weekly-detail-body">
+          <label class="weekly-select"><span>비교할 품목</span><select id="weekly-history-item"></select></label>
+          <table>
+            <caption class="sr-only">주별 평균 거래가와 관측 수량</caption>
+            <thead><tr><th scope="col">주간</th><th scope="col">평균 거래가</th><th scope="col">관측 수량</th></tr></thead>
+            <tbody id="weekly-history-rows"></tbody>
+          </table>
+        </div>
+      </details>
+      <details class="weekly-disclosure">
+        <summary>계산 기준과 자료 시각</summary>
+        <div class="weekly-detail-body">
+          <p id="weekly-coverage"></p>
+          <p id="weekly-median" hidden></p>
+          <p>구매 수량을 반영한 평균 거래가입니다. 매물가만 확인하는 카드는 비교에서 제외합니다. 수량은 수집한 체결 기준입니다.</p>
+          <p id="weekly-asof"></p>
+        </div>
+      </details>
     </div>
-    <section id="weekly-history" class="weekly-history" hidden aria-labelledby="weekly-history-title">
-      <h2 id="weekly-history-title">최근 4주 가격</h2>
-      <label class="weekly-select"><span>비교할 품목</span><select id="weekly-history-item"></select></label>
-      <table>
-        <caption class="sr-only">주별 평균 거래가와 관측 수량</caption>
-        <thead><tr><th scope="col">주간</th><th scope="col">평균 거래가</th><th scope="col">관측 수량</th></tr></thead>
-        <tbody id="weekly-history-rows"></tbody>
-      </table>
-    </section>
-    <details id="weekly-details" class="weekly-details" hidden>
-      <summary id="weekly-count">품목별 비교</summary>
-      <table>
-        <caption class="sr-only">두 주의 평균 거래가와 관측 거래 수량</caption>
-        <thead>
-          <tr><th scope="col">품목</th><th scope="col">평균 거래가<br><small>골드</small></th><th scope="col">변동</th><th scope="col">관측 수량<br><small>개</small></th></tr>
-        </thead>
-        <tbody id="weekly-items"></tbody>
-      </table>
-    </details>
-    <details class="weekly-method">
-      <summary>비교 기준</summary>
-      <p id="weekly-coverage"></p>
-      <p>거래 수량을 반영한 평균 가격입니다. 10개가 팔린 거래는 1개가 팔린 거래보다 평균에 10배 반영됩니다. 차트와 같은 정제 체결 자료를 쓰며, 카드처럼 매물가만 확인하는 품목은 체결 비교 대상에서 제외합니다.</p>
-      <p>관측 수량은 수집한 기록의 합계입니다. 실제 경매장 전체 거래량은 이보다 많을 수 있고, 품목별로 관측일 수도 다를 수 있습니다. 가격 변동률은 소수점 한 자리까지 표시합니다.</p>
-      <p id="weekly-asof"></p>
-    </details>
   </article>
   <footer>네오플 오픈 API를 이용하는 비공식 개인 프로젝트입니다.</footer>
 </main>
-<script type="module" src="weekly.js?v=20261125-market-review"></script>
+<script type="module" src="weekly.js?v=20261125-weekly-briefing"></script>
 </body>
 </html>

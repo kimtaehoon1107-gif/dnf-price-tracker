@@ -620,10 +620,12 @@ function bindWeekdayTrend() {
 function categoryTabs(cats) {
   const right = ['크리쳐', '오라', '칭호'].filter((c) => cats.includes(c));
   const left = cats.filter((c) => !right.includes(c));
-  const button = (c) => `<button class="tab ${c === tab ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`;
+  const button = (c) => `<button class="tab ${c === tab ? 'on' : ''}" data-c="${esc(c)}" aria-pressed="${c === tab}">${esc(c)}</button>`;
   return `<div class="tabs">
     ${['전체', ...left].map(button).join('')}
-    <div class="tabs-end">${right.map(button).join('')}</div>
+    ${right.length ? `<div class="tabs-end" role="group" aria-label="종결 슬롯">
+      <span aria-hidden="true">종결 슬롯</span>${right.map(button).join('')}
+    </div>` : ''}
   </div>`;
 }
 

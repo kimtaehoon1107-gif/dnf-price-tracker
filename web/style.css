@@ -162,12 +162,11 @@ a.card.hl:hover { border-color: var(--blue); }
 .legendary-weekday-table th:first-child { text-align: left; }
 
 /* ── 탭 ───────────────────────────────────────── */
-.tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px; scrollbar-width: none; }
-.tabs::-webkit-scrollbar { display: none; }
-.tabs-end { display: flex; gap: 8px; margin-left: auto; padding-left: 16px; }
-.tabs-end::before {
-  content: '종결 슬롯'; align-self: center; flex: none; white-space: nowrap;
-  font-size: 12px; font-weight: 600; color: var(--ink-4); margin-right: 2px;
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.tabs-end { display: flex; flex: 0 0 100%; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+.tabs-end > span {
+  flex: none; white-space: nowrap; font-size: 13px;
+  font-weight: 650; color: var(--ink-3); margin-right: 2px;
 }
 .tab {
   flex: none; padding: 8px 15px; border-radius: 999px; font-size: 14px; font-weight: 600;
@@ -553,7 +552,8 @@ td small, summary small { font-size: 12px; }
   .cards .card { flex: 0 0 72%; padding: 13px 15px; scroll-snap-align: start; }
   .cards .card .k { margin-bottom: 2px; }
   .cards .card .v { font-size: 20px; }
-  .tabs-end { margin-left: 8px; padding-left: 10px; border-left: 1px solid var(--line-2); }
+  .tabs { gap: 6px; }
+  .tab { padding-inline: 11px; }
   .lh, .row { grid-template-columns: minmax(0, 1fr) 104px 54px; gap: 8px; padding: 0 12px; }
   .lh > :first-child, .row .rank { display: none; }
   .lh .h5, .lh .h6, .lh .h7, .row .c5, .row .c6, .row .c7 { display: none; }
