@@ -671,7 +671,10 @@ function bindMarketSearch() {
         : '최근 체결가';
       const href = tracked ? `#${item.item_id}` : `ranking.html#${item.item_id}`;
       return `<a class="market-result" href="${href}">
-        <span><b>${esc(item.item_name)}</b><small>${esc(tracked ? item.category : item.item_type_detail)}${!tracked ? ' · 순위 보기' : ''}</small></span>
+        <span class="nm">
+          ${item.img ? `<img src="${esc(item.img)}" alt="" loading="lazy" width="32" height="32">` : ''}
+          <span class="t"><b>${esc(item.item_name)}</b><small>${esc(tracked ? item.category : item.item_type_detail)}${!tracked ? ' · 순위 보기' : ''}</small></span>
+        </span>
         <span class="market-result-price"><b>${price > 0 ? fmt(price) + '골드' : '가격 자료 없음'}</b><small>${basis}</small></span>
       </a>`;
     };
