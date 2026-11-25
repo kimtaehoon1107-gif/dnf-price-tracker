@@ -9,25 +9,29 @@ const node = (id) => {
   if (!nodes.has(id)) nodes.set(id, { innerHTML: '', textContent: '', style: {}, append() {} });
   return nodes.get(id);
 };
-let scriptStarted = false, distributionRendered = false, failSeries = false;
+let scriptStarted = false, distributionDraws = 0, failSeries = false;
+let pendingSeries: (() => void)[] | null = null;
 const seriesPanel = { hidden: false };
+const upgradeButtons = ['zero', 'max'].map(cardMode => ({ dataset: { cardMode }, onclick() {} }));
 let snapshot = {};
 const days = Array.from({length: 14}, (_, i) => ({
   d: new Date(Date.UTC(2026, 8, 23 + i)).toISOString().slice(0, 10), vwap: 120,
 }));
-const context = vm.createContext({ console: { ...console, error() {} }, Date, window: {}, location: {hash:'#sample'},
+const context = vm.createContext({ console: { ...console, error() {} }, Date, window: {}, location: {hash:'#sample'}, scrollTo() {},
   getComputedStyle: () => ({getPropertyValue: () => '#333333'}),
-  document: {documentElement: {}, getElementById: node, querySelectorAll: (selector) => selector === '[data-detail-series]' ? [seriesPanel] : [],
+  document: {documentElement: {}, getElementById: node, querySelector: () => null,
+    querySelectorAll: (selector) => selector === '[data-detail-series]' ? [seriesPanel] : selector === '.upgrade-sw button' ? upgradeButtons : [],
     createElement: () => ({remove() {}}), head: {append(script) {scriptStarted = true; script.onerror();}}},
   fetch: async () => { await Promise.resolve(); assert(scriptStarted, 'chart request starts before series finishes');
+    if (pendingSeries) await new Promise<void>(resolve => pendingSeries!.push(resolve));
     if (failSeries) return { ok: false, status: 503 };
     return {ok:true,json:async()=>({daily:days,completeBefore:'2026-10-06',depth:[],hourly:[],...snapshot,stock:[{t:'2026-10-06T00:00:00Z',qty:10,listings:2}],askGap:[{t:'2026-10-06T00:00:00Z',gap:1}],events:[]})}; }
 });
 const source = readFileSync('web/app.js','utf8');
-const module = new vm.SourceTextModule(source + '\nexport {renderDetail}; export function fixture(builtAt = "2026-10-07T00:00:00Z") { DATA = {builtAt}; }', { context, importModuleDynamically: async (specifier) => {
+const module = new vm.SourceTextModule(source + '\nexport {render, renderDetail}; export function fixture(builtAt = "2026-10-07T00:00:00Z", items = []) { DATA = {builtAt, items}; }', { context, importModuleDynamically: async (specifier) => {
   assert(specifier.startsWith('./price-distribution.js'));
   const renderer = new vm.SyntheticModule(['renderPriceDistribution', 'disposePriceDistribution'], function () {
-    this.setExport('renderPriceDistribution', () => { distributionRendered = true; });
+    this.setExport('renderPriceDistribution', () => { distributionDraws++; });
     this.setExport('disposePriceDistribution', () => {});
   }, { context });
   await renderer.link(() => assert.fail('Unexpected chart import'));
@@ -44,7 +48,7 @@ await module.link(name => {
 await module.evaluate(); module.namespace.fixture();
 const item = {item_id:'sample',item_name:'테스트',category:'소울 결정',price_basis:'trade',vwap24:100,span_days:30,last_price:90,last_trade_at:'2026-10-06T06:30:00Z'};
 await module.namespace.renderDetail(item);
-assert(distributionRendered);
+assert.equal(distributionDraws, 1);
 assert.match(node('depth').innerHTML,/계산을 보류했어요/);
 assert.match(node('price-position').innerHTML,/현재 13일/, '집계 완료 전 날짜를 가격 비교에 포함하지 않는다');
 assert.match(node('view').innerHTML,/마지막 거래가<\/div>\s*<div class="bigpx">90<small>골드/);
@@ -72,3 +76,20 @@ snapshot = { depth: levels, depthObservedAt: '2026-10-06T05:00:00Z' };
 await module.namespace.renderDetail(quoteItem);
 assert.match(node('depth').innerHTML, /계산을 보류했어요/);
 assert.doesNotMatch(node('depth').innerHTML, /100개 구매 평균/);
+
+pendingSeries = [];
+snapshot = {};
+const previousDraws = distributionDraws;
+module.namespace.fixture(observedAt, [{ ...item, price_basis: 'ask0', category: '카드', max_upgrade: 2 }]);
+module.namespace.render();
+upgradeButtons[1].onclick();
+upgradeButtons[0].onclick();
+await Promise.resolve();
+assert.equal(pendingSeries.length, 3);
+pendingSeries[2]();
+await new Promise<void>(resolve => setImmediate(resolve));
+assert.equal(distributionDraws, previousDraws + 1, '마지막 0업 요청만 현재 차트를 그린다');
+pendingSeries[0]();
+pendingSeries[1]();
+await new Promise<void>(resolve => setImmediate(resolve));
+assert.equal(distributionDraws, previousDraws + 1, '늦게 완료된 0업·풀업 요청은 현재 차트를 덮지 않는다');

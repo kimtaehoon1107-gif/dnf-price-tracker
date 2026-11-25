@@ -15,6 +15,16 @@ export function marketSearchTerm(query) {
   return term === '무큐' ? '무색큐브조각' : term;
 }
 
+export const marketWatchKey = 'dnf-market-watch';
+
+export function readMarketWatch() {
+  try {
+    const items = JSON.parse(localStorage.getItem(marketWatchKey) ?? '[]');
+    if (Array.isArray(items)) return [...new Set(items.filter((id) => typeof id === 'string'))];
+  } catch { /* 브라우저 설정에 따라 저장소를 사용할 수 없다. */ }
+  return [];
+}
+
 /** 24시간 평균가가 체결이 있었던 최근 완료일의 VWAP 사이에서 어디쯤인지 계산한다.
  *  같은 "하루 평균" 단위끼리 비교한다. 위치일 뿐이며 앞으로 오르거나 내린다는 뜻은 아니다.
  *  관측일 기준이라 중간에 공백이 있으면 달력상 기간이 길어지므로 실제 비교 기간을 함께 돌려준다. */

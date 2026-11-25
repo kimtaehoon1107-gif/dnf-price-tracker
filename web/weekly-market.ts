@@ -17,16 +17,19 @@ export function buildWeeklyMarket(
   dataThrough: string,
   items: readonly TradeItem[],
   dailyBy: ReadonlyMap<string, readonly TradeDay[]>,
+  weeksBack = 0,
 ) {
   // Represent KST calendar dates at UTC midnight for date arithmetic only.
   const dayKst = new Date(dataThrough).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
   const date = new Date(`${dayKst}T00:00:00Z`);
-  const monday = +date - ((date.getUTCDay() + 6) % 7) * DAY;
+  const monday = +date - (((date.getUTCDay() + 6) % 7) + 7 * weeksBack) * DAY;
   const dateAt = (days: number) => new Date(monday + days * DAY).toISOString().slice(0, 10);
   const previousWeek = { start: dateAt(-14), end: dateAt(-8) };
   const latestWeek = { start: dateAt(-7), end: dateAt(-1) };
 
-  const comparisons = items.flatMap(({ item_id, item_name, category }) => {
+  const observed = items.filter(({ item_id }) => dailyBy.get(item_id)?.some(({ d, vwap, qty }) =>
+    d >= previousWeek.start && d <= latestWeek.end && vwap > 0 && qty > 0));
+  const comparisons = observed.flatMap(({ item_id, item_name, category }) => {
     const days = dailyBy.get(item_id) ?? [];
     const previous = summarizeWeek(days, previousWeek);
     const latest = summarizeWeek(days, latestWeek);
@@ -43,7 +46,7 @@ export function buildWeeklyMarket(
     : (changes[middle - 1] + changes[middle]) / 2;
 
   return {
-    dataThrough, previousWeek, latestWeek, minDays: MIN_DAYS, totalItems: items.length,
+    dataThrough, previousWeek, latestWeek, minDays: MIN_DAYS, totalItems: items.length, observedItems: observed.length,
     medianChangePct, comparisons,
   };
 }
@@ -54,7 +57,7 @@ export function buildWeeklyHistory(
   dailyBy: ReadonlyMap<string, readonly TradeDay[]>,
 ) {
   const offset = (date: string, days: number) => new Date(Date.parse(date) - days * DAY).toISOString();
-  const past = [1, 2, 3].map((i) => buildWeeklyMarket(offset(latest.dataThrough, i * 7), items, dailyBy));
+  const past = [1, 2, 3].map((weeksBack) => buildWeeklyMarket(latest.dataThrough, items, dailyBy, weeksBack));
   // Four completed weeks for each issue, with no observations from later weeks.
   const weeks = Array.from({ length: 7 }, (_, i) => {
     const week = {

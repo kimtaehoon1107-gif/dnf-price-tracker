@@ -680,6 +680,7 @@ writeFileSync(`${OUT}/data/summary.json`, JSON.stringify({
     excludedQty: displayCleaning.reduce((n,r) => n + Number(r.excluded_qty),0),
     unverifiedItemDays: displayCleaning.filter(r => !r.verified).length },
   meta, health, quality, collection, weekday, weekdaySample, randomWalk, items: withMeta, legendary, marketRanking,
+  archiveVerifiedAt: process.env.BUILD_ARCHIVE_VERIFIED_AT ? JSON.parse(process.env.BUILD_ARCHIVE_VERIFIED_AT) : undefined,
   cardWeekday: cardWeekdaySummary,
   weekdayTrends,
   bunnyMargin,

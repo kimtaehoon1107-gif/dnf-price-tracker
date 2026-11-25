@@ -14,6 +14,7 @@
 }
 .weekly-intro p { margin: 0; color: var(--ink-2); }
 .weekly-intro .weekly-dates { font-size: .875rem; color: var(--ink-3); }
+.weekly-intro .weekly-recalculated { margin-top: 8px; font-size: .875rem; color: var(--ink-3); }
 .weekly-movers:not([hidden]) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
 .weekly-movers section { padding: 14px 18px; }
 .weekly-movers h2 { margin: 0; font-size: 1rem; }
@@ -43,4 +44,5 @@
 .weekly-intro .weekly-category { margin-top: 10px; color: var(--ink); font-weight: 700; }
 .weekly-history { padding: 14px 16px; margin: 12px 0; background: var(--card); border: 1px solid var(--line-2); border-radius: var(--radius); }
 .weekly-history h2 { margin: 0 0 8px; font-size: 1rem; }
+#weekly-watch-status { margin: 0 0 8px; color: var(--ink-3); font-size: .875rem; }
 .weekly-history .weekly-select { margin-bottom: 6px; }
