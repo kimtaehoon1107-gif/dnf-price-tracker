@@ -1,48 +1,76 @@
-.weekly { max-width: 860px; }
-.weekly .page-title { margin: 0 0 20px; }
-.weekly-intro, .weekly-movers section, .weekly-details, .weekly-method {
+.weekly { max-width: 920px; }
+.weekly [hidden] { display: none; }
+.weekly-heading {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 6px 18px; margin-bottom: 16px;
+}
+.weekly-heading .page-title { margin: 0; }
+.weekly-intro, .weekly-panel, .weekly-disclosure {
   border: 1px solid var(--line-2);
   border-radius: var(--radius);
   background: var(--card);
 }
-.weekly-intro { padding: clamp(16px, 4vw, 32px); }
+.weekly-intro { padding: clamp(16px, 3.8vw, 28px); }
 .weekly-intro h2 {
-  margin: 6px 0 8px;
-  font-size: clamp(22px, 4vw, 31px);
-  line-height: 1.32;
-  letter-spacing: -.03em;
+  margin: 4px 0 5px;
+  font-size: clamp(23px, 4vw, 32px);
+  line-height: 1.28;
+  letter-spacing: -.035em;
+  word-break: keep-all;
 }
-.weekly-intro p { margin: 0; color: var(--ink-2); }
-.weekly-intro .weekly-dates { font-size: .875rem; color: var(--ink-3); }
-.weekly-intro .weekly-recalculated { margin-top: 8px; font-size: .875rem; color: var(--ink-3); }
-.weekly-movers:not([hidden]) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
-.weekly-movers section { padding: 14px 18px; }
-.weekly-movers h2 { margin: 0; font-size: 1rem; }
-.weekly-movers ul { padding: 0; margin: 4px 0 0; list-style: none; }
-.weekly-movers li { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 52px; padding: 6px 0; }
-.weekly-movers li small { display: block; color: var(--ink-3); font-size: .8125rem; }
-.weekly-movers li + li { border-top: 1px solid var(--line); }
-.weekly a { text-decoration: underline; text-underline-offset: 3px; }
-.weekly :is(a, summary):focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
-.weekly-details, .weekly-method { margin: 12px 0; padding: 0 16px; }
-.weekly summary { padding: 11px 0; min-height: 44px; cursor: pointer; font-weight: 650; }
+.weekly-dates { margin: 0; font-size: .875rem; font-weight: 700; color: var(--blue); }
+.weekly-note { margin: 0; color: var(--ink-3); font-size: .875rem; line-height: 1.55; }
+#weekly-edition-notice { margin-bottom: 10px; }
+.weekly-counts {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 16px 0 0; padding: 10px 0; border-radius: 12px; background: var(--page);
+}
+.weekly-counts > div { min-width: 0; padding: 0 10px; text-align: center; }
+.weekly-counts > div + div { border-left: 1px solid var(--line-2); }
+.weekly-counts dt { font-size: .875rem; color: var(--ink-2); }
+.weekly-counts dd { margin: 0; font-size: clamp(20px, 3.5vw, 27px); font-weight: 750; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.weekly-category { margin: 12px 0 0; color: var(--ink-2); font-size: .875rem; font-weight: 650; }
+#weekly-recalculated { margin-top: 8px; }
+.weekly-sections { display: grid; gap: 10px; margin-top: 12px; }
+.weekly-movers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.weekly-panel { min-width: 0; padding: 14px 18px; }
+.weekly-panel h2 { margin: 0; font-size: 1.125rem; letter-spacing: -.02em; }
+#weekly-watch-status { margin: 4px 0 0; }
+.weekly-price-list { list-style: none; margin: 4px 0 0; padding: 0; }
+.weekly-price-list li + li { border-top: 1px solid var(--line-2); }
+.weekly-price-list > li:not(.weekly-price-item) { padding: 8px 0; color: var(--ink-3); }
+.weekly-price-item {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start; gap: 2px 10px; padding: 10px 0; line-height: 1.45;
+}
+.weekly-price-item:last-child { padding-bottom: 0; }
+.weekly-price-item > a { min-width: 0; overflow-wrap: anywhere; font-weight: 650; }
+.weekly-change { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.weekly-prices {
+  grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 2px 6px;
+  font-size: .875rem; color: var(--ink-3); font-variant-numeric: tabular-nums;
+}
+.weekly-prices b { color: var(--ink); }
+.weekly-price-item > small { grid-column: 1 / -1; color: var(--ink-3); }
+.weekly a { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-2); }
+.weekly :is(a, summary, select):focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+.weekly-disclosure { padding: 0 16px; }
+.weekly-disclosure summary { min-height: 44px; padding: 11px 0; cursor: pointer; font-weight: 650; }
+.weekly-detail-body { padding-bottom: 10px; }
+.weekly-detail-body p { margin: 0 0 8px; color: var(--ink-2); }
 .weekly table { width: 100%; border-collapse: collapse; text-align: right; font-variant-numeric: tabular-nums; }
-.weekly th, .weekly td { padding: 9px 5px; border-top: 1px solid var(--line); }
+.weekly th, .weekly td { padding: 9px 5px; border-top: 1px solid var(--line-2); }
 .weekly th:first-child { text-align: left; overflow-wrap: anywhere; }
 .weekly thead th { font-size: .875rem; }
 .weekly th small, .weekly td small { display: block; font-size: .8125rem; color: var(--ink-3); }
-.weekly-method p { color: var(--ink-2); margin: 0 0 12px; }
-@media (max-width: 540px) {
-  .weekly-movers:not([hidden]) { grid-template-columns: 1fr; }
-  .weekly-details { padding: 0 10px; }
+.weekly-select { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; color: var(--ink-2); font-size: .875rem; }
+.weekly-detail-body .weekly-select { margin-bottom: 8px; }
+.weekly-select select {
+  min-height: 44px; min-width: 0; max-width: 100%; padding: 5px 9px; border: 1px solid var(--line-2);
+  border-radius: 8px; background: var(--card); color: var(--ink); font: inherit;
+}
+@media (max-width: 600px) {
+  .weekly-movers { grid-template-columns: 1fr; }
+  .weekly-panel, .weekly-disclosure { padding-inline: 14px; }
   .weekly table { font-size: .875rem; }
 }
-
-.weekly-select { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 12px; }
-.weekly-select[hidden] { display: none; }
-.weekly-select select { min-height: 44px; max-width: 100%; padding: 5px 9px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; }
-.weekly-intro .weekly-category { margin-top: 10px; color: var(--ink); font-weight: 700; }
-.weekly-history { padding: 14px 16px; margin: 12px 0; background: var(--card); border: 1px solid var(--line-2); border-radius: var(--radius); }
-.weekly-history h2 { margin: 0 0 8px; font-size: 1rem; }
-#weekly-watch-status { margin: 0 0 8px; color: var(--ink-3); font-size: .875rem; }
-.weekly-history .weekly-select { margin-bottom: 6px; }
