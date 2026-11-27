@@ -133,12 +133,12 @@ try {
   await transaction(async () => {
     const purchasedAt = '2026-09-22T00:00:30.000Z';
     await client.query(`
-      INSERT INTO hist_b.listing_snapshots(item_id,captured_at,min_unit_price,listing_count,total_qty)
-        VALUES ('soul','2026-09-22T00:00:45Z',99,1,100);
-      INSERT INTO hist_c.listing_snapshots(item_id,captured_at,min_unit_price,listing_count,total_qty,upgrade)
-        VALUES ('soul','2026-09-22T00:00:10Z',170,1,20,NULL),
-               ('soul','2026-09-22T00:00:30Z',160,2,110,NULL),
-               ('card','2026-09-22T00:00:35Z',1000,1,1,0);
+      INSERT INTO hist_b.listing_snapshots(id,item_id,captured_at,min_unit_price,listing_count,total_qty)
+        VALUES (101,'soul','2026-09-22T00:00:45Z',99,1,100);
+      INSERT INTO hist_c.listing_snapshots(id,item_id,captured_at,min_unit_price,listing_count,total_qty,upgrade)
+        VALUES (101,'soul','2026-09-22T00:00:10Z',170,1,20,NULL),
+               (102,'soul','2026-09-22T00:00:30Z',160,2,110,NULL),
+               (103,'card','2026-09-22T00:00:35Z',1000,1,1,0);
       INSERT INTO listings (auction_no,item_id,reg_date,expire_date,unit_price,reg_count,cur_count,first_seen_at,last_seen_at)
         VALUES (1,'soul','2026-09-21','2026-09-23',160,2,2,'2026-09-21','2026-09-22T00:00:30Z'),
                (2,'soul','2026-09-21','2026-09-23',170,108,108,'2026-09-21','2026-09-22T00:00:30Z');
