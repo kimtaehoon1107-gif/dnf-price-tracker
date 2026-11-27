@@ -13,6 +13,10 @@ let scriptStarted = false, distributionDraws = 0, failSeries = false;
 let pendingSeries: (() => void)[] | null = null;
 const seriesPanel = { hidden: false };
 const upgradeButtons = ['zero', 'max'].map(cardMode => ({ dataset: { cardMode }, onclick() {} }));
+const quantityButtons = [1, 10, 100].map(quantity => ({
+  dataset: { quoteQty: String(quantity) }, pressed: 'false', onclick() {},
+  setAttribute(_name: string, value: string) { this.pressed = value; },
+}));
 let snapshot = {};
 const days = Array.from({length: 14}, (_, i) => ({
   d: new Date(Date.UTC(2026, 8, 23 + i)).toISOString().slice(0, 10), vwap: 120,
@@ -20,7 +24,12 @@ const days = Array.from({length: 14}, (_, i) => ({
 const context = vm.createContext({ console: { ...console, error() {} }, Date, window: {}, location: {hash:'#sample'}, scrollTo() {},
   getComputedStyle: () => ({getPropertyValue: () => '#333333'}),
   document: {documentElement: {}, getElementById: node, querySelector: () => null,
-    querySelectorAll: (selector) => selector === '[data-detail-series]' ? [seriesPanel] : selector === '.upgrade-sw button' ? upgradeButtons : [],
+    querySelectorAll: (selector) => {
+      if (selector === '[data-detail-series]') return [seriesPanel];
+      if (selector === '.upgrade-sw button') return upgradeButtons;
+      if (selector === '[data-quote-qty]') return quantityButtons;
+      return [];
+    },
     createElement: () => ({remove() {}}), head: {append(script) {scriptStarted = true; script.onerror();}}},
   fetch: async () => { await Promise.resolve(); assert(scriptStarted, 'chart request starts before series finishes');
     if (pendingSeries) await new Promise<void>(resolve => pendingSeries!.push(resolve));
@@ -49,17 +58,18 @@ await module.evaluate(); module.namespace.fixture();
 const item = {item_id:'sample',item_name:'테스트',category:'소울 결정',price_basis:'trade',vwap24:100,span_days:30,last_price:90,last_trade_at:'2026-10-06T06:30:00Z'};
 await module.namespace.renderDetail(item);
 assert.equal(distributionDraws, 1);
-assert.match(node('depth').innerHTML,/계산을 보류했어요/);
+assert.match(node('quantity-quote').innerHTML,/매물 수량을 확인하지 못했어요/);
 assert.match(node('price-position').innerHTML,/현재 13일/, '집계 완료 전 날짜를 가격 비교에 포함하지 않는다');
 assert.match(node('view').innerHTML,/마지막 거래가<\/div>\s*<div class="bigpx">90<small>골드/);
 assert.match(node('view').innerHTML,/최근 1시간 거래 관측 없음<br>마지막 거래/);
 assert.match(node('stock-chart').innerHTML,/차트를 불러오지 못했습니다/);
 assert.match(node('c4').innerHTML,/차트를 불러오지 못했습니다/);
-assert.match(node('view').innerHTML,/구매 수량별 매물 가격/);
+assert.match(node('view').innerHTML,/확인된 최저 매물가[\s\S]*수량별 구매가[\s\S]*가격 추이/);
 failSeries = true;
 await module.namespace.renderDetail(item);
 assert.match(node('price-panel').innerHTML,/가격 추이를 불러오지 못했습니다/);
 assert.match(node('view').innerHTML,/마지막 거래가/);
+assert.match(node('quantity-quote').innerHTML,/수량별 구매가를 불러오지 못했어요/);
 assert.equal(seriesPanel.hidden, true);
 console.log('차트 요청 병렬 시작·CDN 및 시계열 요청 실패 시 가격 정보 유지 통과');
 
@@ -67,15 +77,36 @@ failSeries = false;
 const observedAt = new Date().toISOString();
 const quoteItem = { ...item, min_ask: 90, ask_observed_at: observedAt, gap: -10, api_qty24: 10, listings: 2 };
 module.namespace.fixture(observedAt);
-const levels = [{ price: 90, qty: 10 }, { price: 120, qty: 90 }];
+const levels = [{ price: 120, qty: 90 }, { price: 90, qty: 9 }, { price: 91, qty: 1 }];
 snapshot = { depth: levels, depthObservedAt: observedAt };
 await module.namespace.renderDetail(quoteItem);
 assert.match(node('view').innerHTML, /10% 낮아요/);
-assert.match(node('depth').innerHTML, /100개 구매 평균<\/div><div class="v">117/);
+const result = node('quantity-result');
+assert.match(result.innerHTML, /구매 총액<\/dt><dd>90 /);
+assert.match(node('quantity-quote').innerHTML, /매물 관측.*KST/);
+assert.equal(quantityButtons[0].pressed, 'true');
+quantityButtons[1].onclick();
+assert.match(result.innerHTML, /구매 총액<\/dt><dd>901 /);
+assert.match(result.innerHTML, /개당 평균<\/dt><dd>90\.1 /);
+quantityButtons[2].onclick();
+assert.match(result.innerHTML, /구매 총액<\/dt><dd>11,701 /);
+assert.match(result.innerHTML, /개당 평균<\/dt><dd>117\.01 /);
+assert.deepEqual(quantityButtons.map(button => button.pressed), ['false', 'false', 'true']);
+assert.match(node('depth').innerHTML, /관측된 수량 100개/);
+
+snapshot = { depth: levels.slice(1), depthObservedAt: observedAt };
+await module.namespace.renderDetail(quoteItem);
+quantityButtons[2].onclick();
+assert.match(result.innerHTML, /100개 중 10개 확인/);
+assert.doesNotMatch(result.innerHTML, /구매 총액|개당 평균/);
+
 snapshot = { depth: levels, depthObservedAt: '2026-10-06T05:00:00Z' };
 await module.namespace.renderDetail(quoteItem);
-assert.match(node('depth').innerHTML, /계산을 보류했어요/);
-assert.doesNotMatch(node('depth').innerHTML, /100개 구매 평균/);
+assert.match(node('quantity-quote').innerHTML, /같은 시각의 매물 수량을 확인하지 못했어요/);
+assert.doesNotMatch(node('quantity-quote').innerHTML, /data-quote-qty/);
+snapshot = { depth: levels, depthObservedAt: observedAt };
+await module.namespace.renderDetail({ ...quoteItem, listings: 0 });
+assert.match(node('quantity-quote').innerHTML, /관측된 매물이 없어요/);
 
 pendingSeries = [];
 snapshot = {};
