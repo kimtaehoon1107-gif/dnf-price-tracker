@@ -12,7 +12,7 @@ export function bunnyPackagePanelHTML(margin) {
   const difference = partsSum !== null && body.vwap > 0
     ? partsSum * (1 - margin.fee) - body.vwap : null;
   const percent = difference === null ? '' : ` (${difference >= 0 ? '+' : ''}${(100 * difference / body.vwap).toFixed(2)}%)`;
-  return `<section class="panel pkg-overview" aria-label="바니바니 패키지 해체 마진">
+  return `<section class="panel pkg-overview" id="bunny-package-margin" tabindex="-1" aria-label="바니바니 패키지 해체 마진">
     <div class="pkg-heading"><h3>바니바니 윈터 아라드 패키지 해체 마진</h3><a href="https://df.nexon.com/community/news/seriashop/671">공식 구성 보기 →</a></div>
     <div class="pkg-stats">
       <div><span>패키지 가격</span><strong>${gold(body.vwap)}</strong></div>
