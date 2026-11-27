@@ -18,7 +18,7 @@ const context = vm.createContext({
 });
 const view = { innerHTML: '' };
 const module = new vm.SourceTextModule(readFileSync('web/app.js', 'utf8') +
-  '\nexport {renderDataStatus, renderDetail, legendaryObservation, eventStudyHTML}; export function fixture(data, mode = "zero") { DATA = data; cardMode = mode; }', { context, importModuleDynamically: () => import('../web/price-distribution.js') });
+  '\nexport {renderDataStatus, renderDetail, legendaryObservation, eventStudyHTML, marketQuickCardHTML}; export function fixture(data, mode = "zero") { DATA = data; cardMode = mode; }', { context, importModuleDynamically: () => import('../web/price-distribution.js') });
 await module.link((name) => {
   const exports = name.includes('forecast-review.js') ? { itemForecastPanel: () => '', mountForecastReview: () => {} } : name.includes('summary-data.js') ? { loadSummary: () => new Promise(() => {}) } : name.includes('package.js') ? packageUI : metrics;
   return new vm.SyntheticModule(Object.keys(exports), function () {
@@ -117,4 +117,16 @@ assert.match(view.innerHTML, /현재 판매가 기록 없음/, '관측 기록 �
 await module.namespace.renderDetail(card);
 assert.match(view.innerHTML, /<div class="bigpx">100<small>골드<\/small><\/div>/);
 assert.doesNotMatch(view.innerHTML, /현재 확인된 매물 없음/);
+const favorite = {
+  item_id: 'sample', item_name: '관심 품목', img: 'https://img-api.neople.co.kr/df/items/sample',
+  price_basis: 'trade', last_price: 1200, last_trade_at: '2026-11-27T04:10:00Z',
+  vwap1h: 1500, min_ask: 1100, listings: 4, ask_observed_at: '2026-11-27T06:06:00Z',
+};
+const favoriteHTML = module.namespace.marketQuickCardHTML(favorite);
+assert.match(favoriteHTML, /최근 거래가[\s\S]*1,200[\s\S]*13:10 KST/);
+assert.match(favoriteHTML, /최저 매물가[\s\S]*1,100[\s\S]*15:06 KST/);
+assert.doesNotMatch(favoriteHTML, /1,500/, '화면은 최근 한 건의 실제 거래가를 표시');
+const missingQuote = module.namespace.marketQuickCardHTML({ ...favorite, price_basis: 'ask0', listings: 0 });
+assert.match(missingQuote, /체결 미수집[\s\S]*0업 최저 매물가[\s\S]*매물 없음/);
+assert.doesNotMatch(missingQuote, /1,200|1,100/, '카드 매물가를 거래가로 표시하거나 매물 없음 상태에서 과거 가격을 재표시하지 않는다');
 console.log('메인 기준 시각·3시간 경계·누락 기록 경고 테스트 통과');
