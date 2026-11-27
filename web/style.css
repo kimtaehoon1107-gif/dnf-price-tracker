@@ -887,14 +887,33 @@ h3.sub {
 .market-actions a:hover { text-decoration: underline; }
 .market-actions :is(a, input):focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .market-search-status { margin: 0 0 10px; color: var(--ink-2); }
-.market-examples, .market-saved { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 10px; }
+.market-examples { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 10px; }
 .market-examples button, .watch-item {
   min-height: 36px; padding: 5px 10px; border: 1px solid var(--line-2); border-radius: 8px;
   background: var(--card); color: var(--ink); font: inherit; cursor: pointer;
 }
 .market-examples button:hover, .watch-item:hover, .watch-item[aria-pressed="true"] { color: var(--blue); border-color: var(--blue); }
 .watch-item { margin-left: auto; flex: 0 0 auto; }
-.market-saved a { display: inline-flex; align-items: center; min-height: 38px; color: var(--blue); }
+.market-quick { margin-top: 18px; }
+.market-quick h3 { margin: 0 0 8px; font-size: 17px; letter-spacing: -.02em; }
+.market-quick-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 238px), 1fr)); gap: 8px; }
+.market-quick-card {
+  min-width: 0; padding: 10px 12px; background: var(--card);
+  border: 1px solid var(--line-2); border-radius: 12px;
+}
+.market-quick-card:hover { border-color: var(--blue); }
+.market-quick-card:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.market-quick-card .nm strong { min-width: 0; font-size: 15px; overflow-wrap: anywhere; }
+.market-quick-prices {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+  border-top: 1px solid var(--line); margin-top: 8px; padding-top: 7px; line-height: 1.4;
+}
+.market-quote-label, .market-quick-prices time { display: block; color: var(--ink-3); font-size: 12px; }
+.market-quote-value {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 3px;
+  font-size: 16px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+}
+.market-quote-value small, .market-quote-missing { font-size: 12px; color: var(--ink-2); }
 .market-search-status { margin: 12px 0 8px; }
 .market-result-group { background: var(--card); border: 1px solid var(--line-2); border-radius: var(--radius); margin-bottom: 12px; padding: 4px 14px; }
 .market-result-group h3 { margin: 10px 0 3px; font-size: 16px; }

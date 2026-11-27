@@ -436,12 +436,14 @@ async function boot() {
   addEventListener('hashchange', render);
 }
 
+const marketTurnover = (it) => it.price_basis === 'ask0' ? 0 : (it.vwap24 ?? it.last_price) * it.api_qty24;
+
 const enrich = (it) => ({
   ...it,
   display_price: representativePrice(it),
   chg: it.vwap24 && it.vwap_prev ? (it.vwap24 / it.vwap_prev - 1) * 100 : null,
   max_chg: it.max_vwap24 && it.max_vwap_prev ? (it.max_vwap24 / it.max_vwap_prev - 1) * 100 : null,
-  turnover: it.price_basis === 'ask0' ? 0 : (it.vwap24 ?? it.last_price) * it.api_qty24,
+  turnover: marketTurnover(it),
   gap: askGap(it),
   g: grade(it),
 });
@@ -635,8 +637,33 @@ function cardJobTabs() {
   </div>`;
 }
 
+function marketQuickCardHTML(item) {
+  const isCard = item.price_basis === 'ask0';
+  const hasTrade = !isCard && item.last_price > 0 && Number.isFinite(Date.parse(item.last_trade_at));
+  const hasAsk = item.min_ask > 0 && item.listings !== 0;
+  const quote = (label, price, at, missing) => `<div>
+    <span class="market-quote-label">${label}</span>
+    ${price > 0 ? `<b class="market-quote-value">${fmt(price)}<small>골드</small></b>` : `<span class="market-quote-missing">${missing}</span>`}
+    ${Number.isFinite(Date.parse(at)) ? `<time datetime="${esc(at)}">${priceTime(at)} KST</time>` : ''}
+  </div>`;
+  return `<a class="market-quick-card" href="#${encodeURIComponent(item.item_id)}">
+    <span class="nm">
+      ${item.img ? `<img src="${esc(item.img)}" alt="" loading="lazy" width="32" height="32">` : ''}
+      <strong>${esc(item.item_name)}</strong>
+    </span>
+    <div class="market-quick-prices">
+      ${quote('최근 거래가', hasTrade ? item.last_price : null, hasTrade ? item.last_trade_at : null, isCard ? '체결 미수집' : '거래 기록 없음')}
+      ${quote(isCard ? '0업 최저 매물가' : '최저 매물가', hasAsk ? item.min_ask : null, item.ask_observed_at, item.listings === 0 ? '매물 없음' : '매물 기록 없음')}
+    </div>
+  </a>`;
+}
+
 function marketSearchHTML() {
   const saved = DATA.items.filter((item) => watchedItems.has(item.item_id));
+  const quickItems = saved.length || tab !== '전체' ? saved : DATA.items
+    .filter(item => marketTurnover(item) > 0)
+    .sort((a, b) => marketTurnover(b) - marketTurnover(a))
+    .slice(0, 3);
   return `<section class="market-start" aria-labelledby="market-list-title">
     <h2 class="market-list-title" id="market-list-title">경매장 시세</h2>
     <div class="market-actions">
@@ -646,9 +673,10 @@ function marketSearchHTML() {
     <div class="market-examples" aria-label="추천 검색어">
       ${['무큐', '바니바니', '순례의 증표'].map((name) => `<button type="button" data-market-example="${name}">${name}</button>`).join('')}
     </div>
-    ${saved.length ? `<nav class="market-saved" aria-label="관심 품목"><b>관심 품목</b>
-      ${saved.map((item) => `<a href="#${item.item_id}">${esc(item.item_name)}</a>`).join('')}
-    </nav>` : ''}
+    ${quickItems.length ? `<section class="market-quick" id="market-quick" aria-labelledby="market-quick-title">
+      <h3 id="market-quick-title">${saved.length ? '관심 품목' : '24시간 거래대금 상위 품목'}</h3>
+      <div class="market-quick-list">${quickItems.map(marketQuickCardHTML).join('')}</div>
+    </section>` : ''}
     <p class="market-search-status" id="market-search-status" role="status" hidden></p>
     <div id="market-results" hidden></div>
   </section>`;
@@ -658,11 +686,13 @@ function bindMarketSearch() {
   const search = document.getElementById('market-search');
   const status = document.getElementById('market-search-status');
   const results = document.getElementById('market-results');
+  const quick = document.getElementById('market-quick');
   const browse = document.getElementById('market-browse');
   const update = () => {
     marketQuery = search.value;
     const query = marketSearchTerm(marketQuery);
     browse.hidden = Boolean(query);
+    if (quick) quick.hidden = Boolean(query);
     status.hidden = results.hidden = !query;
     if (!query) return;
 
