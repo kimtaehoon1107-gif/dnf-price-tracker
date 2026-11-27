@@ -1146,20 +1146,19 @@ async function renderDetail(it, isCurrent = () => location.hash.slice(1) === it.
         ${!isZeroCard && it.vwap1h == null ? `<div class="price-meta">최근 1시간 거래 관측 없음${latestTrade ? `<br>마지막 거래 ${priceTime(it.last_trade_at)} KST` : ''}</div>` : ''}
         ${!isZeroCard && it.vwap1h != null ? `<div class="price-meta">${priceTime(priceAsOf)} KST 기준 · ${fmt(it.trades1h)}건</div>` : ''}
         ${isZeroCard && askTime ? `<div class="price-meta">${askTime}</div>` : ''}
-        ${it.chg != null ? `<div class="bigchg ${cls(it.chg)}">${pct(it.chg)} <span>24시간 평균 변동</span></div>` : ''}
+        ${isZeroCard && it.chg != null ? `<div class="bigchg ${cls(it.chg)}">${pct(it.chg)} <span>24시간 평균 변동</span></div>` : ''}
       </div>
       ${isZeroCard ? '' : `<div class="detail-lowest-ask">
         <div class="price-meta">확인된 최저 매물가</div>
         <div class="bigpx">${it.min_ask > 0 ? `${fmt(it.min_ask)}<small>골드</small>` : '—'}</div>
-        ${askTime ? `<div class="price-meta">${askTime}</div>` : ''}
+        ${askTime ? `<div class="price-meta" id="detail-ask-time"><time datetime="${esc(it.ask_observed_at)}">${askTime}</time></div>` : ''}
         <div class="price-meta" id="min-ask-qty">${it.min_ask > 0 ? '' : it.listings === 0 ? '확인된 매물 없음' : '판매가 기록 없음'}</div>
       </div>`}
     </div>
-    ${hasDepth ? `<section class="quantity-quote" aria-labelledby="quantity-quote-title">
-      <h3 id="quantity-quote-title">수량별 구매가</h3>
+    ${hasDepth ? `<section class="quantity-quote" aria-labelledby="quantity-quote-title"${askTime ? ' aria-describedby="detail-ask-time"' : ''}>
+      <div class="quantity-quote-head"><h3 id="quantity-quote-title">수량별 구매가</h3><small>관측 매물 기준</small></div>
       <div id="quantity-quote"><p class="price-meta" role="status">매물별 수량을 불러오는 중…</p></div>
     </section>` : ''}
-    ${canCompare ? `<p class="quote-context">최저 매물가는 최근 24시간 평균 거래가 ${fmt(it.vwap24)}골드와${Math.abs(it.gap) < 0.05 ? ' 비슷해요.' : ` 비교해 <b>${fmt(Math.abs(it.gap), 1)}% ${it.gap < 0 ? '낮아요' : '높아요'}</b>.`}</p>` : ''}
     </section>
     <div class="panel" id="price-panel">
       <div class="panel-head price-chart-head">
@@ -1182,6 +1181,7 @@ async function renderDetail(it, isCurrent = () => location.hash.slice(1) === it.
     </div>
     <details class="panel detail-metrics">
       <summary>가격·거래 상세</summary>
+      ${canCompare ? `<p class="quote-context">최저 매물가는 최근 24시간 평균 거래가 ${fmt(it.vwap24)}골드와${Math.abs(it.gap) < 0.05 ? ' 비슷해요.' : ` 비교해 <b>${fmt(Math.abs(it.gap), 1)}% ${it.gap < 0 ? '낮아요' : '높아요'}</b>.`}</p>` : ''}
       ${it.category === '칭호' && it.is_final && it.final_since ? `<p class="price-meta">칭호 D+는 같은 종결 성능 등급이 처음 등장한 날부터 계산합니다. 일반형은 프로스트의 전설, 플래티넘형은 프로스트의 전설 플래티넘을 기준으로 합니다. <a href="https://df.nexon.com/community/news/seriashop/541?category=2" target="_blank" rel="noopener noreferrer">최초 출시 안내 ↗</a></p>` : ''}
       ${isZeroCard ? '' : `<p class="price-meta">최근 단건 체결가 ${it.last_trade_at ? `${fmt(it.last_price)}골드 · ${priceTime(it.last_trade_at)} KST` : '기록 없음'}<br>
         ${it.vwap1h == null ? '최근 1시간 관측 거래 없음' : `최근 1시간 거래 ${fmt(it.trades1h)}건 · 수량 ${fmt(it.api_qty1h)}개로 계산한 평균가`} · ${priceTime(DATA.priceAsOf)} KST 기준</p>`}
@@ -1192,6 +1192,7 @@ async function renderDetail(it, isCurrent = () => location.hash.slice(1) === it.
       <div><div class="k">가격 기준</div><div class="v">${cardTier}만</div></div>
       <div><div class="k">이력</div><div class="v">${it.span_days >= 1 ? it.span_days.toFixed(1) + '일' : (it.span_days * 24).toFixed(0) + '시간'}</div></div>` : `
       <div><div class="k">최근 24시간 평균 거래가</div><div class="v">${fmt(it.vwap24)}</div></div>
+      ${it.chg != null ? `<div><div class="k">24시간 평균 변동</div><div class="v ${cls(it.chg)}">${pct(it.chg)}</div></div>` : ''}
       <div><div class="k">최근 24시간 수집된 거래 수량</div><div class="v">${fmt(it.api_qty24)}</div></div>
       <div><div class="k">등록 매물</div><div class="v">${fmt(it.listings)}</div></div>
       <div><div class="k">수집된 거래 기록</div><div class="v">${fmt(it.trades)} <span style="font-size:12px;color:var(--ink-3);font-weight:500">${it.g}등급</span></div></div>
@@ -1285,8 +1286,7 @@ async function renderDetail(it, isCurrent = () => location.hash.slice(1) === it.
       <div class="quantity-choices" role="group" aria-label="구매 수량">
         ${[1, 10, 100].map(n => `<button type="button" data-quote-qty="${n}" aria-pressed="${n === 1}">${n}개</button>`).join('')}
       </div>
-      <div id="quantity-result" role="status" aria-atomic="true"></div>
-      <p class="price-meta"><time datetime="${esc(s.depthObservedAt)}">${askTime}</time> · 관측 매물 기준 참고 가격</p>`
+      <div id="quantity-result" role="status" aria-atomic="true"></div>`
       : `<p class="price-meta" role="status">${unavailable}</p>`;
     if (depth.length) {
       const result = document.getElementById('quantity-result');
