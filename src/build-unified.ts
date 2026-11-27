@@ -30,6 +30,26 @@ export async function unifyCollectionHealth(client: Client, activeSources: strin
     FROM expected e LEFT JOIN latest l USING(slot,source_schema) GROUP BY e.slot`,[activeSources,asOf]);
 }
 
+// 공통 시각 뒤에 수집된 현재 호가는 같은 출처의 최신 매물과 함께 표시한다.
+// 이 스냅샷은 시계열, 집계, 연구에 쓰는 listing_snapshots에 넣지 않는다.
+export async function buildCurrentPurchaseSnapshots(client: Client, sources: string[], asOf: string) {
+  const current = sources.map(source => `
+    SELECT i.item_id, s.listing_count, s.min_unit_price, s.median, s.captured_at, s.total_qty
+    FROM public.items i JOIN history_owners o USING (item_id)
+    JOIN LATERAL (
+      SELECT captured_at, listing_count, min_unit_price, median, total_qty
+      FROM ${quote(source)}.listing_snapshots s
+      WHERE s.item_id=i.item_id AND s.upgrade IS NULL AND s.captured_at>$1::timestamptz
+        AND (o.from_at IS NULL OR s.captured_at>=o.from_at)
+      ORDER BY s.captured_at DESC, s.id DESC
+      LIMIT 1
+    ) s ON true
+    WHERE i.category IN ('재료·소모품', '소울 결정')
+      AND o.source_schema='${source}' AND o.to_at IS NULL
+  `).join(' UNION ALL ');
+  await client.query(`CREATE TABLE public.current_purchase_snapshots AS ${current}`, [asOf]);
+}
+
 /** 호출자가 모든 입력을 복원한 뒤 repeatable read 안에서 담당 기간을 전달한다. */
 export async function unifyMarket(client: Client, sources: string[], owners: HistoryOwner[], asOf: string,
   globals: { source: string; from: string | null; to: string | null }[]) {
@@ -94,6 +114,7 @@ export async function unifyMarket(client: Client, sources: string[], owners: His
     listing_count,total_qty,upgrade,upgrade_max FROM merged_listing_snapshots;
     CREATE INDEX ON public.listing_snapshots(item_id,captured_at);
     CREATE TABLE public.listings AS ${current('listings')}`);
+  await buildCurrentPurchaseSnapshots(client, sources, asOf);
   // copied 상태가 있는 출처끼리는 자연키로 정리하고, 재관측으로 생긴 무효화는 후속 출처까지 반영한다.
   await client.query(`CREATE TEMP TABLE build_deltas ON COMMIT DROP AS ${sources.map(s=>
     `SELECT '${s}'::text AS source_schema,t.* FROM ${quote(s)}.listing_deltas t`).join(' UNION ALL ')};

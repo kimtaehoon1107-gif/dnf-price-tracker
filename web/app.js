@@ -519,7 +519,14 @@ function render({ toTop = true } = {}) {
     });
   } else {
     detailItemId = null;
+    const showSaved = id.startsWith('watch-') && watchedItems.has(id.slice(6));
+    if (showSaved) marketQuery = '';
     renderList();
+    if (showSaved) {
+      const card = document.getElementById(id);
+      card?.focus({ preventScroll: true });
+      card?.scrollIntoView({ block: 'start' });
+    }
   }
 }
 
@@ -646,7 +653,7 @@ function marketQuickCardHTML(item) {
     ${price > 0 ? `<b class="market-quote-value">${fmt(price)}<small>골드</small></b>` : `<span class="market-quote-missing">${missing}</span>`}
     ${Number.isFinite(Date.parse(at)) ? `<time datetime="${esc(at)}">${priceTime(at)} KST</time>` : ''}
   </div>`;
-  return `<a class="market-quick-card" href="#${encodeURIComponent(item.item_id)}">
+  return `<a class="market-quick-card" id="watch-${encodeURIComponent(item.item_id)}" href="#${encodeURIComponent(item.item_id)}">
     <span class="nm">
       ${item.img ? `<img src="${esc(item.img)}" alt="" loading="lazy" width="32" height="32">` : ''}
       <strong>${esc(item.item_name)}</strong>
@@ -715,12 +722,12 @@ function bindMarketSearch() {
       return `<a class="market-result" href="${href}">
         <span class="nm">
           ${item.img ? `<img src="${esc(item.img)}" alt="" loading="lazy" width="32" height="32">` : ''}
-          <span class="t"><b>${esc(item.item_name)}</b><small>${esc(tracked ? item.category : item.item_type_detail)}${!tracked ? ' · 순위 보기' : ''}</small></span>
+          <span class="t"><b>${esc(item.item_name)}</b><small>${esc(tracked ? item.category : item.item_type_detail)}</small></span>
         </span>
-        <span class="market-result-price"><b>${price > 0 ? fmt(price) + '골드' : '가격 자료 없음'}</b><small>${basis}</small>${observed}</span>
+        <span class="market-result-price"><b>${price > 0 ? fmt(price) + '골드' : '가격 자료 없음'}</b><small>${basis}</small>${observed}<span class="market-result-action">${tracked ? '시세·차트 보기' : '순위 보기'} →</span></span>
       </a>`;
     };
-    const legendaryResult = legendary ? '<a class="market-result" href="#legendary-card"><b>레전더리 카드 재료 시세</b></a>' : '';
+    const legendaryResult = legendary ? '<a class="market-result" href="#legendary-card"><b>레전더리 카드 재료 시세</b><span class="market-result-action">시세·차트 보기 →</span></a>' : '';
     const trackedGroup = tracked.length || legendary ? `<section class="market-result-group"><h3>상시 추적 품목</h3>
       ${query === legendaryName ? legendaryResult : ''}${tracked.map(result).join('')}${query !== legendaryName ? legendaryResult : ''}
       </section>` : '';
@@ -1122,7 +1129,10 @@ async function renderDetail(it, isCurrent = () => location.hash.slice(1) === it.
         <div class="meta">${esc(it.item_rarity)} · ${esc(it.item_type_detail)}${it.slot ? ' · ' + esc(it.slot) : ''}${it.job_role ? ' · ' + esc(it.job_role) : ''}${selectedKeyStat ? ' · 부여 능력치 ' + esc(selectedKeyStat) : ''}</div>
         ${it.is_final && it.final_since ? `<div class="meta">${it.category === '칭호' ? '종결 성능 최초 등장' : '종결 지정'} ${it.final_since} · <b style="color:var(--ink-2)">D+${sinceDays(it.final_since)}</b></div>` : ''}
       </div>
-      <button type="button" id="watch-item" class="watch-item" aria-pressed="${watchedItems.has(it.item_id)}">${watchedItems.has(it.item_id) ? '관심 저장됨' : '관심 저장'}</button>
+      <div class="watch-actions">
+        <button type="button" id="watch-item" class="watch-item" aria-pressed="${watchedItems.has(it.item_id)}">${watchedItems.has(it.item_id) ? '관심 저장됨' : '관심 저장'}</button>
+        <a id="watch-list" class="watch-list" href="#watch-${encodeURIComponent(it.item_id)}"${watchedItems.has(it.item_id) ? '' : ' hidden'}>관심 품목 보기</a>
+      </div>
     </div>
     ${isZeroCard ? `<div class="upgrade-sw" role="group" aria-label="카드 업그레이드 단계">
       <button class="${showingMax ? '' : 'on'}" aria-pressed="${!showingMax}" data-card-mode="zero" type="button">0업</button>
@@ -1219,8 +1229,10 @@ async function renderDetail(it, isCurrent = () => location.hash.slice(1) === it.
     if (watchedItems.has(it.item_id)) watchedItems.delete(it.item_id);
     else watchedItems.add(it.item_id);
     try { localStorage.setItem(marketWatchKey, JSON.stringify([...watchedItems])); } catch { /* Retain this session's selection. */ }
-    watchButton.setAttribute('aria-pressed', String(watchedItems.has(it.item_id)));
-    watchButton.textContent = watchedItems.has(it.item_id) ? '관심 저장됨' : '관심 저장';
+    const saved = watchedItems.has(it.item_id);
+    watchButton.setAttribute('aria-pressed', String(saved));
+    watchButton.textContent = saved ? '관심 저장됨' : '관심 저장';
+    document.getElementById('watch-list').hidden = !saved;
   };
   document.querySelectorAll('[data-detail-jump]').forEach((button) => {
     button.onclick = () => {

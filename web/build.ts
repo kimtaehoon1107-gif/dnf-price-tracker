@@ -59,6 +59,9 @@ const packageStudyInput = await loadPackageStudyInput(client,
 writeFileSync(`${OUT}/data/package-study-source.json`, JSON.stringify(packageStudyInput));
 
 // ── 아이템 요약 ────────────────────────────────────────────────
+const { purchase_snapshots: purchaseSnapshots } = (await query<{ purchase_snapshots: boolean }>(
+  "SELECT to_regclass('public.current_purchase_snapshots') IS NOT NULL AS purchase_snapshots",
+)).rows[0];
 const items = (await query<{
   item_id: string; item_name: string; item_rarity: string; item_type_detail: string;
   role: string; category: string; slot: string | null; job_role: string | null;
@@ -117,6 +120,12 @@ const items = (await query<{
     WHERE i.category <> '카드' OR s.upgrade = 0
     ORDER BY s.item_id, s.captured_at DESC
   ),
+  ${purchaseSnapshots ? `display_snap AS (
+    SELECT item_id, listing_count, min_unit_price, median, captured_at, total_qty FROM current_purchase_snapshots
+    UNION ALL
+    SELECT h.* FROM last_snap h
+    WHERE NOT EXISTS (SELECT 1 FROM current_purchase_snapshots c WHERE c.item_id = h.item_id)
+  ),` : ''}
   last_max_snap AS (
     SELECT DISTINCT ON (s.item_id) s.item_id, s.upgrade, s.upgrade_max,
            s.listing_count, s.min_unit_price, s.median, s.captured_at
@@ -160,7 +169,7 @@ const items = (await query<{
   FROM items i
   LEFT JOIN agg a USING (item_id)
   LEFT JOIN card_max_agg cma USING (item_id)
-  LEFT JOIN last_snap ls USING (item_id)
+  LEFT JOIN ${purchaseSnapshots ? 'display_snap' : 'last_snap'} ls USING (item_id)
   LEFT JOIN last_max_snap lms USING (item_id)
   LEFT JOIN last_trade lt USING (item_id)
   LEFT JOIN recent_trade rt USING (item_id)
