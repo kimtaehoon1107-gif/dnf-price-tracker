@@ -949,13 +949,16 @@ h3.sub {
   background: var(--card); color: var(--ink); font: inherit; cursor: pointer;
 }
 .market-examples button:hover, .watch-item:hover, .watch-item[aria-pressed="true"] { color: var(--blue); border-color: var(--blue); }
-.watch-item { margin-left: auto; flex: 0 0 auto; }
+.watch-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+.watch-list { display: inline-flex; align-items: center; min-height: 36px; padding: 5px 8px; color: var(--blue); font-weight: 650; }
+.watch-list[hidden] { display: none; }
+.watch-list:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 8px; }
 .market-quick { margin-top: 18px; }
 .market-quick h3 { margin: 0 0 8px; font-size: 17px; letter-spacing: -.02em; }
 .market-quick-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 238px), 1fr)); gap: 8px; }
 .market-quick-card {
   min-width: 0; padding: 10px 12px; background: var(--card);
-  border: 1px solid var(--line-2); border-radius: 12px;
+  border: 1px solid var(--line-2); border-radius: 12px; scroll-margin-top: 110px;
 }
 .market-quick-card:hover { border-color: var(--blue); }
 .market-quick-card:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
@@ -979,11 +982,13 @@ h3.sub {
 .market-result small { display: block; color: var(--ink-3); }
 .market-result-price { text-align: right; font-variant-numeric: tabular-nums; }
 .market-result-price b { white-space: nowrap; }
+.market-result-action { display: block; margin-top: 2px; color: var(--blue); font-size: .8125rem; font-weight: 650; }
 .quote-context { max-width: 600px; margin: 10px 0 0; padding: 8px 12px; border-radius: 9px; background: var(--blue-bg); color: var(--ink-2); }
 #depth-panel { scroll-margin-top: 105px; }
 @media (max-width: 480px) {
-  .dh:has(.watch-item) { flex-wrap: wrap; }
-  .watch-item { margin: 0; min-height: 44px; }
+  .dh:has(.watch-actions) { flex-wrap: wrap; }
+  .watch-actions { margin: 0; }
+  .watch-item, .watch-list { min-height: 44px; }
   .market-examples button { min-height: 44px; }
 }
 .panel h3 { font-size: 18px; line-height: 1.4; margin-bottom: 8px; }
