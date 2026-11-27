@@ -4,7 +4,7 @@ import pg from 'pg';
 import { encode, hash, readRows, type Store } from '../src/archive.ts';
 import { mergeTradeHistory, mergeSnapshotHistory, type HistoryOwner } from '../src/history-merge.ts';
 import { researchExport } from '../src/research-export.ts';
-import { unifyCollectionHealth } from '../src/build-unified.ts';
+import { buildCurrentPurchaseSnapshots, unifyCollectionHealth } from '../src/build-unified.ts';
 
 // 운영 DB로 실행하지 않는다. CI의 일회성 PostgreSQL 17만 허용한다.
 const url = new URL(process.env.HISTORY_MERGE_TEST_URL!);
@@ -129,6 +129,35 @@ try {
   await transaction(async () => {
     const trade = await mergeTradeHistory(client, sources, '2026-09-21T15:05:01Z');
     assert.equal(trade.trades, 5, '기준 시각 뒤의 관측을 섞지 않음');
+  });
+  await transaction(async () => {
+    const purchasedAt = '2026-09-22T00:00:30.000Z';
+    await client.query(`
+      INSERT INTO hist_b.listing_snapshots(item_id,captured_at,min_unit_price,listing_count,total_qty)
+        VALUES ('soul','2026-09-22T00:00:45Z',99,1,100);
+      INSERT INTO hist_c.listing_snapshots(item_id,captured_at,min_unit_price,listing_count,total_qty,upgrade)
+        VALUES ('soul','2026-09-22T00:00:10Z',170,1,20,NULL),
+               ('soul','2026-09-22T00:00:30Z',160,2,110,NULL),
+               ('card','2026-09-22T00:00:35Z',1000,1,1,0);
+      INSERT INTO listings (auction_no,item_id,reg_date,expire_date,unit_price,reg_count,cur_count,first_seen_at,last_seen_at)
+        VALUES (1,'soul','2026-09-21','2026-09-23',160,2,2,'2026-09-21','2026-09-22T00:00:30Z'),
+               (2,'soul','2026-09-21','2026-09-23',170,108,108,'2026-09-21','2026-09-22T00:00:30Z');
+    `);
+    await mergeSnapshotHistory(client, sources, owners, asOf);
+    await buildCurrentPurchaseSnapshots(client, sources, asOf);
+    const { rows: [historical] } = await client.query(
+      "SELECT captured_at FROM merged_listing_snapshots WHERE item_id='soul' ORDER BY captured_at DESC LIMIT 1");
+    const { rows: current } = await client.query('SELECT item_id,captured_at,min_unit_price,total_qty FROM current_purchase_snapshots');
+    assert.equal(historical.captured_at.toISOString(), cutC, '차트와 연구의 공통 시각 경계 유지');
+    assert.deepEqual(current, [{ item_id: 'soul', captured_at: new Date(purchasedAt), min_unit_price: '160', total_qty: 110 }],
+      '현재 담당 출처의 최신 관측만 사용하고 카드와 과거 담당 출처의 관측을 제외');
+    const depthSql = readFileSync('web/build.ts','utf8').match(/const depth = \(await query<[^\x60]+>\(\x60([\s\S]*?)\x60, \[/)?.[1];
+    assert.ok(depthSql, '배포용 가격별 수량 조회');
+    assert.deepEqual((await client.query(depthSql, [['soul'], [historical.captured_at.toISOString()]])).rows, [],
+      '공통 기준 시각의 요약으로 최신 매물을 조회하면 수량이 사라지는 문제 재현');
+    assert.deepEqual((await client.query(depthSql, [['soul'], [purchasedAt]])).rows,
+      [{item_id:'soul',price:160,qty:2},{item_id:'soul',price:170,qty:108}],
+      '최저가와 합계가 같은 시각의 매물로 구매가를 계산');
   });
   await transaction(async () => {
     await client.query(`CREATE TEMP TABLE history_owners(item_id text,source_schema text,from_at timestamptz,to_at timestamptz);
