@@ -1,8 +1,12 @@
-.weekly { max-width: 920px; }
+.weekly {
+  --weekly-up: color-mix(in srgb, var(--up) 85%, var(--ink));
+  --weekly-flat: #8C98A8;
+  max-width: 980px;
+}
 .weekly [hidden] { display: none; }
 .weekly-heading {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-  gap: 6px 18px; margin-bottom: 16px;
+  gap: 8px 18px; margin: 4px 0 16px;
 }
 .weekly-heading .page-title { margin: 0; }
 .weekly-intro, .weekly-panel, .weekly-disclosure {
@@ -10,52 +14,100 @@
   border-radius: var(--radius);
   background: var(--card);
 }
-.weekly-intro { padding: clamp(16px, 3.8vw, 28px); }
+.weekly-intro { padding: clamp(16px, 3.8vw, 28px); border-top: 3px solid var(--blue); }
 .weekly-intro h2 {
-  margin: 4px 0 5px;
-  font-size: clamp(23px, 4vw, 32px);
-  line-height: 1.28;
+  margin: 12px 0 4px;
+  font-size: clamp(24px, 4vw, 36px);
+  line-height: 1.24;
   letter-spacing: -.035em;
   word-break: keep-all;
 }
-.weekly-dates { margin: 0; font-size: .875rem; font-weight: 700; color: var(--blue); }
-.weekly-note { margin: 0; color: var(--ink-3); font-size: .875rem; line-height: 1.55; }
+.weekly-dates { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; font-size: .875rem; }
+.weekly-dates > div { display: flex; align-items: baseline; gap: 6px; color: var(--ink-2); }
+.weekly-dates dd { margin: 0; color: var(--ink); font-weight: 650; font-variant-numeric: tabular-nums; }
+.weekly-dates > div:first-child dd { color: var(--blue); }
+.weekly-note { margin: 0; color: var(--ink-2); font-size: .875rem; line-height: 1.55; }
 #weekly-edition-notice { margin-bottom: 10px; }
 .weekly-counts {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: 16px 0 0; padding: 10px 0; border-radius: 12px; background: var(--page);
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+  margin: 16px 0 8px;
 }
-.weekly-counts > div { min-width: 0; padding: 0 10px; text-align: center; }
-.weekly-counts > div + div { border-left: 1px solid var(--line-2); }
+.weekly-counts > div { min-width: 0; padding: 8px 12px; border-radius: 10px; background: var(--page); }
+.weekly-counts > div:first-child { background: var(--up-bg); }
+.weekly-counts > div:nth-child(2) { background: var(--down-bg); }
 .weekly-counts dt { font-size: .875rem; color: var(--ink-2); }
-.weekly-counts dd { margin: 0; font-size: clamp(20px, 3.5vw, 27px); font-weight: 750; line-height: 1.25; font-variant-numeric: tabular-nums; }
-.weekly-category { margin: 12px 0 0; color: var(--ink-2); font-size: .875rem; font-weight: 650; }
+.weekly-counts dd {
+  margin: 0; font-size: clamp(24px, 4vw, 32px); font-weight: 750;
+  line-height: 1.25; font-variant-numeric: tabular-nums;
+}
+.weekly-counts dd small { margin-left: 2px; font-size: .875rem; font-weight: 650; }
+.weekly .up { color: var(--weekly-up); }
+.weekly-bar { display: flex; height: 9px; overflow: hidden; border-radius: 999px; }
+.weekly-bar span { flex-basis: 0; }
+#weekly-up-bar { background: var(--weekly-up); }
+#weekly-down-bar { background: var(--down); }
+#weekly-flat-bar { background: var(--weekly-flat); }
+.weekly-category {
+  margin: 14px 0 0; padding-top: 10px; border-top: 1px solid var(--line-2);
+  color: var(--ink); font-size: .9375rem; font-weight: 650;
+}
 #weekly-recalculated { margin-top: 8px; }
-.weekly-sections { display: grid; gap: 10px; margin-top: 12px; }
+.weekly-sections { display: grid; gap: 10px; margin-top: 18px; }
+.weekly-section-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px;
+  margin-bottom: 8px;
+}
+.weekly-section-head h2 { margin: 0; font-size: 1.25rem; letter-spacing: -.02em; }
 .weekly-movers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .weekly-panel { min-width: 0; padding: 14px 18px; }
-.weekly-panel h2 { margin: 0; font-size: 1.125rem; letter-spacing: -.02em; }
+.weekly-movers h3 { margin: 0; font-size: 1rem; }
+.weekly-movers h3 span { font-size: 1.15em; margin-right: 2px; }
+.weekly-risers h3 span { color: var(--weekly-up); }
+.weekly-fallers h3 span { color: var(--down); }
 #weekly-watch-status { margin: 4px 0 0; }
-.weekly-price-list { list-style: none; margin: 4px 0 0; padding: 0; }
+.weekly-price-list, .weekly-calendar-list { list-style: none; margin: 4px 0 0; padding: 0; }
 .weekly-price-list li + li { border-top: 1px solid var(--line-2); }
 .weekly-price-list > li:not(.weekly-price-item) { padding: 8px 0; color: var(--ink-3); }
 .weekly-price-item {
   display: grid; grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start; gap: 2px 10px; padding: 10px 0; line-height: 1.45;
+  align-items: center; gap: 2px 8px; padding: 6px 0; line-height: 1.4;
 }
-.weekly-price-item:last-child { padding-bottom: 0; }
-.weekly-price-item > a { min-width: 0; overflow-wrap: anywhere; font-weight: 650; }
-.weekly-change { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.weekly-price-item:last-child { padding-bottom: 2px; }
+.weekly-price-item > a { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 44px; font-weight: 700; }
+.weekly-price-item a span { overflow-wrap: anywhere; }
+.weekly-price-item img { flex: 0 0 32px; width: 32px; height: 32px; border-radius: 7px; background: var(--page); }
+.weekly-change {
+  padding: 4px 7px; border-radius: 7px; background: var(--page);
+  font-size: .9375rem; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right;
+}
+.weekly-change.up { background: var(--up-bg); }
+.weekly-change.down { background: var(--down-bg); }
 .weekly-prices {
-  grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 2px 6px;
-  font-size: .875rem; color: var(--ink-3); font-variant-numeric: tabular-nums;
+  grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px;
+  margin-left: 40px; font-size: .875rem; color: var(--ink-2); font-variant-numeric: tabular-nums;
 }
 .weekly-prices b { color: var(--ink); }
-.weekly-price-item > small { grid-column: 1 / -1; color: var(--ink-3); }
+.weekly-price-item > small { grid-column: 1 / -1; margin-left: 40px; color: var(--ink-3); }
+.weekly-more { margin-top: 2px; border-top: 1px solid var(--line-2); }
+.weekly-more summary {
+  display: list-item; min-height: 44px; padding: 11px 0; cursor: pointer;
+  color: var(--ink-2); font-size: .875rem; font-weight: 650;
+}
+.weekly-more ul { margin-top: 0; }
 .weekly a { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-2); }
+.weekly-price-item > a { text-decoration: none; }
+.weekly-price-item > a:hover span { text-decoration: underline; text-decoration-color: currentColor; }
 .weekly :is(a, summary, select):focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
 .weekly-disclosure { padding: 0 16px; }
 .weekly-disclosure summary { min-height: 44px; padding: 11px 0; cursor: pointer; font-weight: 650; }
+.weekly-calendar-list { margin: 0 0 8px; }
+.weekly-calendar-list li {
+  display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 0 8px; align-items: baseline;
+  padding: 9px 0; border-top: 1px solid var(--line-2);
+}
+.weekly-calendar-list time { font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.weekly-calendar-list a { font-weight: 650; overflow-wrap: anywhere; }
+.weekly-calendar-list small { display: block; color: var(--ink-2); }
 .weekly-detail-body { padding-bottom: 10px; }
 .weekly-detail-body p { margin: 0 0 8px; color: var(--ink-2); }
 .weekly table { width: 100%; border-collapse: collapse; text-align: right; font-variant-numeric: tabular-nums; }
@@ -71,6 +123,7 @@
 }
 @media (max-width: 600px) {
   .weekly-movers { grid-template-columns: 1fr; }
+  .weekly-counts > div { padding-inline: 8px; }
   .weekly-panel, .weekly-disclosure { padding-inline: 14px; }
   .weekly table { font-size: .875rem; }
 }

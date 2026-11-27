@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="pretendard-400-600.css?v=20261010-fonts"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap"></noscript>
 <link rel="stylesheet" href="style.css?v=20261125-market">
-<link rel="stylesheet" href="weekly.css?v=20261125-weekly-briefing">
+<link rel="stylesheet" href="weekly.css?v=20261127-weekly-visual">
 <meta property="og:title" content="주간 경매장 시황">
 <meta property="og:description" content="지난주와 그 전주의 평균 거래가와 관측 수량을 비교합니다.">
 <meta property="og:type" content="website">
@@ -53,39 +53,68 @@
 <main class="wrap weekly">
   <div class="weekly-heading">
     <h1 class="page-title">주간 시황</h1>
-    <label id="weekly-edition-label" class="weekly-select" hidden><span>비교할 주</span><select id="weekly-edition" aria-label="주간 시황 회차"></select></label>
+    <label id="weekly-edition-label" class="weekly-select" hidden><span>회차</span><select id="weekly-edition" aria-label="주간 시황 회차"></select></label>
   </div>
   <p id="weekly-status" role="status">지난주 시황을 불러오는 중입니다.</p>
   <p class="weekly-note" id="weekly-edition-notice" role="status" hidden></p>
   <article id="weekly-report" hidden>
     <header class="weekly-intro">
-      <p id="weekly-dates" class="weekly-dates"></p>
+      <dl class="weekly-dates">
+        <div><dt>비교 주</dt><dd id="weekly-current-dates"></dd></div>
+        <div><dt>그 전주</dt><dd id="weekly-previous-dates"></dd></div>
+      </dl>
       <h2 id="weekly-headline"></h2>
       <p class="weekly-note" id="weekly-breadth"></p>
-      <dl id="weekly-counts" class="weekly-counts" aria-label="평균 거래가가 오른 품목 수와 내린 품목 수" hidden>
-        <div><dt>오른 품목</dt><dd class="up" id="weekly-up-count"></dd></div>
-        <div><dt>내린 품목</dt><dd class="down" id="weekly-down-count"></dd></div>
-        <div><dt>보합</dt><dd id="weekly-flat-count"></dd></div>
-      </dl>
+      <div id="weekly-distribution" hidden>
+        <dl class="weekly-counts" aria-label="평균 거래가 등락별 품목 수">
+          <div><dt>오른 품목</dt><dd class="up"><span id="weekly-up-count"></span><small>종</small></dd></div>
+          <div><dt>내린 품목</dt><dd class="down"><span id="weekly-down-count"></span><small>종</small></dd></div>
+          <div><dt>보합</dt><dd><span id="weekly-flat-count"></span><small>종</small></dd></div>
+        </dl>
+        <div class="weekly-bar" aria-hidden="true">
+          <span id="weekly-up-bar"></span><span id="weekly-down-bar"></span><span id="weekly-flat-bar"></span>
+        </div>
+      </div>
       <p id="weekly-category" class="weekly-category" hidden></p>
       <p id="weekly-recalculated" class="weekly-note" hidden>과거 회차는 현재 자료로 다시 계산했습니다.</p>
     </header>
     <div class="weekly-sections">
+      <section id="weekly-movers" hidden aria-labelledby="weekly-movers-title">
+        <div class="weekly-section-head">
+          <h2 id="weekly-movers-title">크게 움직인 품목</h2>
+          <p class="weekly-note">평균 거래가 · 그 전주 → 비교 주</p>
+        </div>
+        <div class="weekly-movers">
+          <section class="weekly-panel weekly-risers">
+            <h3><span aria-hidden="true">↗</span> 가장 많이 오른 품목</h3>
+            <ul class="weekly-price-list" id="weekly-up"></ul>
+            <details class="weekly-more" id="weekly-up-more" hidden>
+              <summary id="weekly-up-more-title">상승 품목 더 보기</summary>
+              <ul class="weekly-price-list" id="weekly-up-rest"></ul>
+            </details>
+          </section>
+          <section class="weekly-panel weekly-fallers">
+            <h3><span aria-hidden="true">↘</span> 가장 많이 내린 품목</h3>
+            <ul class="weekly-price-list" id="weekly-down"></ul>
+            <details class="weekly-more" id="weekly-down-more" hidden>
+              <summary id="weekly-down-more-title">하락 품목 더 보기</summary>
+              <ul class="weekly-price-list" id="weekly-down-rest"></ul>
+            </details>
+          </section>
+        </div>
+      </section>
       <section id="weekly-watch" class="weekly-panel" hidden aria-labelledby="weekly-watch-title">
-        <h2 id="weekly-watch-title">내 관심 품목</h2>
+        <div class="weekly-section-head">
+          <h2 id="weekly-watch-title">내 관심 품목</h2>
+          <p class="weekly-note">평균 거래가 · 그 전주 → 비교 주</p>
+        </div>
         <p class="weekly-note" id="weekly-watch-status" hidden></p>
         <ul class="weekly-price-list" id="weekly-watch-rows" hidden></ul>
       </section>
-      <div id="weekly-movers" class="weekly-movers" hidden>
-        <section class="weekly-panel">
-          <h2>가장 많이 오른 품목</h2>
-          <ul class="weekly-price-list" id="weekly-up"></ul>
-        </section>
-        <section class="weekly-panel">
-          <h2>가장 많이 내린 품목</h2>
-          <ul class="weekly-price-list" id="weekly-down"></ul>
-        </section>
-      </div>
+      <details id="weekly-calendar" class="weekly-disclosure" hidden>
+        <summary id="weekly-calendar-title">같은 주 던파 일정</summary>
+        <ul class="weekly-calendar-list" id="weekly-calendar-rows"></ul>
+      </details>
       <details id="weekly-details" class="weekly-disclosure" hidden>
         <summary id="weekly-count">전체 품목 비교</summary>
         <div class="weekly-detail-body">
@@ -122,6 +151,6 @@
   </article>
   <footer>네오플 오픈 API를 이용하는 비공식 개인 프로젝트입니다.</footer>
 </main>
-<script type="module" src="weekly.js?v=20261125-weekly-briefing"></script>
+<script type="module" src="weekly.js?v=20261127-weekly-visual"></script>
 </body>
 </html>

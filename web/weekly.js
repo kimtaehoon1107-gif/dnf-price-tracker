@@ -28,6 +28,19 @@ function showPriceItems(id, rows, showDays = false) {
   for (const item of rows) {
     const row = document.createElement('li');
     row.className = 'weekly-price-item';
+    const link = itemLink(item);
+    const name = document.createElement('span');
+    name.textContent = item.name;
+    link.replaceChildren();
+    if (/^[a-f0-9]{32}$/i.test(item.id)) {
+      const icon = document.createElement('img');
+      icon.src = `https://img-api.neople.co.kr/df/items/${item.id}`;
+      icon.alt = '';
+      icon.width = icon.height = 32;
+      icon.loading = 'lazy';
+      link.append(icon);
+    }
+    link.append(name);
     const change = document.createElement('strong');
     change.textContent = changeText(item.changePct);
     change.className = `weekly-change ${direction(item.changePct)}`;
@@ -42,7 +55,7 @@ function showPriceItems(id, rows, showDays = false) {
     latest.textContent = `${format.format(item.latest.price)}골드`;
     prices.setAttribute('aria-label', `그 전주 ${previous.textContent}골드, 비교 주 ${latest.textContent}`);
     prices.append(previous, arrow, latest);
-    row.append(itemLink(item), change, prices);
+    row.append(link, change, prices);
     if (showDays) {
       const coverage = document.createElement('small');
       coverage.textContent = `거래 관측 ${item.previous.days}일 → ${item.latest.days}일`;
@@ -52,10 +65,51 @@ function showPriceItems(id, rows, showDays = false) {
   }
 }
 
-let archive, latestReport, currentReport;
+function showMovers(direction, label, items) {
+  const rest = items.slice(1, 3);
+  showPriceItems(`weekly-${direction}`, items.slice(0, 1));
+  $(`weekly-${direction}-more`).hidden = !rest.length;
+  $(`weekly-${direction}-more-title`).textContent = `${label} ${rest.length}종 더 보기`;
+  showPriceItems(`weekly-${direction}-rest`, rest);
+}
+
+let archive, latestReport, currentReport, calendar;
 const edition = $('weekly-edition');
 const historyItem = $('weekly-history-item');
 const requestedWeek = new URL(location.href).searchParams.get('week');
+
+function showCalendar(week) {
+  if (!Array.isArray(calendar?.entries)) return;
+  const entries = calendar.entries.map(({ date, title, category, dateBasis, url }) => ({
+    date, title, url, label: (category === '일반' ? '업데이트' : category) +
+      (dateBasis?.startsWith('공지 게시일') ? ' · 공지일' : ''),
+  }));
+  const starts = (calendar.periods ?? []).map(({ startDate, title, category, url }) => ({
+    date: startDate, title, url, label: category === '패키지' ? '패키지 판매 시작' : '이벤트 기간 시작',
+  }));
+  const dates = [...entries, ...starts]
+    .filter(({ date, url }) => date >= week.start && date <= week.end && /^https:\/\/df\.nexon\.com\//.test(url))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const list = $('weekly-calendar-rows');
+  list.replaceChildren();
+  $('weekly-calendar').hidden = !dates.length;
+  $('weekly-calendar-title').textContent = `같은 주 던파 일정 ${dates.length}건`;
+  for (const { date, title, label, url } of dates) {
+    const row = document.createElement('li');
+    const time = document.createElement('time');
+    time.dateTime = date;
+    time.textContent = shortDate(date);
+    const info = document.createElement('div');
+    const link = document.createElement('a');
+    link.href = url;
+    link.textContent = title;
+    const kind = document.createElement('small');
+    kind.textContent = label;
+    info.append(link, kind);
+    row.append(time, info);
+    list.append(row);
+  }
+}
 
 function showWatch(report) {
   const saved = new Set(readMarketWatch());
@@ -102,7 +156,8 @@ function showReport(report) {
   const unchanged = comparisons.length - up.length - down.length;
   const mid = medianChangePct === null ? null : Number(medianChangePct.toFixed(1));
 
-  $('weekly-dates').textContent = `${shortRange(previousWeek)} → ${shortRange(latestWeek)}`;
+  $('weekly-current-dates').textContent = shortRange(latestWeek);
+  $('weekly-previous-dates').textContent = shortRange(previousWeek);
   $('weekly-recalculated').hidden = report === latestReport;
   $('weekly-headline').textContent = mid === null ? '두 주를 비교할 자료가 부족해요'
     : up.length > down.length ? '오른 품목이 더 많았어요'
@@ -112,10 +167,11 @@ function showReport(report) {
   $('weekly-breadth').textContent = comparisons.length
     ? `${comparisons.length}종의 주간 평균 거래가 비교`
     : `각 주에 거래가 확인된 날이 ${report.minDays}일 이상인 품목이 있으면 표시됩니다.`;
-  $('weekly-counts').hidden = !comparisons.length;
-  $('weekly-up-count').textContent = `${up.length}종`;
-  $('weekly-down-count').textContent = `${down.length}종`;
-  $('weekly-flat-count').textContent = `${unchanged}종`;
+  $('weekly-distribution').hidden = !comparisons.length;
+  for (const [key, count] of [['up', up.length], ['down', down.length], ['flat', unchanged]]) {
+    $(`weekly-${key}-count`).textContent = count;
+    $(`weekly-${key}-bar`).style.flexGrow = count;
+  }
   const groups = new Map();
   for (const item of comparisons) {
     const group = groups.get(item.category) ?? { name: item.category, count: 0, up: 0, down: 0 };
@@ -133,10 +189,11 @@ function showReport(report) {
   $('weekly-median').hidden = mid === null;
   if (mid !== null) $('weekly-median').textContent = `품목별 등락률의 중앙값은 ${changeText(mid)}입니다.`;
   $('weekly-asof').textContent = `비교 기간 종료일 ${latestWeek.end.replaceAll('-', '.')} (KST). 현재 공개 자료 기준 ${new Date(latestReport.dataThrough).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} KST.`;
+  showCalendar(latestWeek);
 
   if (comparisons.length) {
-    showPriceItems('weekly-up', up.slice(0, 3));
-    showPriceItems('weekly-down', down.slice(0, 3));
+    showMovers('up', '상승', up);
+    showMovers('down', '하락', down);
     $('weekly-count').textContent = `전체 ${comparisons.length}종 가격·수량 보기`;
     for (const item of comparisons) {
       const row = $('weekly-items').insertRow();
@@ -164,6 +221,10 @@ function showReport(report) {
   $('weekly-report').hidden = false;
   $('weekly-status').hidden = true;
 }
+
+const calendarReady = fetch('update-calendar.json', { cache: 'no-cache' })
+  .then(response => response.ok ? response.json() : null)
+  .catch(() => null);
 
 try {
   const response = await fetch('data/weekly-market.json', { cache: 'no-cache' });
@@ -211,4 +272,6 @@ if (latestReport) {
       notice.hidden = false;
     }
   }
+  calendar = await calendarReady;
+  showCalendar(currentReport.latestWeek);
 }
