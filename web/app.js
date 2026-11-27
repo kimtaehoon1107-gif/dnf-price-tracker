@@ -301,7 +301,7 @@ function eventStudyHTML(events, days, priceBasis, hourlyStudy) {
     const href = /^https?:\/\//.test(event.source_url ?? '')
       ? `<a href="${esc(event.source_url)}" target="_blank" rel="noopener">근거 보기 ↗</a>`
       : '<span class="event-source">출처 미등록</span>';
-    return `<div class="event-row" id="event-${event.id}">
+    return `<div class="event-row" id="event-${event.id}" tabindex="-1">
       <div class="event-name"><span class="tag">${esc(eventTypeLabel(event.type))}</span>${event.related_item_ids?.length ? '' : '<span class="tag g">전체</span>'}<b>${esc(event.name)}</b>${href}</div>
       ${hourlyStudy && event.source_url === hourlyStudy.sourceUrl && Date.parse(event.starts_at) === Date.parse(hourlyStudy.at)
         ? `<div class="event-stages"><div><span>방송 예정 시작</span><b>${eventDate(event.starts)} 19:00 KST</b></div></div>${hourlyEventStudyHTML(hourlyStudy, priceBasis)}`
@@ -402,7 +402,7 @@ function renderDataStatus(now = Date.now()) {
 
 let distributionModule, distributionPromise;
 function loadDistribution() {
-  return distributionPromise ??= import('./price-distribution.js?v=20261117-focus')
+  return distributionPromise ??= import('./price-distribution.js?v=20261128-event-choice')
     .then((module) => (distributionModule = module))
     .catch((error) => {
       distributionPromise = undefined;

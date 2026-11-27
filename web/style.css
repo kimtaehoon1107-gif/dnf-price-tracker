@@ -1065,7 +1065,8 @@ details.detail-metrics { margin: 0 0 14px; padding: 0 20px; border: 1px solid va
 }
 .detail-jumps button:hover { color: var(--blue); border-color: var(--blue); }
 .detail-jumps button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-#price-panel, #event-details, #stock-panel, #weekday-panel { scroll-margin-top: 105px; }
+#price-panel, #event-details, .event-row, #stock-panel, #weekday-panel { scroll-margin-top: 105px; }
+.event-row:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .event-study > summary { font-size: 16px; }
 .event-body .event-name { font-size: 15px; }
 .event-body .hourly-window small { line-height: 1.6; }

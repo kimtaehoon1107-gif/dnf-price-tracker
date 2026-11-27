@@ -105,7 +105,8 @@ export function renderPriceDistribution(root, data, events = [], calcNote = null
     ${chartBasis ? (forecast ? '<span class="pd-forecast-key"><i aria-hidden="true"></i>실험 예측</span>' : '') : '<span class="pd-extent"></span>'}</div>`;
   const recording = '<p class="hint pd-recording-start"></p>';
   const periodChangeHTML = '<div class="pd-period-change"></div>';
-  const readout = '<div class="pd-readout"><div><span class="pd-selected"></span><div class="pd-price"></div><div class="pd-range"></div></div><div class="pd-qty"></div></div>';
+  const readout = `<div class="pd-readout"><div><span class="pd-selected"></span><div class="pd-price"></div><div class="pd-range"></div></div><div class="pd-qty"></div>
+      ${chartBasis ? '<div class="pd-event-choice" hidden></div>' : ''}</div>`;
   const legend = ask ? '' : `<div class="pd-legend"><span><i class="pd-line-key"></i>${mean ? '일평균 거래가' : '수량 가중 중앙값'}</span><span><i class="pd-band-key"></i>주요 거래 가격대</span><span>○ 거래 5건 미만</span>${forecast ? '<span style="color:#8b5cf6">┄┄ 실험 예측</span>' : ''}</div>`;
   const forecastNote = `<p class="hint pd-forecast-note" ${data.forecast ? '' : 'hidden'}></p>`;
   const plot = `<div class="pd-plot"></div><div class="pd-thursdays" aria-label="목요일 · 실제 패치 여부와 별개"></div>
@@ -141,8 +142,36 @@ export function renderPriceDistribution(root, data, events = [], calcNote = null
 
   const state = { period: 30, selected: null };
   let rows = [], positions = new Map();
+  const eventChoice = $('.pd-event-choice');
+  const eventDetails = eventChoice && document.getElementById('event-details');
+  let eventDay;
+  function showSelectedEvents(row) {
+    if (!eventDetails || eventDay === row.d) return;
+    eventDay = row.d;
+    eventChoice.replaceChildren();
+    for (const event of events.filter((event) => event.starts === row.d && row.state !== 'forecast')) {
+      const target = document.getElementById(`event-${event.id}`);
+      if (!target) continue;
+      const entry = document.createElement('div');
+      const name = document.createElement('strong');
+      name.textContent = event.name;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = '전후 가격 비교 보기';
+      button.setAttribute('aria-label', `전후 가격 비교 보기 · ${event.name}`);
+      button.onclick = () => {
+        eventDetails.open = true;
+        target.focus({ preventScroll: true });
+        target.scrollIntoView({ block: 'start' });
+      };
+      entry.append(name, button);
+      eventChoice.append(entry);
+    }
+    eventChoice.hidden = !eventChoice.childElementCount;
+  }
   function info(r, announce = false) {
     state.selected = r.time;
+    showSelectedEvents(r);
     $('.pd-selected').textContent = `${r.d}${isThursday(r.d) ? ' · 목요일' : ''}${r.state === 'forecast' ? ' · 실험 예측' : r.partial ? ' · 수집 중' : ''}`;
     $('.pd-price').textContent = r.median == null ? '—' : `${fmt(r.median)} 골드`;
     $('.pd-range').textContent = r.state === 'forecast' ? '요일 추가 ARIMA · 예상 일평균 거래가' : legendary ? `${priceLabel}${r.state === 'sparse' ? ' · 관측 18시간 미만: 점만 표시' : r.state === 'missing' ? ' · 가격 관측 없음' : ''}` : ask ? (r.state === 'ready' ? '' : '가격 관측 없음') : r.state === 'ready' ? (hasBand(r) ? `주요 거래 가격대 ${fmt(r.q25)}–${fmt(r.q75)}` : '거래 분포 자료 없음')
@@ -226,8 +255,7 @@ export function renderPriceDistribution(root, data, events = [], calcNote = null
     const lanes = [];
     const openEvent = row => {
       info(row, true);
-      const detail = document.getElementById('event-details');
-      if (detail) detail.open = true;
+      if (eventChoice && !eventChoice.hidden) eventChoice.scrollIntoView({ block: 'nearest' });
     };
     rows.forEach((row, index) => {
       if (row.state === 'forecast') return;

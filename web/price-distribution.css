@@ -37,6 +37,12 @@
 .pd-forecast-key i { width: 16px; border-top: 2px dashed #8b5cf6; }
 .pd-focused .pd-readout { margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: var(--page); }
 .pd-focused .pd-price { font-size: 17px; margin: 2px 0; }
+.pd-event-choice { flex-basis: 100%; border-top: 1px solid var(--line-2); padding-top: 8px; }
+.pd-event-choice > div { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.pd-event-choice > div + div { margin-top: 8px; }
+.pd-event-choice strong { font-size: 14px; }
+.price-distribution .pd-event-choice button { color: var(--blue); font-weight: 650; }
+.pd-event-choice button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .pd-chart-guide { margin-top: 8px; color: var(--ink-2); font-size: 14px; }
 .pd-chart-guide > summary { cursor: pointer; min-height: 44px; padding: 10px 0; }
 .pd-chart-guide .pd-period-change { margin: 10px 0; }
