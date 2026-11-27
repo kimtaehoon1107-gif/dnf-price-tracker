@@ -703,14 +703,17 @@ function bindMarketSearch() {
     status.hidden = results.hidden = !query;
     if (!query) return;
 
-    const matches = searchItems.filter(({ name }) => name.includes(query))
-      .sort((a, b) => Number(b.name === query) - Number(a.name === query));
+    const words = marketQuery.normalize('NFKC').trim().split(/\s+/).map(marketSearchTerm);
+    const matchesName = (name) => name.includes(query) || words.every((word) => name.includes(word));
+    const matches = searchItems.filter(({ name }) => matchesName(name))
+      .sort((a, b) => Number(b.name === query) - Number(a.name === query)
+        || Number(b.name.includes(query)) - Number(a.name.includes(query)));
     const legendaryName = marketSearchTerm('레전더리 카드 재료 시세');
-    const legendary = DATA.legendary?.[0] && legendaryName.includes(query);
+    const legendary = DATA.legendary?.[0] && matchesName(legendaryName);
     const tracked = matches.filter((row) => row.tracked);
     const ranked = matches.filter((row) => !row.tracked);
     const count = matches.length + Number(Boolean(legendary));
-    status.textContent = count ? `검색 결과 ${count}개` : '추적 품목과 TOP100에서 찾지 못했어요.';
+    status.textContent = count ? `검색 결과 ${count}개` : '추적 품목과 TOP100에서 찾지 못했어요. 이름의 일부만 검색해 보세요.';
     const result = ({ item, tracked }) => {
       const isCard = item.price_basis === 'ask0';
       const price = tracked ? representativePrice(item) ?? item.last_price : item.last_price;
