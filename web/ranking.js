@@ -131,8 +131,14 @@ async function boot() {
         const content = `
           <span class="rank r">${row.rank}</span>
           <span class="nm"><img src="${row.img}" alt="" loading="lazy" width="32" height="32"><span class="t"><b>${esc(row.item_name)}</b><span>${esc(row.item_rarity)} · ${esc(row.item_type_detail)} · 체결 ${fmt(row.trade_count)}건</span></span></span>
-          <span class="px h-price">${fmt(row.last_price)}</span>
-          <strong class="rank-turnover">${won(row.turnover_24h)}</strong>
+          <span class="px h-price">
+            <span class="rank-metric-label">개당 최근 체결가</span>
+            <span>${fmt(row.last_price)}${row.last_price == null ? '' : ' <small class="rank-metric-unit">골드</small>'}</span>
+          </span>
+          <strong class="rank-turnover">
+            <span class="rank-metric-label">24시간 ${row.basis === 'estimated' ? '추정 ' : ''}거래대금</span>
+            ${won(row.turnover_24h)} <small class="rank-metric-unit">골드</small>
+          </strong>
           <span class="dim h-qty">${fmt(row.observed_qty)}</span>
           <span class="basis-tag ${row.basis}${times !== null && times > WIDE_FACTOR ? ' wide' : ''}" title="${esc(tip)}">${label}${times === null ? '' : ` ${factorText(times)}`}</span>`;
         return tracked.has(row.item_id)
@@ -151,11 +157,16 @@ async function boot() {
       ${minFactor && maxFactor ? `환산 배수는 종목마다 달라 현재 <b>${factorText(minFactor)}</b>에서 <b>${factorText(maxFactor)}</b>까지이며,
       배수가 클수록 관측 구간이 짧아 오차가 큽니다. ×${WIDE_FACTOR}을 넘는 종목은 배지를 진하게 표시했습니다.` : ''}
     </div>`;
-  const selected = document.getElementById(location.hash.slice(1));
-  if (selected?.classList.contains('ranking-row')) {
+  const showSelectedRow = () => {
+    document.querySelector('.ranking-row.is-selected')?.classList.remove('is-selected');
+    const selected = document.getElementById(location.hash.slice(1));
+    if (!selected?.classList.contains('ranking-row')) return;
+    selected.classList.add('is-selected');
     selected.focus({ preventScroll: true });
     selected.scrollIntoView({ block: 'center' });
-  }
+  };
+  showSelectedRow();
+  window.addEventListener('hashchange', showSelectedRow);
   mountTurnover(ranking?.gameDayTurnover);
 }
 

@@ -246,6 +246,7 @@ a.card.hl:hover { border-color: var(--blue); }
 .ranking-row:last-child { border-bottom: 0; }
 a.ranking-row:hover { background: var(--page); }
 .rank-turnover { text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; }
+.rank-metric-label, .rank-metric-unit { display: none; }
 .basis-tag {
   justify-self: end; padding: 2px 7px; border-radius: 6px;
   color: var(--ink-3); background: var(--line); font-size: 12px; font-weight: 600; white-space: nowrap;
@@ -651,6 +652,20 @@ td small, summary small { font-size: 12px; }
   .ranking-row { min-height: 58px; }
   .rank-turnover { font-size: 13px; }
   .basis-tag { font-size: 12px; padding: 2px 5px; white-space: normal; text-align: center; line-height: 1.3; }
+  .ranking-row.is-selected {
+    grid-template-columns: 24px repeat(2, minmax(0, 1fr)); padding-block: 12px;
+    background: var(--blue-bg); outline: 2px solid var(--blue); outline-offset: -2px;
+  }
+  .ranking-row.is-selected .nm, .ranking-row.is-selected .basis-tag { grid-column: 2 / -1; }
+  .ranking-row.is-selected .h-price { grid-column: 2; }
+  .ranking-row.is-selected .h-price, .ranking-row.is-selected .rank-turnover {
+    display: block; font-size: 15px; font-weight: 700; text-align: left;
+  }
+  .ranking-row.is-selected .rank-metric-label {
+    display: block; margin-bottom: 2px; color: var(--ink-3); font-size: 12px; font-weight: 600;
+  }
+  .ranking-row.is-selected .rank-metric-unit { display: inline; color: var(--ink-3); font-size: 11px; font-weight: 500; }
+  .ranking-row.is-selected .basis-tag { justify-self: start; }
 }
 
 /* ── 분석 페이지 보조 요소 ────────────────────── */
