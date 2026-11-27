@@ -315,7 +315,6 @@ a.ranking-row:hover { background: var(--page); }
 .kv .v small { font-size: 12px; color: var(--ink-3); font-weight: 500; }
 
 .depth-kv { margin-bottom: 16px; }
-.depth-sub { font-size: 12px; color: var(--ink-3); }
 .depth-chart { overflow-x: auto; }
 .depth-chart svg { display: block; width: 100%; }
 .depth-grid { stroke: var(--line); stroke-width: 1; }
@@ -947,6 +946,24 @@ header.top nav a.on { font-weight: 700; text-decoration: underline; text-underli
 .detail-overview .price-meta { color: var(--ink-2); }
 .detail-overview .bigchg { margin: 0; }
 .detail-overview .bigchg span { color: var(--ink-2); font-size: 13px; font-weight: 500; }
+.quantity-quote {
+  max-width: 600px; margin-top: 16px; padding: 12px 14px;
+  border: 1px solid var(--line-2); border-radius: 12px; background: var(--card);
+}
+.quantity-quote h3 { margin: 0 0 8px; font-size: 16px; }
+.quantity-quote .price-meta { margin: 0; }
+.quantity-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; max-width: 252px; }
+.quantity-choices button {
+  min-height: 44px; padding: 4px; border: 1px solid var(--line-2); border-radius: 8px;
+  background: var(--card); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer;
+}
+.quantity-choices button[aria-pressed="true"] { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); }
+.quantity-choices button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.quantity-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; margin: 8px 0; }
+.quantity-values dt { color: var(--ink-2); font-size: 13px; }
+.quantity-values dd { margin: 2px 0 0; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.quantity-values dd small { color: var(--ink-2); font-size: 12px; font-weight: 500; }
+.quantity-shortage { margin: 8px 0; color: var(--ink-2); }
 .price-context { margin: 10px 0 14px; padding: 12px 14px; border-radius: 8px; background: var(--page); color: var(--ink-2); font-size: 14px; }
 .price-context b { color: var(--ink); }
 .detail-jumps { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; }

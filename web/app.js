@@ -74,7 +74,7 @@ function depthQuote(levels, target) {
     filled += take;
     if (filled === target) break;
   }
-  return { filled, avg: filled === target ? cost / target : null };
+  return { filled, total: filled === target ? cost : null, avg: filled === target ? cost / target : null };
 }
 
 let depthObserver = null;
@@ -1145,6 +1145,10 @@ async function renderDetail(it, isCurrent = () => location.hash.slice(1) === it.
         <div class="price-meta" id="min-ask-qty">${it.min_ask > 0 ? '' : it.listings === 0 ? '확인된 매물 없음' : '판매가 기록 없음'}</div>
       </div>`}
     </div>
+    ${hasDepth ? `<section class="quantity-quote" aria-labelledby="quantity-quote-title">
+      <h3 id="quantity-quote-title">수량별 구매가</h3>
+      <div id="quantity-quote"><p class="price-meta" role="status">매물별 수량을 불러오는 중…</p></div>
+    </section>` : ''}
     ${canCompare ? `<p class="quote-context">최저 매물가는 최근 24시간 평균 거래가 ${fmt(it.vwap24)}골드와${Math.abs(it.gap) < 0.05 ? ' 비슷해요.' : ` 비교해 <b>${fmt(Math.abs(it.gap), 1)}% ${it.gap < 0 ? '낮아요' : '높아요'}</b>.`}</p>` : ''}
     </section>
     <div class="panel" id="price-panel">
@@ -1162,7 +1166,7 @@ async function renderDetail(it, isCurrent = () => location.hash.slice(1) === it.
       </details>
       <div class="detail-jumps" role="group" aria-label="상세 화면 바로가기">
         <button type="button" data-detail-jump="stock-panel">매물과 가격 ↓</button>
-        ${hasDepth ? '<button type="button" data-detail-jump="depth-panel">10개·100개 구매 가격 ↓</button>' : ''}
+        ${hasDepth ? '<button type="button" data-detail-jump="depth-panel">가격별 매물 수량 ↓</button>' : ''}
         ${isZeroCard ? '' : '<button type="button" data-detail-jump="weekday-panel">요일별 흐름 ↓</button>'}
       </div>
     </div>
@@ -1200,8 +1204,8 @@ async function renderDetail(it, isCurrent = () => location.hash.slice(1) === it.
       <div class="chart" id="c4"></div>
     </div>`}
     ${hasDepth ? `<div class="panel" id="depth-panel" data-detail-series>
-      <h3>구매 수량별 매물 가격</h3>
-      <p class="desc">같은 시각에 관측한 매물을 싼 순서로 더한 참고 가격입니다. 관측 이후 판매되거나 취소될 수 있습니다.</p>
+      <h3>가격별 매물 수량</h3>
+      <p class="desc">관측된 매물을 낮은 가격부터 쌓아 보여줍니다.</p>
       <div id="depth">불러오는 중…</div>
     </div>` : ''}
     ${isZeroCard ? '' : `<div class="panel" id="weekday-panel" data-detail-series>
@@ -1244,6 +1248,7 @@ async function renderDetail(it, isCurrent = () => location.hash.slice(1) === it.
     if (!isCurrent()) return;
     document.getElementById('price-panel').innerHTML =
       '<p role="status">가격 추이를 불러오지 못했습니다. 위에서 거래가와 매물가를 확인할 수 있어요. 차트를 보려면 잠시 뒤 새로고침해 주세요.</p>';
+    if (hasDepth) document.getElementById('quantity-quote').innerHTML = '<p class="price-meta" role="status">수량별 구매가를 불러오지 못했어요.</p>';
     document.querySelectorAll('[data-detail-series]').forEach((panel) => { panel.hidden = true; });
     console.error(error);
     return;
@@ -1254,31 +1259,47 @@ async function renderDetail(it, isCurrent = () => location.hash.slice(1) === it.
   // 같은 품목이나 단계로 돌아와도 이전 화면의 응답은 적용하지 않는다.
   if (!isCurrent()) return;
   if (hasDepth) {
-    const sameSnapshot = recentAsk && it.ask_observed_at && s.depthObservedAt === it.ask_observed_at;
+    const sameSnapshot = recentAsk && it.listings !== 0 && it.ask_observed_at && s.depthObservedAt === it.ask_observed_at;
     const depth = sameSnapshot ? (s.depth ?? []).filter(level => level.price > 0 && level.qty > 0).sort((a, b) => a.price - b.price) : [];
     const minQty = document.getElementById('min-ask-qty');
     if (minQty && depth.length && depth[0].price === Number(it.min_ask)) {
       const qty = depth.filter(level => level.price === depth[0].price).reduce((sum, level) => sum + level.qty, 0);
       minQty.textContent = `이 가격에 ${fmt(qty)}개 관측`;
     }
-    const q10 = depthQuote(depth, 10), q100 = depthQuote(depth, 100);
     const totalQty = depth.reduce((sum, level) => sum + level.qty, 0);
-    const quote = (q, target) => q.avg !== null
-      ? `<div class="v">${fmt(q.avg)}<small> 골드</small></div>`
-      : `<div class="v flat">매물 부족</div><div class="depth-sub">${fmt(q.filled)}/${target}개</div>`;
-    document.getElementById('depth').innerHTML = depth.length ? `
-      <p class="desc">${askTime}</p>
-      <div class="kv depth-kv">
-        <div><div class="k">10개 구매 평균</div>${quote(q10, 10)}</div>
-        <div><div class="k">100개 구매 평균</div>${quote(q100, 100)}</div>
-        <div><div class="k">관측된 수량</div><div class="v">${fmt(totalQty)}<small> 개</small></div></div>
+    const unavailable = it.listings === 0 ? '관측된 매물이 없어요.' : '최근 최저가와 같은 시각의 매물 수량을 확인하지 못했어요.';
+    const quantity = document.getElementById('quantity-quote');
+    quantity.innerHTML = depth.length ? `
+      <div class="quantity-choices" role="group" aria-label="구매 수량">
+        ${[1, 10, 100].map(n => `<button type="button" data-quote-qty="${n}" aria-pressed="${n === 1}">${n}개</button>`).join('')}
       </div>
+      <div id="quantity-result" role="status" aria-atomic="true"></div>
+      <p class="price-meta"><time datetime="${esc(s.depthObservedAt)}">${askTime}</time> · 관측 매물 기준 참고 가격</p>`
+      : `<p class="price-meta" role="status">${unavailable}</p>`;
+    if (depth.length) {
+      const result = document.getElementById('quantity-result');
+      const choices = document.querySelectorAll('[data-quote-qty]');
+      const showQuote = (target) => {
+        const q = depthQuote(depth, target);
+        result.innerHTML = q.total === null
+          ? `<p class="quantity-shortage"><b>매물 수량 부족</b> · ${fmt(target)}개 중 ${fmt(q.filled)}개 확인</p>`
+          : `<dl class="quantity-values">
+            <div><dt>구매 총액</dt><dd>${fmt(q.total)} <small>골드</small></dd></div>
+            <div><dt>개당 평균</dt><dd>${fmt(q.avg, 2)} <small>골드</small></dd></div>
+          </dl>`;
+        choices.forEach(button => button.setAttribute('aria-pressed', String(Number(button.dataset.quoteQty) === target)));
+      };
+      choices.forEach(button => { button.onclick = () => showQuote(Number(button.dataset.quoteQty)); });
+      showQuote(1);
+    }
+    document.getElementById('depth').innerHTML = depth.length ? `
+      <p class="desc">${askTime} · 관측된 수량 ${fmt(totalQty)}개</p>
       <div class="upgrade-sw" role="group" aria-label="매물 사다리 수량 범위">
         <button type="button" class="on" data-depth-limit="10" aria-pressed="true">1~10개</button>
         <button type="button" data-depth-limit="100" aria-pressed="false">1~100개</button>
       </div>
       <div id="depth-plot">${depthSVG(depth)}</div>`
-      : `<p class="desc">${it.listings === 0 ? '관측된 매물이 없습니다.' : '같은 시각의 매물별 가격과 수량을 확인할 수 없어 계산을 보류했어요.'}</p>`;
+      : `<p class="desc">${unavailable}</p>`;
     const plot = document.getElementById('depth-plot');
     let depthLimit = 10, lastWidth = 0;
     const drawDepth = () => {
