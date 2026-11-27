@@ -148,7 +148,7 @@ try {
     const { rows: [historical] } = await client.query(
       "SELECT captured_at FROM merged_listing_snapshots WHERE item_id='soul' ORDER BY captured_at DESC LIMIT 1");
     const { rows: current } = await client.query('SELECT item_id,captured_at,min_unit_price,total_qty FROM current_purchase_snapshots');
-    assert.equal(historical.captured_at.toISOString(), cutC, '차트와 연구의 공통 시각 경계 유지');
+    assert.equal(historical.captured_at.getTime(), Date.parse(cutC), '차트와 연구의 공통 시각 경계 유지');
     assert.deepEqual(current, [{ item_id: 'soul', captured_at: new Date(purchasedAt), min_unit_price: '160', total_qty: 110 }],
       '현재 담당 출처의 최신 관측만 사용하고 카드와 과거 담당 출처의 관측을 제외');
     const depthSql = readFileSync('web/build.ts','utf8').match(/const depth = \(await query<[^\x60]+>\(\x60([\s\S]*?)\x60, \[/)?.[1];
