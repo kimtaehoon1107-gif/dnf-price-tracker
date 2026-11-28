@@ -2,7 +2,7 @@ import { loadSummary } from "./summary-data.js?v=20261010-ux-polish";
 // 대시보드 + 아이템 상세. 해시 라우팅으로 한 페이지에서 처리한다.
 
 import { askGap, representativePrice, matchesCategory, summarizeWeekdays, pricePosition, marketSearchTerm, marketWatchKey, readMarketWatch } from './metrics.js?v=20261125-market-review';
-import { packagePanelHTML, bunnyPackagePanelHTML } from './package.js?v=20261128-bunny-margin';
+import { packagePanelHTML, bunnyPackagePanelHTML } from './package.js?v=20261112-bunny';
 
 const fmt = (n, d = 0) => n === null || n === undefined || !isFinite(n)
   ? '-' : Number(n).toLocaleString('ko-KR', { maximumFractionDigits: d });
@@ -1158,9 +1158,6 @@ async function renderDetail(it, isCurrent = () => location.hash.slice(1) === it.
         <div class="price-meta" id="min-ask-qty">${it.min_ask > 0 ? '' : it.listings === 0 ? '확인된 매물 없음' : '판매가 기록 없음'}</div>
       </div>`}
     </div>
-    ${DATA.bunnyMargin?.items?.[0]?.id === it.item_id
-      ? '<a class="detail-package-link" href="research.html#package/bunny">구성품 가격·해체 마진 보기 <span aria-hidden="true">→</span></a>'
-      : ''}
     ${hasDepth ? `<section class="quantity-quote" aria-labelledby="quantity-quote-title"${askTime ? ' aria-describedby="detail-ask-time"' : ''}>
       <div class="quantity-quote-head"><h3 id="quantity-quote-title">수량별 구매가</h3><small>관측 매물 기준</small></div>
       <div id="quantity-quote"><p class="price-meta" role="status">매물별 수량을 불러오는 중…</p></div>

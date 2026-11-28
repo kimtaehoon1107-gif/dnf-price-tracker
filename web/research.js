@@ -1,5 +1,5 @@
 import { esc, fmt, timeText, plot, renderForecast, palette, legendKey } from './research-ui.js?v=20261007-review';
-import { bunnyPackagePanelHTML } from './package.js?v=20261128-bunny-margin';
+import { bunnyPackagePanelHTML } from './package.js?v=20261112-bunny';
 
 let data, dataPromise, disposers = [];
 const view = document.getElementById('view');
@@ -149,8 +149,7 @@ function packageStudy() {
 // 예측 비교는 research.json 없이 자기 자료만 쓰므로 그 탭에서는 기다리지 않는다.
 const TABS = { groups: '#groups', review: '#forecast-review', package: '#package' };
 const TITLES = { groups: '종류별 추세와 패키지 분석', review: '품목별 예측 비교', package: '패키지 이벤트' };
-const currentTab = () => location.hash.startsWith('#forecast-review') ? 'review'
-  : ['#package', '#package/bunny'].includes(location.hash) ? 'package' : 'groups';
+const currentTab = () => location.hash.startsWith('#forecast-review') ? 'review' : location.hash === '#package' ? 'package' : 'groups';
 // research.html 머리말이 먼저 시작해 둔 요청이 있으면 이어받는다(모듈 로딩과 데이터 요청을 겹치게 하려는 것).
 const loadData = () => dataPromise ??= Promise.resolve(window.__research ?? fetch('data/research.json', { cache: 'no-cache' }))
   .then((response) => { if (!response.ok) throw new Error('데이터 응답 실패'); return response.json(); })
@@ -172,14 +171,7 @@ async function render() {
     data ??= await loadData();
     if (currentTab() !== tab) return; // 기다리는 사이 다른 탭으로 옮겼다.
     document.getElementById('built').textContent = `${timeText(data.asOf)} KST 기준`;
-    if (tab === 'package') {
-      packageStudy();
-      if (location.hash === '#package/bunny') {
-        const margin = document.getElementById('bunny-package-margin');
-        margin?.focus({ preventScroll: true });
-        margin?.scrollIntoView({ block: 'start' });
-      }
-    } else groups();
+    if (tab === 'package') packageStudy(); else groups();
   } catch (error) {
     clearCharts();
     view.innerHTML = '<div class="panel">분석 데이터를 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>';
