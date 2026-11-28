@@ -1079,7 +1079,8 @@ details.detail-metrics { margin: 0 0 14px; padding: 0 20px; border: 1px solid va
   .detail-overview { padding: 0 2px 14px; }
   .detail-price-quotes { gap: 10px; }
   .detail-lowest-ask { padding-left: 10px; }
-  .detail-overview .bigpx small { font-size: 12px; }
+  .detail-overview .bigpx { font-size: clamp(20px, 6.2vw, 26px); }
+  .detail-overview .bigpx small { display: inline-block; font-size: 12px; white-space: nowrap; }
   .panel h3 { font-size: 17px; }
   .row .nm .t b { font-size: 14px; line-height: 1.4; }
   .row .px b { font-size: 14px; }
