@@ -1024,10 +1024,12 @@ header.top nav a.on { font-weight: 700; text-decoration: underline; text-underli
 .detail-overview .bigchg { margin: 0; }
 .detail-overview .bigchg span { color: var(--ink-2); font-size: 13px; font-weight: 500; }
 .quantity-quote {
-  max-width: 600px; margin-top: 16px; padding: 12px 14px;
+  max-width: 600px; margin-top: 12px; padding: 10px 12px;
   border: 1px solid var(--line-2); border-radius: 12px; background: var(--card);
 }
-.quantity-quote h3 { margin: 0 0 8px; font-size: 16px; }
+.quantity-quote-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 8px; margin-bottom: 6px; }
+.quantity-quote h3 { margin: 0; font-size: 16px; }
+.quantity-quote-head small { color: var(--ink-3); font-size: 12px; }
 .quantity-quote .price-meta { margin: 0; }
 .quantity-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; max-width: 252px; }
 .quantity-choices button {
@@ -1036,7 +1038,7 @@ header.top nav a.on { font-weight: 700; text-decoration: underline; text-underli
 }
 .quantity-choices button[aria-pressed="true"] { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); }
 .quantity-choices button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-.quantity-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; margin: 8px 0; }
+.quantity-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; margin: 6px 0 0; }
 .quantity-values dt { color: var(--ink-2); font-size: 13px; }
 .quantity-values dd { margin: 2px 0 0; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .quantity-values dd small { color: var(--ink-2); font-size: 12px; font-weight: 500; }
@@ -1063,7 +1065,8 @@ details.detail-metrics { margin: 0 0 14px; padding: 0 20px; border: 1px solid va
 }
 .detail-jumps button:hover { color: var(--blue); border-color: var(--blue); }
 .detail-jumps button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-#price-panel, #event-details, #stock-panel, #weekday-panel { scroll-margin-top: 105px; }
+#price-panel, #event-details, .event-row, #stock-panel, #weekday-panel { scroll-margin-top: 105px; }
+.event-row:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .event-study > summary { font-size: 16px; }
 .event-body .event-name { font-size: 15px; }
 .event-body .hourly-window small { line-height: 1.6; }
@@ -1073,7 +1076,8 @@ details.detail-metrics { margin: 0 0 14px; padding: 0 20px; border: 1px solid va
   .detail-overview { padding: 0 2px 14px; }
   .detail-price-quotes { gap: 10px; }
   .detail-lowest-ask { padding-left: 10px; }
-  .detail-overview .bigpx small { font-size: 12px; }
+  .detail-overview .bigpx { font-size: clamp(20px, 6.2vw, 26px); }
+  .detail-overview .bigpx small { display: inline-block; font-size: 12px; white-space: nowrap; }
   .panel h3 { font-size: 17px; }
   .row .nm .t b { font-size: 14px; line-height: 1.4; }
   .row .px b { font-size: 14px; }
